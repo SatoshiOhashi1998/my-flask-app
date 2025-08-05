@@ -1,0 +1,112 @@
+2024-11-03 06:29:30,867 ERROR: Exception on /watchVideo [GET] [in C:\Users\user\PycharmProjects\MyUtilProject\venv\lib\site-packages\flask\app.py:1414]
+Traceback (most recent call last):
+  File "C:\Users\user\PycharmProjects\MyUtilProject\venv\lib\site-packages\flask\app.py", line 2190, in wsgi_app
+    response = self.full_dispatch_request()
+  File "C:\Users\user\PycharmProjects\MyUtilProject\venv\lib\site-packages\flask\app.py", line 1486, in full_dispatch_request
+    rv = self.handle_user_exception(e)
+  File "C:\Users\user\PycharmProjects\MyUtilProject\venv\lib\site-packages\flask_cors\extension.py", line 178, in wrapped_function
+    return cors_after_request(app.make_response(f(*args, **kwargs)))
+  File "C:\Users\user\PycharmProjects\MyUtilProject\venv\lib\site-packages\flask\app.py", line 1484, in full_dispatch_request
+    rv = self.dispatch_request()
+  File "C:\Users\user\PycharmProjects\MyUtilProject\venv\lib\site-packages\flask\app.py", line 1469, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)
+  File "C:\Users\user\PycharmProjects\MyUtilProject\MyApp\FlaskApp\app\routes.py", line 91, in watch_video
+    render_template("watchVideo.html", data=send_data)
+  File "C:\Users\user\PycharmProjects\MyUtilProject\venv\lib\site-packages\flask\templating.py", line 151, in render_template
+    return _render(app, template, context)
+  File "C:\Users\user\PycharmProjects\MyUtilProject\venv\lib\site-packages\flask\templating.py", line 132, in _render
+    rv = template.render(context)
+  File "C:\Users\user\PycharmProjects\MyUtilProject\venv\lib\site-packages\jinja2\environment.py", line 1301, in render
+    self.environment.handle_exception()
+  File "C:\Users\user\PycharmProjects\MyUtilProject\venv\lib\site-packages\jinja2\environment.py", line 936, in handle_exception
+    raise rewrite_traceback_stack(source=source)
+  File "C:\Users\user\PycharmProjects\MyUtilProject\MyApp\FlaskApp\app\templates\watchVideo.html", line 1, in top-level template code
+    {% extends "format.html" %}
+  File "C:\Users\user\PycharmProjects\MyUtilProject\MyApp\FlaskApp\app\templates\format.html", line 68, in top-level template code
+    {% block body %}
+  File "C:\Users\user\PycharmProjects\MyUtilProject\MyApp\FlaskApp\app\templates\watchVideo.html", line 48, in block 'body'
+    <video src="{{ url_for('static', filename='video/asmr/' + data.videoPaths[0]) }}" controls autoplay id="mainVideo"></video>
+  File "C:\Users\user\PycharmProjects\MyUtilProject\venv\lib\site-packages\jinja2\environment.py", line 466, in getitem
+    return obj[argument]
+jinja2.exceptions.UndefinedError: 'dict object' has no attribute 'videoPaths'
+2024-11-03 06:30:49,809 ERROR: Exception on /watchVideo [GET] [in C:\Users\user\PycharmProjects\MyUtilProject\venv\lib\site-packages\flask\app.py:1414]
+Traceback (most recent call last):
+  File "C:\Users\user\PycharmProjects\MyUtilProject\venv\lib\site-packages\flask\app.py", line 2190, in wsgi_app
+    response = self.full_dispatch_request()
+  File "C:\Users\user\PycharmProjects\MyUtilProject\venv\lib\site-packages\flask\app.py", line 1486, in full_dispatch_request
+    rv = self.handle_user_exception(e)
+  File "C:\Users\user\PycharmProjects\MyUtilProject\venv\lib\site-packages\flask_cors\extension.py", line 178, in wrapped_function
+    return cors_after_request(app.make_response(f(*args, **kwargs)))
+  File "C:\Users\user\PycharmProjects\MyUtilProject\venv\lib\site-packages\flask\app.py", line 1484, in full_dispatch_request
+    rv = self.dispatch_request()
+  File "C:\Users\user\PycharmProjects\MyUtilProject\venv\lib\site-packages\flask\app.py", line 1469, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)
+  File "C:\Users\user\PycharmProjects\MyUtilProject\MyApp\FlaskApp\app\routes.py", line 91, in watch_video
+    render_template("watchVideo.html", data=send_data)
+  File "C:\Users\user\PycharmProjects\MyUtilProject\venv\lib\site-packages\flask\templating.py", line 151, in render_template
+    return _render(app, template, context)
+  File "C:\Users\user\PycharmProjects\MyUtilProject\venv\lib\site-packages\flask\templating.py", line 132, in _render
+    rv = template.render(context)
+  File "C:\Users\user\PycharmProjects\MyUtilProject\venv\lib\site-packages\jinja2\environment.py", line 1301, in render
+    self.environment.handle_exception()
+  File "C:\Users\user\PycharmProjects\MyUtilProject\venv\lib\site-packages\jinja2\environment.py", line 936, in handle_exception
+    raise rewrite_traceback_stack(source=source)
+  File "C:\Users\user\PycharmProjects\MyUtilProject\MyApp\FlaskApp\app\templates\watchVideo.html", line 1, in top-level template code
+    {% extends "format.html" %}
+  File "C:\Users\user\PycharmProjects\MyUtilProject\MyApp\FlaskApp\app\templates\format.html", line 68, in top-level template code
+    {% block body %}
+  File "C:\Users\user\PycharmProjects\MyUtilProject\MyApp\FlaskApp\app\templates\watchVideo.html", line 56, in block 'body'
+    {% set random_path = data.videoPaths|random %}
+  File "C:\Users\user\PycharmProjects\MyUtilProject\venv\lib\site-packages\jinja2\filters.py", line 658, in do_random
+    return random.choice(seq)
+  File "C:\Users\user\AppData\Local\Programs\Python\Python39\lib\random.py", line 346, in choice
+    return seq[self._randbelow(len(seq))]
+jinja2.exceptions.UndefinedError: 'dict object' has no attribute 'videoPaths'
+2024-11-03 06:34:15,371 ERROR: Exception on /watchVideo [GET] [in C:\Users\user\PycharmProjects\MyUtilProject\venv\lib\site-packages\flask\app.py:1414]
+Traceback (most recent call last):
+  File "C:\Users\user\PycharmProjects\MyUtilProject\venv\lib\site-packages\flask\app.py", line 2190, in wsgi_app
+    response = self.full_dispatch_request()
+  File "C:\Users\user\PycharmProjects\MyUtilProject\venv\lib\site-packages\flask\app.py", line 1486, in full_dispatch_request
+    rv = self.handle_user_exception(e)
+  File "C:\Users\user\PycharmProjects\MyUtilProject\venv\lib\site-packages\flask_cors\extension.py", line 178, in wrapped_function
+    return cors_after_request(app.make_response(f(*args, **kwargs)))
+  File "C:\Users\user\PycharmProjects\MyUtilProject\venv\lib\site-packages\flask\app.py", line 1484, in full_dispatch_request
+    rv = self.dispatch_request()
+  File "C:\Users\user\PycharmProjects\MyUtilProject\venv\lib\site-packages\flask\app.py", line 1469, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)
+  File "C:\Users\user\PycharmProjects\MyUtilProject\MyApp\FlaskApp\app\routes.py", line 91, in watch_video
+    render_template("watchVideo.html", data=send_data)
+  File "C:\Users\user\PycharmProjects\MyUtilProject\venv\lib\site-packages\flask\templating.py", line 151, in render_template
+    return _render(app, template, context)
+  File "C:\Users\user\PycharmProjects\MyUtilProject\venv\lib\site-packages\flask\templating.py", line 132, in _render
+    rv = template.render(context)
+  File "C:\Users\user\PycharmProjects\MyUtilProject\venv\lib\site-packages\jinja2\environment.py", line 1301, in render
+    self.environment.handle_exception()
+  File "C:\Users\user\PycharmProjects\MyUtilProject\venv\lib\site-packages\jinja2\environment.py", line 936, in handle_exception
+    raise rewrite_traceback_stack(source=source)
+  File "C:\Users\user\PycharmProjects\MyUtilProject\MyApp\FlaskApp\app\templates\watchVideo.html", line 1, in top-level template code
+    {% extends "format.html" %}
+  File "C:\Users\user\PycharmProjects\MyUtilProject\MyApp\FlaskApp\app\templates\format.html", line 68, in top-level template code
+    {% block body %}
+  File "C:\Users\user\PycharmProjects\MyUtilProject\MyApp\FlaskApp\app\templates\watchVideo.html", line 56, in block 'body'
+    {% set random_paths = data.videoPaths|random %}
+  File "C:\Users\user\PycharmProjects\MyUtilProject\venv\lib\site-packages\jinja2\filters.py", line 658, in do_random
+    return random.choice(seq)
+  File "C:\Users\user\AppData\Local\Programs\Python\Python39\lib\random.py", line 346, in choice
+    return seq[self._randbelow(len(seq))]
+jinja2.exceptions.UndefinedError: 'dict object' has no attribute 'videoPaths'
+2024-11-04 12:33:50,012 ERROR: Exception on /watchVideo/json [GET] [in C:\Users\user\PycharmProjects\MyUtilProject\venv\lib\site-packages\flask\app.py:1414]
+Traceback (most recent call last):
+  File "C:\Users\user\PycharmProjects\MyUtilProject\venv\lib\site-packages\flask\app.py", line 2190, in wsgi_app
+    response = self.full_dispatch_request()
+  File "C:\Users\user\PycharmProjects\MyUtilProject\venv\lib\site-packages\flask\app.py", line 1486, in full_dispatch_request
+    rv = self.handle_user_exception(e)
+  File "C:\Users\user\PycharmProjects\MyUtilProject\venv\lib\site-packages\flask_cors\extension.py", line 178, in wrapped_function
+    return cors_after_request(app.make_response(f(*args, **kwargs)))
+  File "C:\Users\user\PycharmProjects\MyUtilProject\venv\lib\site-packages\flask\app.py", line 1484, in full_dispatch_request
+    rv = self.dispatch_request()
+  File "C:\Users\user\PycharmProjects\MyUtilProject\venv\lib\site-packages\flask\app.py", line 1469, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)
+  File "C:\Users\user\PycharmProjects\MyUtilProject\MyApp\FlaskApp\app\routes.py", line 99, in watch_video_json
+    return jsonify(senddata)
+NameError: name 'senddata' is not defined
