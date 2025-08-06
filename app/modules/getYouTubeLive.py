@@ -85,19 +85,23 @@ import pandas as pd
 
 from dotenv import load_dotenv
 
+from myutils.youtube_api.fetch_youtube_data import YouTubeAPI
+
 # .env ファイルを読み込む
 load_dotenv()
+
 
 def get_archived_live_streams_by_query(query, published_after=None, published_before=None):
     API_KEY = os.getenv("YOUTUBE_API_KEY")
     SEARCH_API_URL = 'https://www.googleapis.com/youtube/v3/search'
     VIDEOS_API_URL = 'https://www.googleapis.com/youtube/v3/videos'
-    
+
     archived_streams = []
 
     # 引数が指定されていない場合はデフォルト値を設定
     if published_after is None:
-        published_after = (datetime.utcnow() - timedelta(days=7)).isoformat() + 'Z'  # デフォルトは7日前
+        published_after = (datetime.utcnow() - timedelta(days=7)
+                           ).isoformat() + 'Z'  # デフォルトは7日前
     if published_before is None:
         published_before = datetime.utcnow().isoformat() + 'Z'  # デフォルトは現在時刻
 
@@ -112,7 +116,7 @@ def get_archived_live_streams_by_query(query, published_after=None, published_be
         'publishedBefore': published_before,  # 引数で指定した終了日
         'maxResults': 50
     }
-    
+
     search_response = requests.get(SEARCH_API_URL, params=search_params)
     archived_events = search_response.json().get('items', [])
 
@@ -127,18 +131,19 @@ def get_archived_live_streams_by_query(query, published_after=None, published_be
             'id': video_id,
             'part': 'contentDetails'
         }
-        
+
         video_response = requests.get(VIDEOS_API_URL, params=video_params)
         video_details = video_response.json().get('items', [])
-        
+
         if video_details:
-            duration = video_details[0]['contentDetails'].get('duration', 'PT0S')
+            duration = video_details[0]['contentDetails'].get(
+                'duration', 'PT0S')
             published_at = event['snippet']['publishedAt']
             utc_time = datetime.fromisoformat(published_at[:-1])
             end_time = utc_time.replace(tzinfo=pytz.utc)
             duration_timedelta = isodate.parse_duration(duration)
             start_time = end_time - duration_timedelta
-            
+
             # JST（日本標準時）に変換
             jst_start_time = start_time.astimezone(pytz.timezone('Asia/Tokyo'))
             jst_end_time = end_time.astimezone(pytz.timezone('Asia/Tokyo'))
@@ -149,7 +154,8 @@ def get_archived_live_streams_by_query(query, published_after=None, published_be
                 'title': "配信: " + event['snippet']['title'],  # 配信タイトル
                 'start': jst_start_time.isoformat(),  # 配信の開始時間
                 'end': jst_end_time.isoformat(),  # 配信の終了時間
-                'description': f"配信元: {channel_title}\nリンク: {stream_url}"  # 説明文
+                # 説明文
+                'description': f"配信元: {channel_title}\nリンク: {stream_url}"
             })
 
         time.sleep(1)
@@ -157,73 +163,83 @@ def get_archived_live_streams_by_query(query, published_after=None, published_be
     return archived_streams
 
 
-
 def get_archived_live_streams_by_channelid(channel_ids, published_after=None, published_before=None):
-    API_KEY = os.getenv("YOUTUBE_API_KEY")
-    SEARCH_API_URL = 'https://www.googleapis.com/youtube/v3/search'
-    VIDEOS_API_URL = 'https://www.googleapis.com/youtube/v3/videos'
-    
+    yt_api = YouTubeAPI()
+
     archived_streams = []
 
-    # 引数が指定されていない場合はデフォルト値を設定
     if published_after is None:
-        published_after = (datetime.utcnow() - timedelta(days=7)).isoformat() + 'Z'  # デフォルトは7日前
+        published_after = datetime.utcnow() - timedelta(days=1)
+
     if published_before is None:
-        published_before = datetime.utcnow().isoformat() + 'Z'  # デフォルトは現在時刻
+        published_before = datetime.utcnow()
+
+    # APIの日時指定はISOフォーマット文字列でZ付きで渡す
+    published_after_str = published_after.strftime("%Y-%m-%dT%H:%M:%SZ")
+    published_before_str = published_before.strftime("%Y-%m-%dT%H:%M:%SZ")
 
     for channel_id in channel_ids:
-        search_params = {
-            'key': API_KEY,
-            'channelId': channel_id,
-            'part': 'snippet',
-            'order': 'date',
-            'type': 'video',
-            'eventType': 'completed',
-            'publishedAfter': published_after,  # 引数で指定した開始日
-            'publishedBefore': published_before,  # 引数で指定した終了日
-            'maxResults': 10
-        }
-        
-        search_response = requests.get(SEARCH_API_URL, params=search_params)
-        archived_events = search_response.json().get('items', [])
+        next_page_token = None
+        while True:
+            response = yt_api.call_api(
+                "search", "list",
+                part="snippet",
+                channelId=channel_id,
+                order="date",
+                type="video",
+                eventType="completed",
+                publishedAfter=published_after_str,
+                publishedBefore=published_before_str,
+                maxResults=10,
+                pageToken=next_page_token
+            )
 
-        time.sleep(1)
+            items = response.get("items", [])
+            if not items:
+                break
 
-        for event in archived_events:
-            video_id = event['id']['videoId']
-            channel_title = event['snippet']['channelTitle']
+            for event in items:
+                video_id = event["id"]["videoId"]
+                channel_title = event["snippet"]["channelTitle"]
 
-            video_params = {
-                'key': API_KEY,
-                'id': video_id,
-                'part': 'contentDetails'
-            }
-            
-            video_response = requests.get(VIDEOS_API_URL, params=video_params)
-            video_details = video_response.json().get('items', [])
-            
-            if video_details:
-                duration = video_details[0]['contentDetails'].get('duration', 'PT0S')
-                published_at = event['snippet']['publishedAt']
-                utc_time = datetime.fromisoformat(published_at[:-1])
+                # 動画の詳細情報取得
+                video_details_resp = yt_api.call_api(
+                    "videos", "list",
+                    part="contentDetails",
+                    id=video_id
+                )
+                video_items = video_details_resp.get("items", [])
+                if not video_items:
+                    continue
+
+                duration_iso = video_items[0]["contentDetails"].get("duration", "PT0S")
+                published_at = event["snippet"]["publishedAt"]
+                utc_time = datetime.fromisoformat(published_at[:-1])  # 'Z'を除去してISO形式に
                 end_time = utc_time.replace(tzinfo=pytz.utc)
-                duration_timedelta = isodate.parse_duration(duration)
+                duration_timedelta = isodate.parse_duration(duration_iso)
                 start_time = end_time - duration_timedelta
-                
-                # JST（日本標準時）に変換
-                jst_start_time = start_time.astimezone(pytz.timezone('Asia/Tokyo'))
-                jst_end_time = end_time.astimezone(pytz.timezone('Asia/Tokyo'))
 
-                stream_url = f'https://www.youtube.com/watch?v={video_id}'
+                # JSTに変換
+                jst_tz = pytz.timezone("Asia/Tokyo")
+                jst_start_time = start_time.astimezone(jst_tz)
+                jst_end_time = end_time.astimezone(jst_tz)
+
+                stream_url = f"https://www.youtube.com/watch?v={video_id}"
 
                 archived_streams.append({
-                    'title': "配信: " + event['snippet']['title'],  # 配信タイトル
-                    'start': jst_start_time.isoformat(),  # 配信の開始時間
-                    'end': jst_end_time.isoformat(),  # 配信の終了時間
-                    'description': f"配信元: {channel_title}\nリンク: {stream_url}"  # 説明文
+                    "title": "配信: " + event["snippet"]["title"],
+                    "start": jst_start_time.isoformat(),
+                    "end": jst_end_time.isoformat(),
+                    "description": f"配信元: {channel_title}\nリンク: {stream_url}",
                 })
 
-            time.sleep(1)
+            next_page_token = response.get("nextPageToken")
+            if not next_page_token:
+                break
+
+            time.sleep(1)  # API制限対策
+
+        time.sleep(1)  # API制限対策
 
     return archived_streams
 
@@ -232,17 +248,17 @@ def get_archived_live_stream_by_videoid(video_id):
     print(f"get_archived_live_stream_by_videoid")
     API_KEY = os.getenv("YOUTUBE_API_KEY")
     VIDEOS_API_URL = 'https://www.googleapis.com/youtube/v3/videos'
-    
+
     # 動画情報取得リクエスト
     video_params = {
         'key': API_KEY,
         'id': video_id,
         'part': 'snippet,contentDetails'
     }
-    
+
     video_response = requests.get(VIDEOS_API_URL, params=video_params)
     video_data = video_response.json().get('items', [])
-    
+
     if not video_data:
         return {"error": "Video not found or is not an archived live stream"}
 
@@ -251,16 +267,17 @@ def get_archived_live_stream_by_videoid(video_id):
     published_at = video_info['snippet']['publishedAt']
     title = video_info['snippet']['title']
     channel_title = video_info['snippet']['channelTitle']
-    
+
     # 配信の終了時間 (UTC)
-    end_time = datetime.fromisoformat(published_at[:-1]).replace(tzinfo=pytz.utc)
+    end_time = datetime.fromisoformat(
+        published_at[:-1]).replace(tzinfo=pytz.utc)
     duration_timedelta = isodate.parse_duration(duration)
     start_time = end_time - duration_timedelta
-    
+
     # JST（日本標準時）に変換
     jst_start_time = start_time.astimezone(pytz.timezone('Asia/Tokyo'))
     jst_end_time = end_time.astimezone(pytz.timezone('Asia/Tokyo'))
-    
+
     stream_url = f'https://www.youtube.com/watch?v={video_id}'
 
     return [{
@@ -292,7 +309,8 @@ def get_archived_live_streams_by_playlistid(playlist_id):
         result = response.json()
 
         items = result.get('items', [])
-        video_ids = [item['snippet']['resourceId']['videoId'] for item in items]
+        video_ids = [item['snippet']['resourceId']['videoId']
+                     for item in items]
 
         for video_id in video_ids:
             video_params = {
@@ -316,7 +334,8 @@ def get_archived_live_streams_by_playlistid(playlist_id):
                 duration_timedelta = isodate.parse_duration(duration)
                 start_time = end_time - duration_timedelta
 
-                jst_start_time = start_time.astimezone(pytz.timezone('Asia/Tokyo'))
+                jst_start_time = start_time.astimezone(
+                    pytz.timezone('Asia/Tokyo'))
                 jst_end_time = end_time.astimezone(pytz.timezone('Asia/Tokyo'))
 
                 stream_url = f'https://www.youtube.com/watch?v={video_id}'
@@ -336,6 +355,7 @@ def get_archived_live_streams_by_playlistid(playlist_id):
 
     return archived_streams
 
+
 def send_to_gas(data):
     GAS_ENDPOINT_URL = os.getenv("GAS_YouTube_URL")
     headers = {
@@ -345,13 +365,15 @@ def send_to_gas(data):
     request_data = {'action': 'addEvent', 'data': data}
     print(request_data)
 
-    response = requests.post(GAS_ENDPOINT_URL, headers=headers, data=json.dumps(request_data, ensure_ascii=False).encode('utf-8'))
+    response = requests.post(GAS_ENDPOINT_URL, headers=headers, data=json.dumps(
+        request_data, ensure_ascii=False).encode('utf-8'))
 
     if response.status_code == 200:
         print("データの送信に成功しました。")
         print("GASからのレスポンス:", response.text)
     else:
         print(f"エラーが発生しました: {response.status_code} - {response.text}")
+
 
 def get_channel_ids_from_excel():
     """
@@ -366,10 +388,11 @@ def get_channel_ids_from_excel():
 
     # 列名を表示
     print("列名:", excel_data.columns.tolist())  # ここで列名を確認
-    
+
     # テーブルから指定された条件に一致するchannelIdを取得
-    channel_ids = excel_data[(excel_data['favorite'] == 1)]['channelId'].tolist()
-    
+    channel_ids = excel_data[(excel_data['favorite'] == 1)
+                             ]['channelId'].tolist()
+
     return channel_ids
 
 
