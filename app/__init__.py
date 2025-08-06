@@ -28,7 +28,7 @@ from flask import Flask
 from flask_cors import CORS
 from app.log import setup_logging
 from app.routes import main
-from app.scheduler import UrlScheduler
+from app.modules.scheduler import UrlScheduler
 
 
 def create_app():

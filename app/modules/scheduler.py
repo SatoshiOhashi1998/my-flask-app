@@ -23,7 +23,7 @@ import logging
 import webbrowser
 from dataclasses import dataclass
 from apscheduler.schedulers.background import BackgroundScheduler
-from app import useMailServer
+from app.modules import useMailServer
 import subprocess
 
 @dataclass
