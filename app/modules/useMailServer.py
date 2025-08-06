@@ -38,6 +38,7 @@ import html
 username = os.getenv('EMAIL_USERNAME')
 password = os.getenv('EMAIL_PASSWORD')
 imap_server = os.getenv('IMAP_SERVER')
+INFO_LOG = os.getenv('INFO_LOG')
 
 if not all([username, password, imap_server]):
     raise ValueError("メールアカウントの情報が環境変数に設定されていません。")
@@ -47,7 +48,7 @@ def log_error(message):
         error_file.write(f"{datetime.now()} - ERROR: {message}\n")
 
 def log_info(message):
-    with open("infoMsg.txt", "a") as info_file:
+    with open(INFO_LOG, "a") as info_file:
         info_file.write(f"{datetime.now()} - INFO: {message}\n")
 
 def fetch_html_body(msg):
