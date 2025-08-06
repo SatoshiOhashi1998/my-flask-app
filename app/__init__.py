@@ -20,6 +20,8 @@ Flaskアプリケーションモジュール
 - セッションの持続時間は5分に設定されています。
 - テンプレートフォルダは 'templates' に、静的ファイルフォルダは 'static' に指定されています。
 
+testtesttest
+
 """
 
 import logging
