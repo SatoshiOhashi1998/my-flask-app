@@ -164,3 +164,53 @@ def remove_nonexistent_files_from_db(db: Optional[VideoDatabase] = None) -> List
                 removed.append(path)
 
     return removed
+
+def restore_video_filenames_from_db(db: Optional[VideoDatabase] = None, update_db: bool = False) -> List[Tuple[str, str]]:
+    """
+    データベースを元に、リネームされた動画ファイルを元の名前に戻す。
+
+    Parameters:
+        db (Optional[VideoDatabase]): 使用するデータベースインスタンス。
+        update_db (bool): DB上の new_name と path を original_name と新パスで更新するか。
+
+    Returns:
+        List[Tuple[str, str]]: (旧パス, 新パス) のタプルのリスト
+    """
+    db = db or VideoDatabase()
+    restored_files = []
+
+    for video_id, original_name, new_name, current_path in db.get_all():
+        if not os.path.exists(current_path):
+            continue  # ファイルが存在しない場合はスキップ
+
+        dir_path = os.path.dirname(current_path)
+        restored_path = os.path.join(dir_path, original_name)
+
+        # ファイル名がすでに戻っている場合はスキップ
+        if os.path.basename(current_path) == original_name:
+            continue
+
+        # 名前が重複しないか確認
+        if os.path.exists(restored_path):
+            print(f"⚠️ スキップ: {restored_path} は既に存在しています")
+            continue
+
+        # リネーム実行
+        shutil.move(current_path, restored_path)
+        restored_files.append((current_path, restored_path))
+
+        if update_db:
+            # DBの new_name, path を更新
+            with db._connect() as conn:
+                conn.execute(
+                    '''
+                    UPDATE videos
+                    SET new_name = ?, path = ?
+                    WHERE id = ?
+                    ''',
+                    (original_name, restored_path, video_id)
+                )
+                conn.commit()
+
+    return restored_files
+

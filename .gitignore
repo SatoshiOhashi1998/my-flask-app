@@ -210,3 +210,13 @@ app/modules/csv/*
 app/modules/db/*
 app/modules/excel/*
 app/modules/json/*
+
+# Sublime Text のプロジェクト・ワークスペースファイル
+FlaskApp.sublime-project
+FlaskApp.sublime-workspace
+
+# すべてのDBファイル（例：SQLite）
+*.db
+
+.vscode/
+logs/
