@@ -60,11 +60,12 @@ import csv
 from flask import Flask, render_template, request, jsonify, make_response, Blueprint, send_from_directory
 from app.utils import get_video_datas, get_all_video_datas, get_video_paths, get_video_directories, download
 from app.modules.getYouTubeLive import get_archived_live_streams_by_query, get_archived_live_stream_by_videoid, send_to_gas
-from app.modules.rename_video_files import VideoDatabase
-from app.create_db import db
+from app.modules.rename_video_files import get_all_videos
+from app.models import db
 
 # Blueprintを作成
 main = Blueprint('main', __name__)
+
 
 @main.route('/watchVideo', methods=['GET', 'POST'])
 def watch_video():
@@ -74,23 +75,26 @@ def watch_video():
         filter_param = request.args.get('filter')
         mode_param = request.args.get('mode')
 
-        response = db.get_all()
+        response = get_all_videos()
         video_data = []
         for item in response:
-            video_data.append({'dirpath': os.path.dirname(item[3]), 'filename': item[2], 'filetitle': item[1], 'last_time': 0, 'memo': ''})
+            video_data.append({'dirpath': os.path.dirname(
+                item.path), 'filename': item.new_name, 'filetitle': item.original_name, 'last_time': 0, 'memo': ''})
 
+        send_data = {"v": v_param, "t": time_param,
+                     'filter': filter_param, 'mode': mode_param, "items": video_data}
 
-        send_data = {"v": v_param, "t": time_param, 'filter': filter_param, 'mode': mode_param, "items": video_data}
-
-        response = make_response(render_template("watchVideo.html", data=send_data))
+        response = make_response(render_template(
+            "watchVideo.html", data=send_data))
         response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
         response.headers['Expires'] = 0
         response.headers['Pragma'] = 'no-cache'
         return response
-    
+
     elif request.method == 'POST':
         use_dir = request.form['use_dir']
         return jsonify({'response': get_video_paths(use_dir)})
+
 
 @main.route('/downloadVideo', methods=['GET', 'POST'])
 def download_video():
@@ -109,7 +113,8 @@ def download_video():
         print(end_time)
 
         # ダウンロード処理
-        download(video_id=video_id, save_dir=save_dir, quality=save_quality, start_time=start_time, end_time=end_time)
+        download(video_id=video_id, save_dir=save_dir,
+                 quality=save_quality, start_time=start_time, end_time=end_time)
 
         return jsonify({'response': f'{video_id} のダウンロードが完了しました'})
 
@@ -128,8 +133,10 @@ def mahjong():
     send_data = {}
 
     for path, label in zip(
-        [main_data_path, versus_two_path, no_tenpai_path, deal_in_rate_path, hanchan_earnings_path, riichi_ev_path, open_hand_ev_path],
-        ['main_data', 'versus_two', 'no_tenpai', 'deal_in_rate', 'hanchan_earnings', 'riichi_ev_path', 'open_hand_ev_path']
+        [main_data_path, versus_two_path, no_tenpai_path, deal_in_rate_path,
+            hanchan_earnings_path, riichi_ev_path, open_hand_ev_path],
+        ['main_data', 'versus_two', 'no_tenpai', 'deal_in_rate',
+            'hanchan_earnings', 'riichi_ev_path', 'open_hand_ev_path']
     ):
         if path:  # Noneチェック
             df = pd.read_csv(path)
@@ -157,16 +164,20 @@ def getYouTubeLives():
     return jsonify({"response": ""})
 
 # ✅ React のトップページを提供
+
+
 @main.route("/")
 @main.route('/search')
 @main.route('/watch')
 def serve_react():
     return send_from_directory("static", "react/index.html")
 
+
 @main.route("/api/videos", methods=["GET"])
 def get_videos():
     # CSVファイルのパス
-    BASE_DIR = os.path.dirname(os.path.abspath(__file__))  # `routes.py` のあるフォルダ
+    BASE_DIR = os.path.dirname(
+        os.path.abspath(__file__))  # `routes.py` のあるフォルダ
     CSV_PATH = os.path.join(BASE_DIR, "static", "excel", "vtuber_song.csv")
 
     # CSVファイルを読み込み
@@ -175,14 +186,14 @@ def get_videos():
         reader = csv.reader(file)
         # ヘッダー行をスキップ
         header = next(reader)
-        
+
         # 必要なデータを読み込む
         for row in reader:
             title = row[0]  # "Video Title"
             channel = row[1]  # "Channel Name"
             published_date = row[2]  # "Published Date"
             url = row[3]  # "URL"
-            
+
             # 取得したデータをリストに格納
             data.append({
                 "Video Title": title,
@@ -197,3 +208,8 @@ def get_videos():
 
     # 最終的なデータをJSONとして返す
     return jsonify(data)
+
+
+@main.route("/test", methods=["GET"])
+def test():
+    pass

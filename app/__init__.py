@@ -24,13 +24,16 @@ testtesttest
 
 """
 
+import os
 import logging
+from pathlib import Path
 from datetime import timedelta
 from flask import Flask
 from flask_cors import CORS
 from app.log import setup_logging
 from app.routes import main
 from app.modules.scheduler import UrlScheduler
+from app.models import db
 
 
 def create_app():
@@ -38,6 +41,7 @@ def create_app():
                 template_folder='templates', 
                 static_folder='static')
     app.permanent_session_lifetime = timedelta(minutes=5)
+
     CORS(app)  # CORS有効化
 
     # Blueprintを登録
@@ -46,5 +50,15 @@ def create_app():
     setup_logging()
 
     scheduler = UrlScheduler()
+
+    # DB_PATH = os.getenv('MODEL_DB', Path(__file__).resolve().parent / 'video_data.db')
+    DB_PATH = Path(__file__).resolve().parent / 'video_data.db'
+    DB_PATH = f"sqlite:///{DB_PATH}"
+    app.config['SQLALCHEMY_DATABASE_URI'] = DB_PATH
+    app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+    db.init_app(app)
+
+    with app.app_context():
+        db.create_all()  # テーブル作成
 
     return app

@@ -45,8 +45,8 @@ from contextlib import contextmanager
 import logging
 from typing import List, Generator, Optional
 from dataclasses import dataclass, asdict
-from app.models import VideoDataModel, Session  # models.pyからインポート
-from app.create_db import db
+# from app.models import VideoDataModel, Session  # models.pyからインポート
+from app.models import VideoDataModel, db
 from app.modules.rename_video_files import rename_videos_and_save_metadata, remove_nonexistent_files_from_db
 
 APP_BASE_PATH = os.getenv("APP_BASE_PATH")
@@ -70,8 +70,6 @@ def get_all_video_datas(use_dir=VIDEO_BASE_PATH):
     """指定パス内の動画ファイルパスをJSON化したVideoDataのリストとして返す"""
     senddata = []
     
-    # データベースセッションの作成
-    session = Session()
 
     # 指定ディレクトリ以下のすべての動画ファイルを検索
     for root, dirs, files in os.walk(use_dir):
@@ -81,7 +79,7 @@ def get_all_video_datas(use_dir=VIDEO_BASE_PATH):
                 video_path = os.path.join(root, file)
                 
                 # データベースからlast_timeとmemoを取得
-                video_data_record = session.query(VideoDataModel).filter_by(dirpath=root, filename=file).first()
+                video_data_record = db.session.query(VideoDataModel).filter_by(dirpath=root, filename=file).first()
                 
                 if video_data_record:
                     # データベースに存在する場合はその値を使用
@@ -96,7 +94,6 @@ def get_all_video_datas(use_dir=VIDEO_BASE_PATH):
                 container = VideoData(dirpath=root, filename=file, last_time=last_time, memo=memo)
                 senddata.append(asdict(container))
 
-    session.close()  # セッションを閉じる
     return senddata
 
 def get_video_datas(use_dir: str = ASMR_PATH) -> List[dict]:
@@ -105,10 +102,9 @@ def get_video_datas(use_dir: str = ASMR_PATH) -> List[dict]:
     senddata = []
     
     # データベースセッションの作成
-    session = Session()
     for path in video_paths:
         # データベースからlast_timeとmemoを取得
-        video_data_record = session.query(VideoDataModel).filter_by(dirpath=use_dir, filename=path).first()
+        video_data_record = db.session.query(VideoDataModel).filter_by(dirpath=use_dir, filename=path).first()
         
         if video_data_record:
             # データベースに存在する場合はその値を使用
@@ -123,21 +119,18 @@ def get_video_datas(use_dir: str = ASMR_PATH) -> List[dict]:
         container = VideoData(dirpath=use_dir, filename=path, last_time=last_time, memo=memo)
         senddata.append(asdict(container))
 
-    session.close()  # セッションを閉じる
     return senddata
 
 def add_video_data(video_data: VideoData):
     """VideoDataをデータベースに追加する関数"""
-    session = Session()
     video_data_model = VideoDataModel(
         dirpath=video_data.dirpath,
         filename=video_data.filename,
         last_time=video_data.last_time,
         memo=video_data.memo
     )
-    session.add(video_data_model)
-    session.commit()
-    session.close()
+    db.session.add(video_data_model)
+    db.session.commit()
 
 @contextmanager
 def change_directory(destination: str) -> Generator[None, None, None]:
@@ -193,8 +186,8 @@ def download(video_id: str, save_dir: str, quality: str, start_time: Optional[st
             shutil.move(new_path, save_dir)
             logging.info(f"Downloaded and moved video to {save_dir}")
 
-    rename_videos_and_save_metadata(VIDEO_BASE_PATH, db)
-    remove_nonexistent_files_from_db(db)
+    rename_videos_and_save_metadata(VIDEO_BASE_PATH)
+    remove_nonexistent_files_from_db()
 
 
 def get_video_directories() -> List[str]:

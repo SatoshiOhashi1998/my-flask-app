@@ -1,27 +1,13 @@
-# models.py
-import os
-from sqlalchemy import Column, Integer, String, create_engine
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker
+from flask_sqlalchemy import SQLAlchemy
 
-Base = declarative_base()
+db = SQLAlchemy()
 
-class VideoDataModel(Base):
-    """動画データをデータベースで管理するモデル"""
-    __tablename__ = 'video_data'
-
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    dirpath = Column(String, nullable=False)
-    filename = Column(String, nullable=False)
-    last_time = Column(Integer, nullable=False)
-    memo = Column(String, nullable=True)
+class VideoDataModel(db.Model):
+    __tablename__ = 'videos'
+    id = db.Column(db.String, primary_key=True)  # sqliteではTEXT主キーでもOK
+    original_name = db.Column(db.String, nullable=False)
+    new_name = db.Column(db.String, nullable=False)
+    path = db.Column(db.String, nullable=False)
 
     def __repr__(self):
-        return f"<VideoData(dirpath='{self.dirpath}', filename='{self.filename}', last_time={self.last_time}, memo='{self.memo}')>"
-
-# データベース接続の設定
-DATABASE_URL = os.getenv('MODEL_DB')  # SQLiteデータベースのURL
-engine = create_engine(DATABASE_URL)
-Base.metadata.create_all(engine)  # テーブルの作成
-
-Session = sessionmaker(bind=engine)
+        return f"<VideoData(id={self.id}, original_name={self.original_name}, new_name={self.new_name}, path={self.path})>"
