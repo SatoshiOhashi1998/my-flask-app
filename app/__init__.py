@@ -51,7 +51,6 @@ def create_app():
 
     scheduler = UrlScheduler()
 
-    # DB_PATH = os.getenv('MODEL_DB', Path(__file__).resolve().parent / 'video_data.db')
     DB_PATH = Path(__file__).resolve().parent / 'video_data.db'
     DB_PATH = f"sqlite:///{DB_PATH}"
     app.config['SQLALCHEMY_DATABASE_URI'] = DB_PATH
@@ -59,6 +58,6 @@ def create_app():
     db.init_app(app)
 
     with app.app_context():
-        db.create_all()  # テーブル作成
+        db.create_all()
 
     return app

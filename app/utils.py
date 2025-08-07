@@ -45,7 +45,6 @@ from contextlib import contextmanager
 import logging
 from typing import List, Generator, Optional
 from dataclasses import dataclass, asdict
-# from app.models import VideoDataModel, Session  # models.pyからインポート
 from app.models import VideoDataModel, db
 from app.modules.rename_video_files import rename_videos_and_save_metadata, remove_nonexistent_files_from_db
 
