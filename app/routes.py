@@ -214,3 +214,4 @@ def get_videos():
 def test():
     rename_videos_and_save_metadata(VIDEO_BASE_PATH)
     remove_nonexistent_files_from_db()
+    return jsonify({'response': ''})
