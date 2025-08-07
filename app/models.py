@@ -4,7 +4,7 @@ db = SQLAlchemy()
 
 class VideoDataModel(db.Model):
     __tablename__ = 'videos'
-    id = db.Column(db.String, primary_key=True)  # sqliteではTEXT主キーでもOK
+    id = db.Column(db.String, primary_key=True)
     original_name = db.Column(db.String, nullable=False)
     new_name = db.Column(db.String, nullable=False)
     path = db.Column(db.String, nullable=False)
