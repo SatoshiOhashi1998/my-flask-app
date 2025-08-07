@@ -58,9 +58,9 @@ import pandas as pd
 import openpyxl
 import csv
 from flask import Flask, render_template, request, jsonify, make_response, Blueprint, send_from_directory
-from app.utils import get_video_datas, get_all_video_datas, get_video_paths, get_video_directories, download
+from app.utils import get_video_datas, get_all_video_datas, get_video_paths, get_video_directories, download, VIDEO_BASE_PATH
 from app.modules.getYouTubeLive import get_archived_live_streams_by_query, get_archived_live_stream_by_videoid, send_to_gas
-from app.modules.rename_video_files import get_all_videos
+from app.modules.rename_video_files import get_all_videos, rename_videos_and_save_metadata, remove_nonexistent_files_from_db
 from app.models import db
 
 # Blueprintを作成
@@ -210,6 +210,7 @@ def get_videos():
     return jsonify(data)
 
 
-@main.route("/test", methods=["GET"])
+@main.route("/api/reset/video", methods=["GET"])
 def test():
-    pass
+    rename_videos_and_save_metadata(VIDEO_BASE_PATH)
+    remove_nonexistent_files_from_db()
