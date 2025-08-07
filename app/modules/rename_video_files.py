@@ -1,101 +1,24 @@
 import os
 import shutil
-import sqlite3
-import threading
 import string
 import random
-
 from typing import Optional, Tuple, List
 
-# ------------------------
-# ✅ 定数とパス設定
-# ------------------------
+from flask import current_app
+from app.models import VideoDataModel, db
 
-BASE_DIR = os.path.abspath(os.path.dirname(__file__))
-DB_PATH = os.path.join(BASE_DIR, 'video_metadata.db')
+# 定数
 VIDEO_EXTENSIONS = {'.mp4', '.mov', '.avi', '.mkv', '.webm', '.flv'}
 
 
-# ------------------------
-# ✅ データベース管理クラス
-# ------------------------
-
-class VideoDatabase:
-    _instance = None
-    _lock = threading.Lock()
-
-    def __new__(cls, db_path=DB_PATH):
-        with cls._lock:
-            if cls._instance is None:
-                cls._instance = super().__new__(cls)
-                cls._instance.db_path = db_path
-                cls._instance._init_db()
-            return cls._instance
-
-    def _connect(self):
-        return sqlite3.connect(self.db_path)
-
-    def _init_db(self):
-        with self._connect() as conn:
-            conn.execute('''
-                CREATE TABLE IF NOT EXISTS videos (
-                    id TEXT PRIMARY KEY,
-                    original_name TEXT,
-                    new_name TEXT,
-                    path TEXT
-                )
-            ''')
-
-    def get_all(self) -> List[Tuple[str, str, str, str]]:
-        with self._connect() as conn:
-            rows = conn.execute('SELECT id, original_name, new_name, path FROM videos').fetchall()
-
-        return sorted(
-            rows,
-            key=lambda row: (os.path.dirname(row[3]), row[1])
-        )
-
-    def find_by_id(self, video_id: str) -> Optional[Tuple[str, str, str, str]]:
-        with self._connect() as conn:
-            return conn.execute(
-                'SELECT * FROM videos WHERE id = ?', (video_id,)
-            ).fetchone()
-
-    def find_by_original_name(self, substring: str) -> List[Tuple[str, str, str, str]]:
-        return self._search_by_field('original_name', substring)
-
-    def find_by_path(self, substring: str) -> List[Tuple[str, str, str, str]]:
-        return self._search_by_field('path', substring)
-
-    def _search_by_field(self, field: str, substring: str) -> List[Tuple[str, str, str, str]]:
-        query = f"SELECT * FROM videos WHERE {field} LIKE ?"
-        with self._connect() as conn:
-            return conn.execute(query, (f'%{substring}%',)).fetchall()
-
-    def delete_by_id(self, video_id: str) -> bool:
-        with self._connect() as conn:
-            cur = conn.cursor()
-            if not cur.execute('SELECT 1 FROM videos WHERE id = ?', (video_id,)).fetchone():
-                return False
-            cur.execute('DELETE FROM videos WHERE id = ?', (video_id,))
-            conn.commit()
-            return True
-
-    def insert(self, video_id: str, original_name: str, new_name: str, path: str):
-        with self._connect() as conn:
-            conn.execute('''
-                INSERT INTO videos (id, original_name, new_name, path)
-                VALUES (?, ?, ?, ?)
-            ''', (video_id, original_name, new_name, path))
-            conn.commit()
-
-
-# ------------------------
-# ✅ ユーティリティ関数群
-# ------------------------
-
 def is_video_file(file_path: str) -> bool:
     return os.path.splitext(file_path)[1].lower() in VIDEO_EXTENSIONS
+
+
+def is_already_renamed(filename: str) -> bool:
+    name, _ = os.path.splitext(filename)
+    allowed_chars = string.ascii_letters + string.digits + '-_'
+    return len(name) == 11 and all(c in allowed_chars for c in name)
 
 
 def generate_unique_video_id(dir_path: str, ext: str, length: int = 11) -> Tuple[str, str]:
@@ -107,16 +30,50 @@ def generate_unique_video_id(dir_path: str, ext: str, length: int = 11) -> Tuple
         if not os.path.exists(new_path):
             return new_id, new_path
 
-def is_already_renamed(filename: str) -> bool:
-    name, _ = os.path.splitext(filename)
-    return len(name) == 11 and all(c in (string.ascii_letters + string.digits + '-_') for c in name)
 
-# ------------------------
-# ✅ 単一ファイル処理
-# ------------------------
+# --- DB操作関数 ---
 
-def rename_single_video_and_save_metadata(file_path: str, db: Optional[VideoDatabase] = None) -> Optional[str]:
-    if not os.path.isfile(file_path) or not is_video_file(file_path) or is_already_renamed(file_path):
+def insert_video(video_id: str, original_name: str, new_name: str, path: str):
+    video = VideoDataModel(id=video_id, original_name=original_name, new_name=new_name, path=path)
+    db.session.add(video)
+    db.session.commit()
+
+
+def get_all_videos() -> List[VideoDataModel]:
+    return VideoDataModel.query.order_by(VideoDataModel.path, VideoDataModel.original_name).all()
+
+
+def find_by_id(video_id: str) -> Optional[VideoDataModel]:
+    return VideoDataModel.query.filter_by(id=video_id).first()
+
+
+def delete_by_id(video_id: str) -> bool:
+    video = find_by_id(video_id)
+    if not video:
+        return False
+    db.session.delete(video)
+    db.session.commit()
+    return True
+
+
+def update_video(video_id: str, new_name: str, new_path: str) -> bool:
+    video = find_by_id(video_id)
+    if not video:
+        return False
+    video.new_name = new_name
+    video.path = new_path
+    db.session.commit()
+    return True
+
+
+# --- ファイル操作関数 ---
+
+
+def rename_single_video_and_save_metadata(file_path: str) -> Optional[Tuple[str, str]]:
+    print("rename_single_video_and_save_metadata")
+    if (not os.path.isfile(file_path) or
+        not is_video_file(file_path) or
+        is_already_renamed(os.path.basename(file_path))):
         return None
 
     ext = os.path.splitext(file_path)[1].lower()
@@ -128,89 +85,74 @@ def rename_single_video_and_save_metadata(file_path: str, db: Optional[VideoData
 
     shutil.move(file_path, new_path)
 
-    (db or VideoDatabase()).insert(new_id, original_name, new_name, new_path)
+    # Flaskのアプリコンテキスト内でDB操作
+    insert_video(new_id, original_name, new_name, new_path)
 
     return new_name, new_path
 
 
-# ------------------------
-# ✅ 複数ファイル処理
-# ------------------------
-
-def rename_videos_and_save_metadata(directory: str, db: Optional[VideoDatabase] = None) -> List[str]:
+def rename_videos_and_save_metadata(directory: str) -> List[str]:
+    print('rename_videos_and_save_metadata')
     renamed_files = []
-    db = db or VideoDatabase()
 
     for root, _, files in os.walk(directory):
         for file in files:
             if is_already_renamed(file):
-                continue  # すでにリネーム済みのファイルはスキップ
+                continue
             file_path = os.path.join(root, file)
             if is_video_file(file_path):
-                new_name = rename_single_video_and_save_metadata(file_path, db)
-                if new_name:
-                    renamed_files.append(new_name)
+                result = rename_single_video_and_save_metadata(file_path)
+                if result:
+                    renamed_files.append(result[0])  # new_nameだけ追加
 
     return renamed_files
 
 
-def remove_nonexistent_files_from_db(db: Optional[VideoDatabase] = None) -> List[str]:
-    db = db or VideoDatabase()
+def remove_nonexistent_files_from_db() -> List[str]:
+    print('remove_nonexistent_files_from_db')
     removed = []
 
-    for video_id, original_name, new_name, path in db.get_all():
-        if not os.path.exists(path):
-            if db.delete_by_id(video_id):
-                removed.append(path)
+    videos = get_all_videos()
+    for video in videos:
+        if not os.path.exists(video.path):
+            if delete_by_id(video.id):
+                removed.append(video.path)
 
     return removed
 
-def restore_video_filenames_from_db(db: Optional[VideoDatabase] = None, update_db: bool = False) -> List[Tuple[str, str]]:
-    """
-    データベースを元に、リネームされた動画ファイルを元の名前に戻す。
 
-    Parameters:
-        db (Optional[VideoDatabase]): 使用するデータベースインスタンス。
-        update_db (bool): DB上の new_name と path を original_name と新パスで更新するか。
+def restore_video_filenames_from_db(update_db: bool = False) -> List[Tuple[str, str]]:
+    print("restore_video_filenames_from_db")
+    """
+    DBに登録されている動画の新しいファイル名を元の名前に戻す。
+
+    Args:
+        update_db (bool): DB上のnew_name, pathも更新するか。
 
     Returns:
-        List[Tuple[str, str]]: (旧パス, 新パス) のタプルのリスト
+        List of tuples (old_path, restored_path)
     """
-    db = db or VideoDatabase()
     restored_files = []
 
-    for video_id, original_name, new_name, current_path in db.get_all():
-        if not os.path.exists(current_path):
-            continue  # ファイルが存在しない場合はスキップ
-
-        dir_path = os.path.dirname(current_path)
-        restored_path = os.path.join(dir_path, original_name)
-
-        # ファイル名がすでに戻っている場合はスキップ
-        if os.path.basename(current_path) == original_name:
+    videos = get_all_videos()
+    for video in videos:
+        if not os.path.exists(video.path):
             continue
 
-        # 名前が重複しないか確認
+        dir_path = os.path.dirname(video.path)
+        restored_path = os.path.join(dir_path, video.original_name)
+
+        if os.path.basename(video.path) == video.original_name:
+            continue
+
         if os.path.exists(restored_path):
-            print(f"⚠️ スキップ: {restored_path} は既に存在しています")
+            current_app.logger.warning(f"スキップ: {restored_path} は既に存在します")
             continue
 
-        # リネーム実行
-        shutil.move(current_path, restored_path)
-        restored_files.append((current_path, restored_path))
+        shutil.move(video.path, restored_path)
+        restored_files.append((video.path, restored_path))
 
         if update_db:
-            # DBの new_name, path を更新
-            with db._connect() as conn:
-                conn.execute(
-                    '''
-                    UPDATE videos
-                    SET new_name = ?, path = ?
-                    WHERE id = ?
-                    ''',
-                    (original_name, restored_path, video_id)
-                )
-                conn.commit()
+            update_video(video.id, video.original_name, restored_path)
 
     return restored_files
-
