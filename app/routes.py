@@ -63,6 +63,7 @@ from app.modules.getYouTubeLive import get_archived_live_streams_by_query, get_a
 from app.modules.rename_video_files import rename_videos_and_save_metadata, remove_nonexistent_files_from_db
 from app.models import db, VideoDataModel
 import unicodedata
+import locale
 
 
 # Blueprintを作成
@@ -77,7 +78,14 @@ def watch_video():
         filter_param = request.args.get('filter')
         mode_param = request.args.get('mode')
 
-        videos = VideoDataModel.query.all()
+        locale.setlocale(locale.LC_COLLATE, 'ja_JP.UTF-8')
+
+        videos = (
+            db.session.query(VideoDataModel)
+            .order_by(VideoDataModel.path)
+            .all()
+        )
+        videos.sort(key=lambda v: locale.strxfrm(v.original_name))
 
         video_data = []
         for item in videos:
@@ -214,7 +222,23 @@ def get_videos():
 
 
 @main.route("/api/reset/video", methods=["GET"])
-def test():
+def reset_videos():
     rename_videos_and_save_metadata(VIDEO_BASE_PATH)
     remove_nonexistent_files_from_db()
     return jsonify({'response': ''})
+
+@main.route("/api/test", methods=["GET"])
+def test():
+    videos = VideoDataModel.query.all()
+    sorted_videos = VideoDataModel.query.order_by(VideoDataModel.path, VideoDataModel.original_name).all()
+    for index, data in enumerate(videos):
+        print(f'{index}: {data.original_name}')
+
+    for index, data in enumerate(videos):
+        print(f'{index}: {data.original_name}')
+
+    return jsonify({'respose': ''})
+
+
+
+

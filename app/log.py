@@ -25,3 +25,6 @@ def setup_logging():
     console_handler.setLevel(logging.INFO)
     console_handler.setFormatter(logging.Formatter('%(asctime)s %(levelname)s: %(message)s'))
     logging.getLogger().addHandler(console_handler)
+
+    logging.basicConfig()
+    logging.getLogger('sqlalchemy.engine').setLevel(logging.INFO)
