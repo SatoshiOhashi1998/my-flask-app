@@ -3,6 +3,7 @@ import shutil
 import string
 import random
 from typing import Optional, Tuple, List
+import unicodedata
 
 from flask import current_app
 from app.models import VideoDataModel, db
@@ -37,10 +38,6 @@ def insert_video(video_id: str, original_name: str, new_name: str, path: str):
     video = VideoDataModel(id=video_id, original_name=original_name, new_name=new_name, path=path)
     db.session.add(video)
     db.session.commit()
-
-
-def get_all_videos() -> List[VideoDataModel]:
-    return VideoDataModel.query.order_by(VideoDataModel.path, VideoDataModel.original_name).all()
 
 
 def find_by_id(video_id: str) -> Optional[VideoDataModel]:
