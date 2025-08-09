@@ -83,12 +83,7 @@ import pytz
 import isodate  # ISO 8601形式のdurationを解析するためのライブラリ
 import pandas as pd
 
-from dotenv import load_dotenv
-
 from myutils.youtube_api.fetch_youtube_data import YouTubeAPI
-
-# .env ファイルを読み込む
-load_dotenv()
 
 
 def get_archived_live_streams_by_query(query, published_after=None, published_before=None):
@@ -212,9 +207,11 @@ def get_archived_live_streams_by_channelid(channel_ids, published_after=None, pu
                 if not video_items:
                     continue
 
-                duration_iso = video_items[0]["contentDetails"].get("duration", "PT0S")
+                duration_iso = video_items[0]["contentDetails"].get(
+                    "duration", "PT0S")
                 published_at = event["snippet"]["publishedAt"]
-                utc_time = datetime.fromisoformat(published_at[:-1])  # 'Z'を除去してISO形式に
+                utc_time = datetime.fromisoformat(
+                    published_at[:-1])  # 'Z'を除去してISO形式に
                 end_time = utc_time.replace(tzinfo=pytz.utc)
                 duration_timedelta = isodate.parse_duration(duration_iso)
                 start_time = end_time - duration_timedelta
@@ -396,8 +393,12 @@ def get_channel_ids_from_excel():
     return channel_ids
 
 
-# 使用例
-if __name__ == "__main__":
+def send_archived_streams_from_excel_channels():
     channel_ids = get_channel_ids_from_excel()
     archived_streams = get_archived_live_streams_by_channelid(channel_ids)
     send_to_gas(archived_streams)
+
+
+# 使用例
+if __name__ == "__main__":
+    send_archived_streams_from_excel_channels()

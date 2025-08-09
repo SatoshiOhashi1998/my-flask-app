@@ -28,11 +28,6 @@ import os
 from datetime import datetime, timedelta, timezone
 import webbrowser
 
-from dotenv import load_dotenv
-
-# .env ファイルを読み込む
-load_dotenv()
-
 # 環境変数に設定したAPIキーを使用
 targetUrl = "https://api.openweathermap.org/data/2.5/forecast?q={city_name}&units=metric&appid={api_key}"
 requestUrl = targetUrl.format(city_name="Tokyo", api_key=os.getenv("WEATHER_API_KEY"))
@@ -119,7 +114,7 @@ def add_event_to_gas(weather_info):
     except requests.exceptions.RequestException as e:
         print("Request failed:", e)
 
-def main():
+def register_tomorrow_weather_to_calendar():
     """
     天気データを取得してGoogle Calenderに送る
     """
@@ -134,4 +129,4 @@ def main():
         print("Error fetching weather data:", weather_info["error"])
 
 if __name__ == '__main__':
-    main()
+    register_tomorrow_weather_to_calendar()

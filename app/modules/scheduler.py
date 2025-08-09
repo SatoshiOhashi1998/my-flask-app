@@ -5,6 +5,8 @@ import subprocess
 from dataclasses import dataclass
 from apscheduler.schedulers.background import BackgroundScheduler
 from app.modules import useMailServer
+from app.modules.getWeatherData import register_tomorrow_weather_to_calendar
+from app.modules.getYouTubeLive import send_archived_streams_from_excel_channels
 
 logger = logging.getLogger(__name__)  # モジュール専用ロガー
 
@@ -42,8 +44,7 @@ class UrlScheduler:
 
         # 各種batファイル起動ジョブ
         self.add_job(
-            func=subprocess.Popen,
-            args=[os.getenv('GET_WEATHER_DATA_BAT_PATH')],
+            func=register_tomorrow_weather_to_calendar,
             trigger='cron',
             hour=23,
             minute=0,
@@ -51,8 +52,7 @@ class UrlScheduler:
         )
 
         self.add_job(
-            func=subprocess.Popen,
-            args=[os.getenv('GET_YL_ARCHIVE_BAT_PATH')],
+            func=send_archived_streams_from_excel_channels,
             trigger='cron',
             hour=19,
             minute=0,
