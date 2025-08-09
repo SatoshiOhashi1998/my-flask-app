@@ -7,7 +7,9 @@ class VideoDataModel(db.Model):
     id = db.Column(db.String, primary_key=True)
     original_name = db.Column(db.String, nullable=False)
     new_name = db.Column(db.String, nullable=False)
-    path = db.Column(db.String, nullable=False)
+    path = db.Column(db.String(collation="NOCASE"), nullable=False)
+    original_name = db.Column(db.String(collation="NOCASE"), nullable=False)
+
 
     def __repr__(self):
         return f"<VideoData(id={self.id}, original_name={self.original_name}, new_name={self.new_name}, path={self.path})>"
