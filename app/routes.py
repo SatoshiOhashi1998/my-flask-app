@@ -60,8 +60,10 @@ import csv
 from flask import Flask, render_template, request, jsonify, make_response, Blueprint, send_from_directory
 from app.utils import get_video_datas, get_all_video_datas, get_video_paths, get_video_directories, download, VIDEO_BASE_PATH
 from app.modules.getYouTubeLive import get_archived_live_streams_by_query, get_archived_live_stream_by_videoid, send_to_gas
-from app.modules.rename_video_files import get_all_videos, rename_videos_and_save_metadata, remove_nonexistent_files_from_db
-from app.models import db
+from app.modules.rename_video_files import rename_videos_and_save_metadata, remove_nonexistent_files_from_db
+from app.models import db, VideoDataModel
+import unicodedata
+
 
 # Blueprintを作成
 main = Blueprint('main', __name__)
@@ -75,9 +77,10 @@ def watch_video():
         filter_param = request.args.get('filter')
         mode_param = request.args.get('mode')
 
-        response = get_all_videos()
+        videos = VideoDataModel.query.all()
+
         video_data = []
-        for item in response:
+        for item in videos:
             video_data.append({'dirpath': os.path.dirname(
                 item.path), 'filename': item.new_name, 'filetitle': item.original_name, 'last_time': 0, 'memo': ''})
 
