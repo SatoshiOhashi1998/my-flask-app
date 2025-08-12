@@ -13,7 +13,7 @@ app = create_app()
 if __name__ == "__main__":
     try:
         pythoncom.CoInitialize()
-        app.run(host="0.0.0.0", port=5000)
-        # app.run(debug=True)
+        # app.run(host="0.0.0.0", port=5000)
+        app.run(debug=True)
     except Exception as e:
         logging.error(f'エラー発生: {str(e)}')
