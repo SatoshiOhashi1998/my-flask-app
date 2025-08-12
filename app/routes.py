@@ -85,7 +85,9 @@ def watch_video():
             .order_by(VideoDataModel.path)
             .all()
         )
-        videos.sort(key=lambda v: locale.strxfrm(v.original_name))
+        videos.sort(
+            key=lambda v: (os.path.normpath(os.path.dirname(v.path)), locale.strxfrm(v.original_name))
+        )
 
         video_data = []
         for item in videos:
@@ -120,8 +122,6 @@ def download_video():
         save_quality = data.get('save_quality')
         start_time = data.get('start_time')  # 追加
         end_time = data.get('end_time')      # 追加
-        print(start_time)
-        print(end_time)
 
         # ダウンロード処理
         download(video_id=video_id, save_dir=save_dir,
