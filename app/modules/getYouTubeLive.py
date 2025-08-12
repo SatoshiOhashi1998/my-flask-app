@@ -376,12 +376,11 @@ def get_channel_ids_from_excel():
     """
     チャンネルIDをまとめているExcelファイルからデータを取得。チャンネルIDのリストを返す。
     """
-    file_name = 'youtube_channel_id.xlsx'  # Excelファイル名
-    file_name = os.path.join('excel', file_name)
+    CSV_PATH = os.getenv('CHANNEL_CSV_PATH')
     sheet_name = 'データ'                 # シート名
     table_name = 'チャンネルID'            # テーブル名
     # Excelファイルを読み込み
-    excel_data = pd.read_excel(file_name, sheet_name=sheet_name)
+    excel_data = pd.read_excel(CSV_PATH, sheet_name=sheet_name)
 
     # 列名を表示
     print("列名:", excel_data.columns.tolist())  # ここで列名を確認
@@ -395,7 +394,7 @@ def get_channel_ids_from_excel():
 
 def send_archived_streams_from_excel_channels():
     channel_ids = get_channel_ids_from_excel()
-    archived_streams = get_archived_live_streams_by_channelid(channel_ids)
+    archived_streams = get_archived_live_streams_by_channelid(channel_ids, published_after, published_before)
     send_to_gas(archived_streams)
 
 
