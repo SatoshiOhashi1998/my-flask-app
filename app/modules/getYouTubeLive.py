@@ -394,7 +394,7 @@ def get_channel_ids_from_excel():
 
 def send_archived_streams_from_excel_channels():
     channel_ids = get_channel_ids_from_excel()
-    archived_streams = get_archived_live_streams_by_channelid(channel_ids, published_after, published_before)
+    archived_streams = get_archived_live_streams_by_channelid(channel_ids)
     send_to_gas(archived_streams)
 
 
