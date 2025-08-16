@@ -84,6 +84,10 @@ import isodate  # ISO 8601形式のdurationを解析するためのライブラ�
 import pandas as pd
 
 from myutils.youtube_api.fetch_youtube_data import YouTubeAPI
+from myutils.gas_api.use_gas import send_to_gas
+
+
+GAS_URL = os.getenv("GAS_UTIL_URL")
 
 
 def get_archived_live_streams_by_channelid(channel_ids, published_after=None, published_before=None):
@@ -335,7 +339,8 @@ def get_archived_live_streams_by_playlistid(playlist_id):
                 "start": jst_start_time.isoformat(),
                 "end": jst_end_time.isoformat(),
                 "description": f"配信元: {channel_title}\nリンク: {stream_url}",
-                "color": "1"
+                "allDay": False,
+                "color": "BLUE"
             })
 
         next_page_token = response.get("nextPageToken")
@@ -345,38 +350,6 @@ def get_archived_live_streams_by_playlistid(playlist_id):
 
     send_data = {'action': 'youtube', 'data': archived_streams}
     return send_data
-
-
-def send_to_gas(data, action_name=None, verbose=True):
-    """
-    Google Apps Scriptにデータを送信する共通関数
-    
-    Args:
-        data (dict | list): 送信するデータ
-        action_name (str, optional): 処理の種類をログに表示するための名前
-        verbose (bool): Trueならレスポンス詳細を表示
-    """
-    GAS_URL = os.getenv("GAS_UTIL_URL")
-    headers = {"Content-Type": "application/json; charset=utf-8"}
-
-    try:
-        response = requests.post(GAS_URL, headers=headers, json=data)
-
-        if verbose:
-            label = f"[{action_name}] " if action_name else ""
-            print(f"{label}Response status code: {response.status_code}")
-
-            # JSONとして解釈できれば整形して出力
-            try:
-                print(json.dumps(response.json(), ensure_ascii=False, indent=2))
-            except json.JSONDecodeError:
-                print("Raw response text:", response.text)
-
-        return response
-
-    except requests.exceptions.RequestException as e:
-        print("Request failed:", e)
-        return None
 
 
 def get_channel_ids_from_excel():
@@ -402,7 +375,7 @@ def get_channel_ids_from_excel():
 def send_archived_streams_from_excel_channels():
     channel_ids = get_channel_ids_from_excel()
     archived_streams = get_archived_live_streams_by_channelid(channel_ids)
-    send_to_gas(archived_streams)
+    send_to_gas(archived_streams, GAS_URL)
 
 
 # 使用例

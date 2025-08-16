@@ -25,6 +25,7 @@ import requests
 import json
 import os
 from datetime import datetime, timedelta, timezone
+from myutils.gas_api.use_gas import send_to_gas
 
 # JST（日本標準時）
 tz = timezone(timedelta(hours=+9), "JST")
@@ -78,48 +79,17 @@ def get_weather_data(target_date=None, city_name="Tokyo"):
 
     event_data = {
         "action": "weather",
-        "data": {
+        "data": [{
             "title": insert_data,
             "start": target_date_str,
             "end": end_date,
             "description": insert_data,
-            "color": "6"
-        }
+            "allDay": True,
+            "color": "YELLOW"
+        }]
     }
 
     return event_data
-
-
-def send_to_gas(data, action_name=None, verbose=True):
-    """
-    Google Apps Scriptにデータを送信する共通関数
-    
-    Args:
-        data (dict | list): 送信するデータ
-        action_name (str, optional): 処理の種類をログに表示するための名前
-        verbose (bool): Trueならレスポンス詳細を表示
-    """
-    GAS_URL = os.getenv("GAS_UTIL_URL")
-    headers = {"Content-Type": "application/json; charset=utf-8"}
-
-    try:
-        response = requests.post(GAS_URL, headers=headers, json=data)
-
-        if verbose:
-            label = f"[{action_name}] " if action_name else ""
-            print(f"{label}Response status code: {response.status_code}")
-
-            # JSONとして解釈できれば整形して出力
-            try:
-                print(json.dumps(response.json(), ensure_ascii=False, indent=2))
-            except json.JSONDecodeError:
-                print("Raw response text:", response.text)
-
-        return response
-
-    except requests.exceptions.RequestException as e:
-        print("Request failed:", e)
-        return None
 
 
 def register_tomorrow_weather_to_calendar():
@@ -128,7 +98,7 @@ def register_tomorrow_weather_to_calendar():
     """
     event_data = get_weather_data()
     if "error" not in event_data:
-        send_to_gas(event_data)
+        send_to_gas(event_data, GAS_URL)
     else:
         print("Error:", event_data["error"])
 
