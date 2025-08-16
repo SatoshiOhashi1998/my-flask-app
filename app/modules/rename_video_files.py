@@ -109,7 +109,7 @@ def remove_nonexistent_files_from_db() -> List[str]:
     print('remove_nonexistent_files_from_db')
     removed = []
 
-    videos = get_all_videos()
+    videos = db.session.query(VideoDataModel).all()
     for video in videos:
         if not os.path.exists(video.path):
             if delete_by_id(video.id):
@@ -131,7 +131,7 @@ def restore_video_filenames_from_db(update_db: bool = False) -> List[Tuple[str, 
     """
     restored_files = []
 
-    videos = get_all_videos()
+    videos = db.session.query(VideoDataModel).all()
     for video in videos:
         if not os.path.exists(video.path):
             continue

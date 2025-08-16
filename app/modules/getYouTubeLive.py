@@ -168,6 +168,7 @@ def get_archived_live_streams_by_channelid(channel_ids, published_after=None, pu
 
     return archived_streams
 
+
 def get_archived_live_streams_by_query(query, published_after=None, published_before=None):
     yt_api = YouTubeAPI()
     archived_streams = []
@@ -212,7 +213,8 @@ def get_archived_live_streams_by_query(query, published_after=None, published_be
             if not video_items:
                 continue
 
-            duration_iso = video_items[0]["contentDetails"].get("duration", "PT0S")
+            duration_iso = video_items[0]["contentDetails"].get(
+                "duration", "PT0S")
             published_at = event["snippet"]["publishedAt"]
             utc_time = datetime.fromisoformat(published_at[:-1])
             end_time = utc_time.replace(tzinfo=pytz.utc)
@@ -259,7 +261,8 @@ def get_archived_live_stream_by_videoid(video_id):
     title = video_info["snippet"]["title"]
     channel_title = video_info["snippet"]["channelTitle"]
 
-    end_time = datetime.fromisoformat(published_at[:-1]).replace(tzinfo=pytz.utc)
+    end_time = datetime.fromisoformat(
+        published_at[:-1]).replace(tzinfo=pytz.utc)
     duration_timedelta = isodate.parse_duration(duration)
     start_time = end_time - duration_timedelta
 
@@ -297,7 +300,8 @@ def get_archived_live_streams_by_playlistid(playlist_id):
         if not items:
             break
 
-        video_ids = [item["snippet"]["resourceId"]["videoId"] for item in items]
+        video_ids = [item["snippet"]["resourceId"]["videoId"]
+                     for item in items]
 
         for video_id in video_ids:
             video_details_resp = yt_api.call_api(
@@ -330,7 +334,8 @@ def get_archived_live_streams_by_playlistid(playlist_id):
                 "title": title,
                 "start": jst_start_time.isoformat(),
                 "end": jst_end_time.isoformat(),
-                "description": f"配信元: {channel_title}\nリンク: {stream_url}"
+                "description": f"配信元: {channel_title}\nリンク: {stream_url}",
+                "color": "1"
             })
 
         next_page_token = response.get("nextPageToken")
@@ -338,26 +343,40 @@ def get_archived_live_streams_by_playlistid(playlist_id):
             break
         time.sleep(1)
 
-    return archived_streams
+    send_data = {'action': 'youtube', 'data': archived_streams}
+    return send_data
 
 
-def send_to_gas(data):
-    GAS_ENDPOINT_URL = os.getenv("GAS_YouTube_URL")
-    headers = {
-        'Content-Type': 'application/json; charset=utf-8',
-    }
+def send_to_gas(data, action_name=None, verbose=True):
+    """
+    Google Apps Scriptにデータを送信する共通関数
+    
+    Args:
+        data (dict | list): 送信するデータ
+        action_name (str, optional): 処理の種類をログに表示するための名前
+        verbose (bool): Trueならレスポンス詳細を表示
+    """
+    GAS_URL = os.getenv("GAS_UTIL_URL")
+    headers = {"Content-Type": "application/json; charset=utf-8"}
 
-    request_data = {'action': 'addEvent', 'data': data}
-    print(request_data)
+    try:
+        response = requests.post(GAS_URL, headers=headers, json=data)
 
-    response = requests.post(GAS_ENDPOINT_URL, headers=headers, data=json.dumps(
-        request_data, ensure_ascii=False).encode('utf-8'))
+        if verbose:
+            label = f"[{action_name}] " if action_name else ""
+            print(f"{label}Response status code: {response.status_code}")
 
-    if response.status_code == 200:
-        print("データの送信に成功しました。")
-        print("GASからのレスポンス:", response.text)
-    else:
-        print(f"エラーが発生しました: {response.status_code} - {response.text}")
+            # JSONとして解釈できれば整形して出力
+            try:
+                print(json.dumps(response.json(), ensure_ascii=False, indent=2))
+            except json.JSONDecodeError:
+                print("Raw response text:", response.text)
+
+        return response
+
+    except requests.exceptions.RequestException as e:
+        print("Request failed:", e)
+        return None
 
 
 def get_channel_ids_from_excel():

@@ -23,7 +23,6 @@
 """
 import requests
 import json
-from pprint import pprint
 import os
 from datetime import datetime, timedelta, timezone
 
@@ -32,101 +31,106 @@ tz = timezone(timedelta(hours=+9), "JST")
 
 # API URLテンプレート
 TARGET_URL = "https://api.openweathermap.org/data/2.5/forecast?q={city_name}&units=metric&appid={api_key}"
-GAS_URL = os.getenv("GAS_WEATHER_URL")
+# GAS_URL = os.getenv("GAS_WEATHER_URL")
+GAS_URL = os.getenv("GAS_UTIL_URL")
 
 
-def get_weather_data(target_date=None):
+def get_weather_data(target_date=None, city_name="Tokyo"):
     """
-    指定日の天気データを取得（デフォルトは翌日）
+    指定日の天気データを取得し、Googleカレンダー用のevent_dataを作成
+    （デフォルトは翌日の東京）
     """
     if target_date is None:
         target_date = datetime.now(tz) + timedelta(days=1)
 
     target_date_str = target_date.strftime("%Y-%m-%d")
 
-    # 毎回最新データを取得
-    request_url = TARGET_URL.format(city_name="Tokyo", api_key=os.getenv("WEATHER_API_KEY"))
+    # 最新データ取得
+    request_url = TARGET_URL.format(city_name=city_name, api_key=os.getenv("WEATHER_API_KEY"))
     jsondata = requests.get(request_url).json()
 
-    daily_data = []
+    daily_data = [
+        dat for dat in jsondata.get("list", [])
+        if datetime.fromtimestamp(dat["dt"], tz).strftime("%Y-%m-%d") == target_date_str
+    ]
 
-    for dat in jsondata.get("list", []):
-        jst_date = datetime.fromtimestamp(dat["dt"], tz).strftime("%Y-%m-%d")
-        if jst_date == target_date_str:
-            daily_data.append(dat)
-
-    if daily_data:
-        max_temp = max(item["main"]["temp_max"] for item in daily_data)
-        min_temp = min(item["main"]["temp_min"] for item in daily_data)
-        total_precipitation_prob = sum(item.get("pop", 0) for item in daily_data) / len(daily_data) * 100
-        max_pressure = max(item["main"]["pressure"] for item in daily_data)
-        min_pressure = min(item["main"]["pressure"] for item in daily_data)
-        avg_humidity = sum(item["main"]["humidity"] for item in daily_data) / len(daily_data)
-
-        weather_info = {
-            "date": target_date_str,
-            "max_temperature": max_temp,
-            "min_temperature": min_temp,
-            "precipitation_probability": total_precipitation_prob,
-            "max_pressure": max_pressure,
-            "min_pressure": min_pressure,
-            "avg_humidity": avg_humidity
-        }
-        return weather_info
-    else:
+    if not daily_data:
         return {"error": f"{target_date_str} のデータは見つかりませんでした。"}
 
-
-def add_event_to_gas(weather_info):
-    headers = {'Content-Type': 'application/json'}
-
-    start_date = weather_info['date']
-    end_date = (datetime.strptime(start_date, "%Y-%m-%d") + timedelta(days=1)).strftime("%Y-%m-%d")
+    # 必要な気象データを集計
+    max_temp = max(item["main"]["temp_max"] for item in daily_data)
+    min_temp = min(item["main"]["temp_min"] for item in daily_data)
+    total_precipitation_prob = sum(item.get("pop", 0) for item in daily_data) / len(daily_data) * 100
+    max_pressure = max(item["main"]["pressure"] for item in daily_data)
+    min_pressure = min(item["main"]["pressure"] for item in daily_data)
+    avg_humidity = sum(item["main"]["humidity"] for item in daily_data) / len(daily_data)
 
     insert_data = (
-        f"天気: 最高気温 {weather_info['max_temperature']}℃, "
-        f"最低気温 {weather_info['min_temperature']}℃, "
-        f"降水確率 {weather_info['precipitation_probability']:.1f}%, "
-        f"最高気圧 {weather_info['max_pressure']}hPa, "
-        f"最低気圧 {weather_info['min_pressure']}hPa, "
-        f"平均湿度 {weather_info['avg_humidity']:.1f}%"
+        f"天気: 最高気温 {max_temp}℃, "
+        f"最低気温 {min_temp}℃, "
+        f"降水確率 {total_precipitation_prob:.1f}%, "
+        f"最高気圧 {max_pressure}hPa, "
+        f"最低気圧 {min_pressure}hPa, "
+        f"平均湿度 {avg_humidity:.1f}%"
     )
 
+    end_date = (datetime.strptime(target_date_str, "%Y-%m-%d") + timedelta(days=1)).strftime("%Y-%m-%d")
+
     event_data = {
-        "action": "add",
+        "action": "weather",
         "data": {
             "title": insert_data,
-            "start": start_date,
+            "start": target_date_str,
             "end": end_date,
             "description": insert_data,
             "color": "6"
         }
     }
-    pprint(event_data)
+
+    return event_data
+
+
+def send_to_gas(data, action_name=None, verbose=True):
+    """
+    Google Apps Scriptにデータを送信する共通関数
+    
+    Args:
+        data (dict | list): 送信するデータ
+        action_name (str, optional): 処理の種類をログに表示するための名前
+        verbose (bool): Trueならレスポンス詳細を表示
+    """
+    GAS_URL = os.getenv("GAS_UTIL_URL")
+    headers = {"Content-Type": "application/json; charset=utf-8"}
 
     try:
-        response = requests.post(GAS_URL, headers=headers, json=event_data)
-        print("Response status code:", response.status_code)
-        print("Response text:", response.text)
-        try:
-            json_response = response.json()
-            print(json.dumps(json_response, ensure_ascii=False, indent=2))
-        except json.JSONDecodeError as e:
-            print("JSON Decode Error:", e)
-            print("Raw response text:", response.text)
+        response = requests.post(GAS_URL, headers=headers, json=data)
+
+        if verbose:
+            label = f"[{action_name}] " if action_name else ""
+            print(f"{label}Response status code: {response.status_code}")
+
+            # JSONとして解釈できれば整形して出力
+            try:
+                print(json.dumps(response.json(), ensure_ascii=False, indent=2))
+            except json.JSONDecodeError:
+                print("Raw response text:", response.text)
+
+        return response
+
     except requests.exceptions.RequestException as e:
         print("Request failed:", e)
+        return None
 
 
 def register_tomorrow_weather_to_calendar():
     """
     翌日の天気データを取得してGoogleカレンダーに送信
     """
-    weather_info = get_weather_data()
-    if "error" not in weather_info:
-        add_event_to_gas(weather_info)
+    event_data = get_weather_data()
+    if "error" not in event_data:
+        send_to_gas(event_data)
     else:
-        print("Error fetching weather data:", weather_info["error"])
+        print("Error:", event_data["error"])
 
 
 if __name__ == '__main__':
