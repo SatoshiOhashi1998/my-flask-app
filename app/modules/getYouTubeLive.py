@@ -160,6 +160,8 @@ def get_archived_live_streams_by_channelid(channel_ids, published_after=None, pu
                     "start": jst_start_time.isoformat(),
                     "end": jst_end_time.isoformat(),
                     "description": f"配信元: {channel_title}\nリンク: {stream_url}",
+                    "allDay": False,
+                    "color": "BLUE"
                 })
 
             next_page_token = response.get("nextPageToken")
@@ -170,7 +172,9 @@ def get_archived_live_streams_by_channelid(channel_ids, published_after=None, pu
 
         time.sleep(1)  # API制限対策
 
-    return archived_streams
+
+    send_data = {'action': 'youtube', 'data': archived_streams}
+    return send_data
 
 
 def get_archived_live_streams_by_query(query, published_after=None, published_before=None):
@@ -236,14 +240,17 @@ def get_archived_live_streams_by_query(query, published_after=None, published_be
                 "start": jst_start_time.isoformat(),
                 "end": jst_end_time.isoformat(),
                 "description": f"配信元: {channel_title}\nリンク: {stream_url}",
+                "allDay": False,
+                "color": "BLUE"
             })
 
         next_page_token = response.get("nextPageToken")
         if not next_page_token:
             break
         time.sleep(1)
+    send_data = {'action': 'youtube', 'data': archived_streams}
 
-    return archived_streams
+    return send_data
 
 
 def get_archived_live_stream_by_videoid(video_id):
@@ -280,10 +287,14 @@ def get_archived_live_stream_by_videoid(video_id):
         "title": "配信: " + title,
         "start": jst_start_time.isoformat(),
         "end": jst_end_time.isoformat(),
-        "description": f"配信元: {channel_title}\nリンク: {stream_url}"
+        "description": f"配信元: {channel_title}\nリンク: {stream_url}",
+        "allDay": False,
+        "color": "BLUE"
     })
 
-    return archived_streams
+    send_data = {'action': 'youtube', 'data': archived_streams}
+
+    return send_data
 
 
 def get_archived_live_streams_by_playlistid(playlist_id):
@@ -374,7 +385,15 @@ def get_channel_ids_from_excel():
 
 def send_archived_streams_from_excel_channels():
     channel_ids = get_channel_ids_from_excel()
+
+    print("取得した channel_ids 件数:", len(channel_ids))
+    print("サンプル:", channel_ids)
+
     archived_streams = get_archived_live_streams_by_channelid(channel_ids)
+
+    print("取得した archived_streams 件数:", len(archived_streams))
+    print("サンプル:", archived_streams[:2])
+
     send_to_gas(archived_streams, GAS_URL)
 
 
