@@ -385,15 +385,7 @@ def get_channel_ids_from_excel():
 
 def send_archived_streams_from_excel_channels():
     channel_ids = get_channel_ids_from_excel()
-
-    print("取得した channel_ids 件数:", len(channel_ids))
-    print("サンプル:", channel_ids)
-
     archived_streams = get_archived_live_streams_by_channelid(channel_ids)
-
-    print("取得した archived_streams 件数:", len(archived_streams))
-    print("サンプル:", archived_streams[:2])
-
     send_to_gas(archived_streams, GAS_URL)
 
 
