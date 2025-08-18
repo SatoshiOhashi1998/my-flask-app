@@ -1,170 +1,171 @@
-"""
-Flask アプリケーションのルーティングモジュール
-
-このモジュールは、動画の視聴、ダウンロード、および YouTube ライブストリームの取得を行うためのエンドポイントを提供します。
-
-## 使用方法
-各エンドポイントに HTTP リクエストを送信して、対応する処理を実行します。
-
-## エンドポイント一覧
-
-### /watchVideo
-- **メソッド:** GET, POST
-- **概要:** 動画を視聴するためのページを提供します。
-- **GET リクエスト:**
-  - クエリパラメータ:
-    - v: 動画 ID
-    - t: 時間情報
-    - filter: フィルターパラメータ
-    - mode: モード指定
-  - **レスポンス:** `watchVideo.html` テンプレートをレンダリングし、動画情報を JSON データとして埋め込む。
-- **POST リクエスト:**
-  - フォームデータ:
-    - use_dir: 使用するディレクトリ名
-  - **レスポンス:** 指定ディレクトリ内の動画パスリストを JSON 形式で返す。
-
-### /downloadVideo
-- **メソッド:** GET, POST
-- **概要:** 動画をダウンロードするためのページを提供します。
-- **GET リクエスト:**
-  - **レスポンス:** `downloadVideo.html` テンプレートを返し、ダウンロード用のディレクトリパスを含む。
-- **POST リクエスト:**
-  - JSON データ:
-    - video_id: ダウンロードする動画の ID
-    - save_dir: 保存先のディレクトリ
-    - save_quality: 保存時の画質
-    - start_time: ダウンロード開始時間
-    - end_time: ダウンロード終了時間
-  - **レスポンス:** ダウンロードが完了したことを示すメッセージを JSON 形式で返す。
-
-### /getYouTubeLive
-- **メソッド:** GET, POST
-- **概要:** YouTube ライブ配信のアーカイブを取得し、Google Apps Script に送信する。
-- **GET リクエスト:**
-  - クエリパラメータ:
-    - video_id: 指定の動画 ID に対するアーカイブ情報を取得
-    - q: 検索クエリを用いたアーカイブ情報の取得
-  - **レスポンス:** YouTube のアーカイブデータを Google Apps Script に送信し、処理結果を JSON 形式で返す。
-
-### /api/videos
-- **メソッド:** GET
-- **概要:** CSV ファイルから VTuber の動画情報を取得する。
-- **レスポンス:** JSON 形式の動画データリストを返す。
-
-"""
 import os
-import json
-import pandas as pd
-import openpyxl
-import csv
-from flask import Flask, render_template, request, jsonify, make_response, Blueprint, send_from_directory
-from app.utils import get_video_datas, get_all_video_datas, get_video_paths, get_video_directories, download, VIDEO_BASE_PATH
-from app.modules.getYouTubeLive import get_archived_live_streams_by_query, get_archived_live_stream_by_videoid, send_to_gas
-from app.modules.rename_video_files import rename_videos_and_save_metadata, remove_nonexistent_files_from_db
-from app.models import db, VideoDataModel
-import unicodedata
 import locale
+import unicodedata
+from typing import Dict, Any
+
+import pandas as pd
+from flask import (
+    Blueprint,
+    render_template,
+    request,
+    jsonify,
+    make_response,
+    Response
+)
+
+from app.utils import (
+    get_video_datas,
+    get_all_video_datas,
+    get_video_paths,
+    get_video_directories,
+    download,
+    VIDEO_BASE_PATH
+)
+from app.modules.getYouTubeLive import (
+    get_archived_live_streams_by_query,
+    get_archived_live_stream_by_videoid
+)
+from app.modules.rename_video_files import (
+    rename_videos_and_save_metadata,
+    remove_nonexistent_files_from_db
+)
+from app.models import db, VideoDataModel
+from myutils.gas_api.use_gas import send_to_gas
 
 
-# Blueprintを作成
-main = Blueprint('main', __name__)
+main = Blueprint("main", __name__)
 
 
-@main.route('/watchVideo', methods=['GET', 'POST'])
-def watch_video():
-    if request.method == 'GET':
-        v_param = request.args.get('v')
-        time_param = request.args.get('t')
-        filter_param = request.args.get('filter')
-        mode_param = request.args.get('mode')
+@main.route("/watchVideo", methods=["GET", "POST"])
+def watch_video() -> Response:
+    """動画を視聴するためのページを提供するエンドポイント。
 
-        locale.setlocale(locale.LC_COLLATE, 'ja_JP.UTF-8')
+    GET: watchVideo.html をレンダリングし動画データを埋め込む。
+    POST: 指定ディレクトリ内の動画パスリストを JSON 形式で返す。
+    """
+    if request.method == "GET":
+        v_param = request.args.get("v")
+        time_param = request.args.get("t")
+        filter_param = request.args.get("filter")
+        mode_param = request.args.get("mode")
 
-        videos = (
-            db.session.query(VideoDataModel)
-            .order_by(VideoDataModel.path)
-            .all()
-        )
+        locale.setlocale(locale.LC_COLLATE, "ja_JP.UTF-8")
+
+        videos = db.session.query(VideoDataModel).order_by(
+            VideoDataModel.path
+        ).all()
+
         videos.sort(
-            key=lambda v: (os.path.normpath(os.path.dirname(v.path)), locale.strxfrm(v.original_name))
+            key=lambda v: (
+                os.path.normpath(os.path.dirname(v.path)),
+                locale.strxfrm(v.original_name)
+            )
         )
 
-        video_data = []
-        for item in videos:
-            video_data.append({'dirpath': os.path.dirname(
-                item.path), 'filename': item.new_name, 'filetitle': item.original_name, 'last_time': 0, 'memo': ''})
+        video_data = [
+            {
+                "dirpath": os.path.dirname(item.path),
+                "filename": item.new_name,
+                "filetitle": item.original_name,
+                "last_time": 0,
+                "memo": ""
+            }
+            for item in videos
+        ]
 
-        send_data = {"v": v_param, "t": time_param,
-                     'filter': filter_param, 'mode': mode_param, "items": video_data}
+        send_data: Dict[str, Any] = {
+            "v": v_param,
+            "t": time_param,
+            "filter": filter_param,
+            "mode": mode_param,
+            "items": video_data
+        }
 
-        response = make_response(render_template(
-            "watchVideo.html", data=send_data))
-        response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
-        response.headers['Expires'] = 0
-        response.headers['Pragma'] = 'no-cache'
+        response = make_response(
+            render_template("watchVideo.html", data=send_data)
+        )
+        response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+        response.headers["Expires"] = 0
+        response.headers["Pragma"] = "no-cache"
         return response
 
-    elif request.method == 'POST':
-        use_dir = request.form['use_dir']
-        return jsonify({'response': get_video_paths(use_dir)})
+    if request.method == "POST":
+        use_dir = request.form["use_dir"]
+        return jsonify({"response": get_video_paths(use_dir)})
+
+    return jsonify({"error": "Unsupported method"}), 405
 
 
-@main.route('/downloadVideo', methods=['GET', 'POST'])
-def download_video():
-    if request.method == 'GET':
+@main.route("/downloadVideo", methods=["GET", "POST"])
+def download_video() -> Response:
+    """動画をダウンロードするためのエンドポイント。
+
+    GET: 保存先ディレクトリの一覧を返す。
+    POST: 指定動画をダウンロードし JSON レスポンスを返す。
+    """
+    if request.method == "GET":
         dir_paths = get_video_directories()
-        return jsonify(dir_paths)  # JSONとして返す
+        return jsonify(dir_paths)
 
-    elif request.method == 'POST':
-        data = request.json
-        video_id = data.get('video_id')
-        save_dir = data.get('save_dir')
-        save_quality = data.get('save_quality')
-        start_time = data.get('start_time')  # 追加
-        end_time = data.get('end_time')      # 追加
+    if request.method == "POST":
+        data = request.json or {}
+        video_id = data.get("video_id")
+        save_dir = data.get("save_dir")
+        save_quality = data.get("save_quality")
+        start_time = data.get("start_time")
+        end_time = data.get("end_time")
 
-        # ダウンロード処理
-        download(video_id=video_id, save_dir=save_dir,
-                 quality=save_quality, start_time=start_time, end_time=end_time)
+        download(
+            video_id=video_id,
+            save_dir=save_dir,
+            quality=save_quality,
+            start_time=start_time,
+            end_time=end_time
+        )
 
-        return jsonify({'response': f'{video_id} のダウンロードが完了しました'})
+        return jsonify({"response": f"{video_id} のダウンロードが完了しました"})
+
+    return jsonify({"error": "Unsupported method"}), 405
 
 
-@main.route('/mahjong', methods=['GET', 'POST'])
-def mahjong():
-    # 環境変数名を正しく指定
-    main_data_path = os.getenv('MAIN_DATA')
-    versus_two_path = os.getenv('VERSUS_TWO')
-    no_tenpai_path = os.getenv('NO_TENPAI')
-    deal_in_rate_path = os.getenv('DEAL_IN_RATE')
-    hanchan_earnings_path = os.getenv('HANCHAN_EARNINGS')
-    riichi_ev_path = os.getenv('RIICHI_EV')
-    open_hand_ev_path = os.getenv('OPEN_HAND_EV')
+@main.route("/mahjong", methods=["GET", "POST"])
+def mahjong() -> Response:
+    """麻雀データを環境変数から読み込み、HTML テンプレートに埋め込む。"""
+    env_paths = [
+        os.getenv("MAIN_DATA"),
+        os.getenv("VERSUS_TWO"),
+        os.getenv("NO_TENPAI"),
+        os.getenv("DEAL_IN_RATE"),
+        os.getenv("HANCHAN_EARNINGS"),
+        os.getenv("RIICHI_EV"),
+        os.getenv("OPEN_HAND_EV"),
+    ]
+    labels = [
+        "main_data",
+        "versus_two",
+        "no_tenpai",
+        "deal_in_rate",
+        "hanchan_earnings",
+        "riichi_ev_path",
+        "open_hand_ev_path",
+    ]
 
-    send_data = {}
-
-    for path, label in zip(
-        [main_data_path, versus_two_path, no_tenpai_path, deal_in_rate_path,
-            hanchan_earnings_path, riichi_ev_path, open_hand_ev_path],
-        ['main_data', 'versus_two', 'no_tenpai', 'deal_in_rate',
-            'hanchan_earnings', 'riichi_ev_path', 'open_hand_ev_path']
-    ):
-        if path:  # Noneチェック
+    send_data: Dict[str, Any] = {}
+    for path, label in zip(env_paths, labels):
+        if path:
             df = pd.read_csv(path)
-            data_json = df.to_dict(orient='records')
-            send_data[label] = data_json
+            send_data[label] = df.to_dict(orient="records")
         else:
             send_data[label] = []
 
-    # テンプレートに辞書を渡すだけでOK
-    return render_template('mahjong.html', data=send_data)
+    return render_template("mahjong.html", data=send_data)
 
 
-@main.route("/getYouTubeLive", methods=['GET', 'POST'])
-def getYouTubeLives():
-    id_param = request.args.get('video_id')
-    query_param = request.args.get('q')
-    print(f"idparam {id_param}")
+@main.route("/getYouTubeLive", methods=["GET", "POST"])
+def get_youtube_lives() -> Response:
+    """YouTube ライブ配信のアーカイブを取得し GAS に送信する。"""
+    id_param = request.args.get("video_id")
+    query_param = request.args.get("q")
 
     if id_param:
         data = get_archived_live_stream_by_videoid(id_param)
@@ -172,27 +173,27 @@ def getYouTubeLives():
     elif query_param:
         data = get_archived_live_streams_by_query(query_param)
         send_to_gas(data)
+
     return jsonify({"response": ""})
 
 
 @main.route("/api/reset/video", methods=["GET"])
-def reset_videos():
+def reset_videos() -> Response:
+    """動画ファイルのメタデータをリセットし、DB を更新する。"""
     rename_videos_and_save_metadata(VIDEO_BASE_PATH)
     remove_nonexistent_files_from_db()
-    return jsonify({'response': ''})
+    return jsonify({"response": ""})
+
 
 @main.route("/api/test", methods=["GET"])
-def test():
+def test() -> Response:
+    """DB 内の動画データを確認用に標準出力へ出力する。"""
     videos = VideoDataModel.query.all()
-    sorted_videos = VideoDataModel.query.order_by(VideoDataModel.path, VideoDataModel.original_name).all()
-    for index, data in enumerate(videos):
-        print(f'{index}: {data.original_name}')
+    sorted_videos = VideoDataModel.query.order_by(
+        VideoDataModel.path, VideoDataModel.original_name
+    ).all()
 
     for index, data in enumerate(videos):
-        print(f'{index}: {data.original_name}')
+        print(f"{index}: {data.original_name}")
 
-    return jsonify({'respose': ''})
-
-
-
-
+    return jsonify({"response": ""})
