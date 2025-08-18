@@ -174,52 +174,6 @@ def getYouTubeLives():
         send_to_gas(data)
     return jsonify({"response": ""})
 
-# ✅ React のトップページを提供
-
-
-@main.route("/")
-@main.route('/search')
-@main.route('/watch')
-def serve_react():
-    return send_from_directory("static", "react/index.html")
-
-
-@main.route("/api/videos", methods=["GET"])
-def get_videos():
-    # CSVファイルのパス
-    BASE_DIR = os.path.dirname(
-        os.path.abspath(__file__))  # `routes.py` のあるフォルダ
-    CSV_PATH = os.path.join(BASE_DIR, "static", "excel", "vtuber_song.csv")
-
-    # CSVファイルを読み込み
-    data = []
-    with open(CSV_PATH, mode='r', encoding='utf-8') as file:
-        reader = csv.reader(file)
-        # ヘッダー行をスキップ
-        header = next(reader)
-
-        # 必要なデータを読み込む
-        for row in reader:
-            title = row[0]  # "Video Title"
-            channel = row[1]  # "Channel Name"
-            published_date = row[2]  # "Published Date"
-            url = row[3]  # "URL"
-
-            # 取得したデータをリストに格納
-            data.append({
-                "Video Title": title,
-                "Channel Name": channel,
-                "Published Date": published_date,
-                "URL": url
-            })
-
-    # データを表示して確認
-    for entry in data:
-        print(entry)
-
-    # 最終的なデータをJSONとして返す
-    return jsonify(data)
-
 
 @main.route("/api/reset/video", methods=["GET"])
 def reset_videos():
