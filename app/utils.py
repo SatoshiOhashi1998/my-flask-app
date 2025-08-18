@@ -152,41 +152,92 @@ def get_video_paths(use_path: str = ASMR_PATH) -> List[str]:
     return video_files
 
 
-def download(video_id: str, save_dir: str, quality: str, start_time: Optional[str] = None, end_time: Optional[str] = None) -> None:
+def download(video_id: str, save_dir: str, quality: str = "1080",
+                   start_time: Optional[str] = None, end_time: Optional[str] = None,
+                   trim_overwrite: bool = True) -> None:
     """
-    動画または音声をダウンロードし、保存
+    動画をダウンロードして保存。必要に応じてトリミングも実施。
+
     :param video_id: ダウンロードする動画のIDまたはURL
     :param save_dir: 保存先ディレクトリ
-    :param quality: 動画の最大解像度 (例: 1080, 720, 480)
-    :param start_time: ダウンロード開始時間 (例: "1:14:02")
-    :param end_time: ダウンロード終了時間 (例: "1:14:23")
+    :param quality: 動画の最大解像度 (例: "1080", "720")
+    :param start_time: トリミング開始時間 (例: "00:01:10")
+    :param end_time: トリミング終了時間 (例: "00:02:20")
+    :param trim_overwrite: Trueなら元動画を上書き、Falseなら別ファイルとして保存
     """
+
+    # URLパラメータを除去
     video_id = video_id.split("&")[0] if "&" in video_id else video_id
 
-    time_section = f"*{start_time}-{end_time}" if start_time and end_time else None
-    
+    # dlコマンドで動画を一時保存ディレクトリにダウンロード
+    temp_dir = VIDEO_BASE_PATH
     command = [
         'dl',
-        '-f', f"bestvideo[height<={quality}][ext=mp4]+bestaudio[ext=mp4]/mp4",  # mp4形式の最適な動画と音声
-        '-o', f'{save_dir}/%(title)s.%(ext)s',  # 出力ファイルパス
+        '-f', f"bestvideo[height<={quality}][ext=mp4]+bestaudio[ext=mp4]/mp4",
+        '-o', f'{temp_dir}/%(title)s.%(ext)s',
+        video_id
     ]
-    
-    if time_section:
-        command.extend(['--download-sections', time_section])
-    
-    command.append(video_id)
 
-    with change_directory(VIDEO_BASE_PATH):
-        popen = subprocess.Popen(command)
-        popen.wait()
+    with change_directory(temp_dir):
+        subprocess.run(command, check=True)
 
-        rename_files(VIDEO_BASE_PATH)
-        for path in glob.glob(os.path.join(VIDEO_BASE_PATH, "*.mp4")):
-            shutil.move(new_path, save_dir)
-            logging.info(f"Downloaded and moved video to {save_dir}")
+        # ダウンロードした動画を順番に処理
+        for path in glob.glob(os.path.join(temp_dir, "*.mp4")):
+            filename = os.path.basename(path)
 
+            # 保存先パス
+            target_path = os.path.join(save_dir, filename)
+
+            # トリミング処理
+            if start_time and end_time:
+                if trim_overwrite:
+                    _trim_video(path, None, start_time, end_time, overwrite=True)
+                    shutil.move(path, save_dir)
+                else:
+                    _trim_video(path, target_path, start_time, end_time, overwrite=False)
+            else:
+                shutil.move(path, save_dir)
+
+            logging.info(f"Downloaded and saved video to {save_dir}")
+
+    # ファイル名のリネーム・DB整理
     rename_videos_and_save_metadata(VIDEO_BASE_PATH)
     remove_nonexistent_files_from_db()
+
+
+def _trim_video(input_path: str, output_path: Optional[str],
+                start_time: str, end_time: str, overwrite: bool = False) -> None:
+    """
+    動画をトリミングする内部関数
+
+    :param input_path: 元動画パス
+    :param output_path: 保存先パス
+    :param start_time: 開始時間 hh:mm:ss
+    :param end_time: 終了時間 hh:mm:ss
+    :param overwrite: Trueなら元動画上書き、Falseなら新規ファイル作成
+    """
+    if overwrite:
+        temp_path = input_path + ".tmp.mp4"
+        command = [
+            'ffmpeg', '-y', '-i', input_path,
+            '-ss', start_time,
+            '-to', end_time,
+            '-c', 'copy',
+            temp_path
+        ]
+        subprocess.run(command, check=True)
+        os.replace(temp_path, input_path)
+    else:
+        if output_path is None:
+            raise ValueError("output_path must be specified when overwrite=False")
+        command = [
+            'ffmpeg', '-y', '-i', input_path,
+            '-ss', start_time,
+            '-to', end_time,
+            '-c', 'copy',
+            output_path
+        ]
+        subprocess.run(command, check=True)
 
 
 def get_video_directories() -> List[str]:
