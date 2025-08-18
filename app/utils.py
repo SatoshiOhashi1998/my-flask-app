@@ -45,6 +45,12 @@ from contextlib import contextmanager
 import logging
 from typing import List, Generator, Optional
 from dataclasses import dataclass, asdict
+import traceback
+import time
+
+import yt_dlp
+import ffmpeg
+
 from app.models import VideoDataModel, db
 from app.modules.rename_video_files import rename_videos_and_save_metadata, remove_nonexistent_files_from_db
 
@@ -56,6 +62,8 @@ SOUND_FILE_PATH = os.path.join(APP_BASE_PATH, "static", "sound")
 UNDER_PATH = "*"
 ASMR_PATH = os.path.join(VIDEO_BASE_PATH, "asmr")
 YOUTUBE_URL_PATTERN = re.compile(r'https://www.youtube.com/watch\?v=.{11}')
+FFMPEG_PATH = os.getenv('FFMPEG_PATH')
+FFMPEG_DIR = os.getenv('FFMPEG_DIR')
 
 @dataclass
 class VideoData:
@@ -151,94 +159,69 @@ def get_video_paths(use_path: str = ASMR_PATH) -> List[str]:
     ]
     return video_files
 
-
 def download(video_id: str, save_dir: str, quality: str = "1080",
-                   start_time: Optional[str] = None, end_time: Optional[str] = None,
-                   trim_overwrite: bool = True) -> None:
+             start_time: Optional[str] = None, end_time: Optional[str] = None,
+             trim_overwrite: bool = True) -> None:
     """
-    動画をダウンロードして保存。必要に応じてトリミングも実施。
-
-    :param video_id: ダウンロードする動画のIDまたはURL
-    :param save_dir: 保存先ディレクトリ
-    :param quality: 動画の最大解像度 (例: "1080", "720")
-    :param start_time: トリミング開始時間 (例: "00:01:10")
-    :param end_time: トリミング終了時間 (例: "00:02:20")
-    :param trim_overwrite: Trueなら元動画を上書き、Falseなら別ファイルとして保存
+    yt-dlp + ffmpeg-python で動画ダウンロード＋トリミング＋移動
+    Windows対応
     """
+    filename = None
+    output_file = None
+    target_path = None
 
-    # URLパラメータを除去
-    video_id = video_id.split("&")[0] if "&" in video_id else video_id
+    try:
+        video_id = video_id.split("&")[0] if "&" in video_id else video_id
 
-    # dlコマンドで動画を一時保存ディレクトリにダウンロード
-    temp_dir = VIDEO_BASE_PATH
-    command = [
-        'dl',
-        '-f', f"bestvideo[height<={quality}][ext=mp4]+bestaudio[ext=mp4]/mp4",
-        '-o', f'{temp_dir}/%(title)s.%(ext)s',
-        video_id
-    ]
+        ydl_opts = {
+            'format': f'bestvideo[height<={quality}]+bestaudio/best',
+            'ffmpeg_location': FFMPEG_DIR,
+            'outtmpl': os.path.join(VIDEO_BASE_PATH, '%(title)s.%(ext)s'),
+            'noplaylist': True,
+            'merge_output_format': 'mp4',
+        }
 
-    with change_directory(temp_dir):
-        subprocess.run(command, check=True)
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            info_dict = ydl.extract_info(video_id, download=True)
 
-        # ダウンロードした動画を順番に処理
-        for path in glob.glob(os.path.join(temp_dir, "*.mp4")):
-            filename = os.path.basename(path)
+        files = glob.glob(os.path.join(VIDEO_BASE_PATH, '*.mp4'))
+        if not files:
+            raise FileNotFoundError("No mp4 files found in download directory after download")
+        filename = max(files, key=os.path.getmtime)
+        filename = os.path.abspath(filename)
+        if not os.path.exists(filename):
+            raise FileNotFoundError(f"Downloaded file not found: {filename}")
 
-            # 保存先パス
-            target_path = os.path.join(save_dir, filename)
-
-            # トリミング処理
-            if start_time and end_time:
-                if trim_overwrite:
-                    _trim_video(path, None, start_time, end_time, overwrite=True)
-                    shutil.move(path, save_dir)
-                else:
-                    _trim_video(path, target_path, start_time, end_time, overwrite=False)
+        if start_time or end_time:
+            if trim_overwrite:
+                output_file = os.path.splitext(filename)[0] + ".tmp.mp4"
             else:
-                shutil.move(path, save_dir)
+                output_file = os.path.splitext(filename)[0] + "_trimmed.mp4"
+            output_file = os.path.abspath(output_file)
 
-            logging.info(f"Downloaded and saved video to {save_dir}")
+            stream = ffmpeg.input(filename, ss=start_time, to=end_time)
+            stream = ffmpeg.output(stream, output_file, vcodec='libx264', acodec='aac', strict='experimental')
+            ffmpeg.run(stream, overwrite_output=True, cmd=FFMPEG_PATH)
 
-    # ファイル名のリネーム・DB整理
-    rename_videos_and_save_metadata(VIDEO_BASE_PATH)
-    remove_nonexistent_files_from_db()
+            if not os.path.exists(output_file):
+                raise FileNotFoundError(f"Trimmed file not found: {output_file}")
 
+            if trim_overwrite:
+                os.replace(output_file, filename)
+            else:
+                filename = output_file
 
-def _trim_video(input_path: str, output_path: Optional[str],
-                start_time: str, end_time: str, overwrite: bool = False) -> None:
-    """
-    動画をトリミングする内部関数
+        os.makedirs(save_dir, exist_ok=True)
+        target_path = os.path.abspath(os.path.join(save_dir, os.path.basename(filename)))
+        if not os.path.exists(filename):
+            raise FileNotFoundError(f"File to move not found: {filename}")
+        shutil.move(filename, target_path)
 
-    :param input_path: 元動画パス
-    :param output_path: 保存先パス
-    :param start_time: 開始時間 hh:mm:ss
-    :param end_time: 終了時間 hh:mm:ss
-    :param overwrite: Trueなら元動画上書き、Falseなら新規ファイル作成
-    """
-    if overwrite:
-        temp_path = input_path + ".tmp.mp4"
-        command = [
-            'ffmpeg', '-y', '-i', input_path,
-            '-ss', start_time,
-            '-to', end_time,
-            '-c', 'copy',
-            temp_path
-        ]
-        subprocess.run(command, check=True)
-        os.replace(temp_path, input_path)
-    else:
-        if output_path is None:
-            raise ValueError("output_path must be specified when overwrite=False")
-        command = [
-            'ffmpeg', '-y', '-i', input_path,
-            '-ss', start_time,
-            '-to', end_time,
-            '-c', 'copy',
-            output_path
-        ]
-        subprocess.run(command, check=True)
+        rename_videos_and_save_metadata(save_dir)
+        remove_nonexistent_files_from_db()
 
+    except Exception as e:
+        raise e
 
 def get_video_directories() -> List[str]:
     """動画ディレクトリ一覧を取得"""
