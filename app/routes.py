@@ -14,9 +14,6 @@ from flask import (
 )
 
 from app.utils import (
-    get_video_datas,
-    get_all_video_datas,
-    get_video_paths,
     get_video_directories,
     download,
     VIDEO_BASE_PATH
@@ -88,11 +85,6 @@ def watch_video() -> Response:
         response.headers["Expires"] = 0
         response.headers["Pragma"] = "no-cache"
         return response
-
-    if request.method == "POST":
-        use_dir = request.form["use_dir"]
-        return jsonify({"response": get_video_paths(use_dir)})
-
     return jsonify({"error": "Unsupported method"}), 405
 
 
@@ -187,7 +179,7 @@ def reset_videos() -> Response:
 
 @main.route("/api/test", methods=["GET"])
 def test() -> Response:
-    """DB 内の動画データを確認用に標準出力へ出力する。"""
+    """テストコード"""
     videos = VideoDataModel.query.all()
     sorted_videos = VideoDataModel.query.order_by(
         VideoDataModel.path, VideoDataModel.original_name
