@@ -21,17 +21,6 @@ FFMPEG_PATH = os.getenv('FFMPEG_PATH')
 FFMPEG_DIR = os.getenv('FFMPEG_DIR')
 
 
-@contextmanager
-def change_directory(destination: str):
-    """指定したディレクトリに一時的に移動するコンテキストマネージャ"""
-    current_directory = os.getcwd()
-    try:
-        os.chdir(destination)
-        yield
-    finally:
-        os.chdir(current_directory)
-
-
 def get_video_directories(base_path: str = VIDEO_BASE_PATH) -> List[str]:
     """動画ディレクトリ一覧を取得"""
     return [d for d in glob.glob(os.path.join(base_path, '*')) if os.path.isdir(d)]
