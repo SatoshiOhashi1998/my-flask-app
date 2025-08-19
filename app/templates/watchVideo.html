@@ -1,305 +1,190 @@
 {% extends "format.html" %}
 
 {% block head %}
-    <!-- jQueryとSelect2のライブラリを読み込む -->
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.13/css/select2.min.css" />
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.13/js/select2.min.js"></script>
-    <style>
-        /* 動画プレーヤーのスタイル設定 */
-        #videoPlayer {
-            width: 100%;
-            height: auto;
-            margin: 20px 0; /* 上下のマージンを追加 */
-            border: 2px solid #ccc;
-            border-radius: 8px;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-        }
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.13/css/select2.min.css" />
+<script src="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.13/js/select2.min.js"></script>
 
-        /* ラベルのスタイル */
-        label {
-            font-weight: bold;
-            margin-top: 15px;
-            display: block;
-        }
-
-        /* 入力フィールドとセレクトボックスのスタイル */
-        input[type="text"],
-        select {
-            width: 100%;
-            padding: 10px;
-            margin-bottom: 15px;
-            border: 1px solid #ccc;
-            border-radius: 5px;
-            box-shadow: 0 1px 5px rgba(0, 0, 0, 0.1);
-        }
-
-        /* ページタイトルのスタイル */
-        h1 {
-            font-size: 24px;
-            margin-bottom: 20px;
-            color: #333;
-        }
-
-        /* フィルター入力フィールドに特別なスタイル */
-        #filterInput {
-            background-color: #f9f9f9;
-            border: 1px solid #aaa;
-        }
-
-        /* セクションのスタイル */
-        .section {
-            margin-bottom: 30px; /* セクションの間隔を追加 */
-        }
-
-        /* ボタンのスタイル */
-        .button {
-            background-color: #007BFF;
-            color: white;
-            border: none;
-            padding: 10px 15px;
-            border-radius: 5px;
-            cursor: pointer;
-            margin-top: 15px; /* 上のマージン */
-            display: inline-block;
-        }
-
-        .button:hover {
-            background-color: #0056b3; /* ホバー時の背景色 */
-        }
-
-        #controlSection input[type="range"] {
-            width: 100%;
-            margin-top: 10px;
-        }
-        .button {
-            background-color: #007BFF;
-            color: white;
-            border: none;
-            padding: 21px 30px; /* 高さ・幅を拡大 */
-            font-size: 20px;     /* フォントも大きく */
-            border-radius: 8px;  /* 角丸を強調 */
-            cursor: pointer;
-            margin-top: 15px;
-            display: inline-block;
-            transition: background-color 0.3s ease;
-            touch-action: manipulation;
-        }
-
-        .button:hover {
-            background-color: #0056b3;
-        }
-        #controlSection .button {
-            margin-right: 10px;
-        }
-        .control-buttons {
-            display: flex;
-            justify-content: center; /* 中央揃え */
-            gap: 40px;                /* ボタン間のスペース */
-            margin-top: 15px;
-        }
-
-
-
-    </style>
+<style>
+/* 共通スタイル */
+#videoPlayer { width:100%; height:auto; margin:20px 0; border:2px solid #ccc; border-radius:8px; box-shadow:0 2px 10px rgba(0,0,0,0.1); }
+label { font-weight:bold; margin-top:15px; display:block; }
+input[type="text"], select, input[type="range"] { width:100%; padding:10px; margin-bottom:15px; border:1px solid #ccc; border-radius:5px; box-shadow:0 1px 5px rgba(0,0,0,0.1); }
+h1 { font-size:24px; margin-bottom:20px; color:#333; }
+#filterInput { background-color:#f9f9f9; border:1px solid #aaa; }
+.section { margin-bottom:30px; }
+.button { background-color:#007BFF; color:white; border:none; padding:21px 30px; font-size:20px; border-radius:8px; cursor:pointer; margin-top:15px; display:inline-block; transition:background-color 0.3s ease; touch-action:manipulation; }
+.button:hover { background-color:#0056b3; }
+#controlSection .button { margin-right:10px; }
+.control-buttons { display:flex; justify-content:center; gap:40px; margin-top:15px; }
+.select2-container--default .select2-results>.select2-results__options { max-height:400px; overflow-y:auto; }
+</style>
 {% endblock %}
 
 {% block body %}
-    <!-- フィルターセクション -->
-    <div class="section">
-        <label for="filterInput">フィルター:</label>
-        <input type="text" id="filterInput" placeholder="動画を検索...">
+<div class="section">
+    <label for="videoSelect">動画選択:</label>
+    <select id="videoSelect"></select>
+</div>
+
+<div class="section">
+    <label for="playMode">再生モード:</label>
+    <select id="playMode">
+        <option value="loop">ループ再生</option>
+        <option value="sequential">順番通りに再生</option>
+        <option value="random">ランダムな順番で再生</option>
+    </select>
+</div>
+
+<video id="videoPlayer" controls>
+    <source id="videoSource" src="" type="video/mp4">
+    お使いのブラウザは動画タグに対応していません。
+</video>
+
+<div class="section" id="controlSection">
+    <label for="volumeControl">音量調整:</label>
+    <input type="range" id="volumeControl" min="0" max="100" value="100">
+
+    <label for="progressBar">再生位置:</label>
+    <input type="range" id="progressBar" min="0" max="100" value="0">
+
+    <label for="speedControl">再生速度:</label>
+    <input type="range" id="speedControl" min="0.5" max="2.0" step="0.1" value="1">
+
+    <div class="control-buttons">
+        <button class="button" id="rewind10">⏪ 10秒戻る</button>
+        <button class="button" id="forward10">⏩ 10秒進む</button>
+        <button class="button" id="fullscreenBtn">🖵 全画面</button>
     </div>
+</div>
 
-    <!-- 動画選択セクション -->
-    <div class="section">
-        <label for="videoSelect">動画選択:</label>
-        <select id="videoSelect">
-            <!-- 動画オプションがここに追加されます -->
-        </select>
-    </div>
+<script>
+$(function() {
+    const videoPlayer = $('#videoPlayer')[0];
+    const select = $('#videoSelect');
+    const progressBar = $('#progressBar');
+    const speedControl = $('#speedControl');
 
-    <!-- 再生モード選択セクション -->
-    <div class="section">
-        <label for="playMode">再生モード:</label>
-        <select id="playMode">
-            <option value="loop">ループ再生</option>
-            <option value="sequential">順番通りに再生</option>
-            <option value="random">ランダムな順番で再生</option>
-        </select>
-    </div>
+    const videoQueue = {{ data['items'] | tojson }};
+    let currentIndex = 0;
+    let playMode = {{ data.mode | tojson }} || 'loop';
+    let isSeeking = false;
 
-    <!-- 動画プレーヤー -->
-    <video id="videoPlayer" controls style="display:none;">
-        <source id="videoSource" src="" type="video/mp4">
-        お使いのブラウザは動画タグに対応していません。
-    </video>
-    <!-- 音量・再生制御セクション -->
-    <div class="section" id="controlSection">
-        <label for="volumeControl">音量調整:</label>
-        <input type="range" id="volumeControl" min="0" max="100" value="100">
-
-        <div class="control-buttons">
-            <button class="button" id="rewind10">⏪ 10秒戻る</button>
-            <button class="button" id="forward10">⏩ 10秒進む</button>
-        </div>
-
-    </div>
-
-
-    <script>
-    $(document).ready(function() {
-        const v_param = {{ data.v | tojson }};
-        const t_param = {{ data.t | tojson }};
-        const filter_param = {{ data.filter | tojson }};
-        const mode_param = {{ data.mode | tojson }};
-        const videoPlayer = $('#videoPlayer')[0];
-        let videoQueue = [];
-        let currentIndex = 0;
-
-        function updateUrlAndTitle(video) {
-            const currentUrl = new URL(window.location.href);
-            currentUrl.search = '';
-            document.title = video; 
-            currentUrl.searchParams.set('v', video);
-            window.history.pushState({}, '', currentUrl);
-        }
-
-        const select = $('#videoSelect');
-        videoQueue = {{ data['items'] | tojson }}.map(item => {
-            const videoPath = `static/video/${item.dirpath.split('\\').pop()}/${item.filename}`;
-            const option = $('<option></option>').text(item.filetitle).val(videoPath);
-            select.append(option);
-            return videoPath;
+    // ------------------------------
+    // 初期化関数
+    // ------------------------------
+    function initVideoSelect() {
+        videoQueue.forEach(item => {
+            const dirName = item.dirpath.replace(/\\/g, '/').split('/').pop();
+            const videoPath = `static/video/${dirName}/${item.filename}`;
+            select.append($('<option>').text(item.filetitle).val(videoPath));
         });
 
-        let firstVideoPath;
-        if (v_param) {
-            const matchingOption = select.find(`option`).filter((index, option) => $(option).text() === v_param);
-            if (matchingOption.length > 0) {
-                firstVideoPath = matchingOption.val();
-                select.val(firstVideoPath);
-            } else {
-                firstVideoPath = select.find('option:first').val();
-                select.val(firstVideoPath);
-            }
-        } else {
-            firstVideoPath = select.find('option:first').val();
-            select.val(firstVideoPath);
-        }
+        select.select2({ placeholder: '動画を選択', allowClear: true, width: '100%' });
 
-        if (firstVideoPath) {
-            $('#videoSource').attr('src', firstVideoPath);
-            $('#videoPlayer').show();
-            updateUrlAndTitle(select.find('option:selected').text());
+        const initialVideoTitle = {{ data.v | tojson }};
+        let firstOption = select.find('option:first');
+        let firstVideoPath = firstOption.val();
+        if (initialVideoTitle) {
+            const matchOption = select.find('option').filter((i,opt) => $(opt).text() === initialVideoTitle);
+            if (matchOption.length) firstVideoPath = matchOption.val();
+        }
+        select.val(firstVideoPath).trigger('change');
+        $('#videoSource').attr('src', firstVideoPath);
+        videoPlayer.load();
+        document.title = select.find('option:selected').text();
+    }
+
+    // ------------------------------
+    // 再生モード管理
+    // ------------------------------
+    function playNextVideo() {
+        const options = select.find('option').map((i,opt) => $(opt).val()).get();
+        if (!options.length) return;
+
+        switch(playMode) {
+            case 'loop':
+                videoPlayer.currentTime = 0;
+                videoPlayer.play();
+                break;
+            case 'sequential':
+                currentIndex = (currentIndex + 1) % options.length;
+                select.val(options[currentIndex]).trigger('change');
+                break;
+            case 'random':
+                currentIndex = Math.floor(Math.random() * options.length);
+                select.val(options[currentIndex]).trigger('change');
+                break;
+        }
+    }
+
+    // ------------------------------
+    // イベント登録
+    // ------------------------------
+    videoPlayer.addEventListener('ended', playNextVideo);
+
+    $('#playMode').val(playMode).change(function() { playMode = $(this).val(); });
+
+    select.on('change', function() {
+        const selectedVideo = $(this).val();
+        currentIndex = $(this).prop('selectedIndex');
+        if (selectedVideo) {
+            $('#videoSource').attr('src', selectedVideo);
+            document.title = $(this).find('option:selected').text();
             videoPlayer.load();
-        }
-
-        // Filter value is set here
-        if (filter_param) {
-            $('#filterInput').val(filter_param);
-            applyFilter(filter_param); // Apply the filter right after setting the value
-        }
-
-        // Play mode value is set here
-        if (mode_param && ['loop', 'sequential', 'random'].includes(mode_param)) {
-            $('#playMode').val(mode_param);
-        }
-
-        function applyFilter(filterValue) {
-            $('#videoSelect option').each(function() {
-                const optionText = $(this).text().toLowerCase();
-                $(this).toggle(optionText.indexOf(filterValue.toLowerCase()) > -1);
-            });
-        }
-
-        $('#filterInput').on('input', function() {
-            const filterValue = $(this).val().toLowerCase();
-            applyFilter(filterValue);
-        });
-
-        $('#videoSelect').change(function() {
-            const selectedVideo = $(this).val();
-            currentIndex = $(this).prop('selectedIndex');
-            if (selectedVideo) {
-                $('#videoSource').attr('src', selectedVideo);
-                updateUrlAndTitle($(this).find('option:selected').text());
-                videoPlayer.load();
-
-                videoPlayer.onloadedmetadata = function() {
-                    videoPlayer.play();
-                };
-            } else {
-                $('#videoPlayer').hide();
-            }
-        });
-
-        let playMode = $('#playMode').val(); // Initial play mode is set from the dropdown
-
-        $('#playMode').change(function() {
-            playMode = $(this).val();
-        });
-
-        videoPlayer.addEventListener('ended', function() {
-            const visibleOptions = $('#videoSelect option').filter(function() {
-                return $(this).css('display') !== 'none';
-            }).map(function() {
-                return $(this).val();
-            }).get();
-
-            if (visibleOptions.length === 0) return;
-
-            switch (playMode) {
-                case 'loop':
-                    videoPlayer.currentTime = 0;
-                    videoPlayer.play();
-                    break;
-                case 'sequential':
-                    currentIndex = (currentIndex + 1) % visibleOptions.length;
-                    const nextVideoPath = visibleOptions[currentIndex];
-                    $('#videoSelect').val(nextVideoPath);
-                    $('#videoSource').attr('src', nextVideoPath);
-                    updateUrlAndTitle($('#videoSelect option:selected').text());
-                    videoPlayer.load();
-                    videoPlayer.play();
-                    break;
-                case 'random':
-                    currentIndex = Math.floor(Math.random() * visibleOptions.length);
-                    const randomVideoPath = visibleOptions[currentIndex];
-                    $('#videoSelect').val(randomVideoPath);
-                    $('#videoSource').attr('src', randomVideoPath);
-                    updateUrlAndTitle($('#videoSelect option:selected').text());
-                    videoPlayer.load();
-                    videoPlayer.play();
-                    break;
-            }
-        });
-
-        $('#videoSelect').change();
-        // 確実に currentTime を適用するために再設定
-        if (t_param) {
-            videoPlayer.addEventListener('playing', function handler() {
-                videoPlayer.currentTime = t_param;
-                videoPlayer.removeEventListener('playing', handler);
-            });
-        }
-    });
-    // 音量スライダー
-    $('#volumeControl').on('input', function () {
-        const volumeValue = $(this).val();
-        videoPlayer.volume = volumeValue / 100;
+            videoPlayer.onloadedmetadata = () => videoPlayer.play();
+            $('#videoPlayer').show();
+        } else { $('#videoPlayer').hide(); }
     });
 
-    // 再生位置 -10秒
-    $('#rewind10').click(function () {
-        videoPlayer.currentTime = Math.max(0, videoPlayer.currentTime - 10);
+    $('#volumeControl').on('input', function() { videoPlayer.volume = $(this).val()/100; });
+    speedControl.on('input', function() { videoPlayer.playbackRate = parseFloat($(this).val()); });
+
+    $('#rewind10').click(()=>seekBy(-10));
+    $('#forward10').click(()=>seekBy(10));
+
+    function seekBy(sec) {
+        videoPlayer.currentTime = Math.min(Math.max(0, videoPlayer.currentTime + sec), videoPlayer.duration);
+    }
+
+    videoPlayer.addEventListener('timeupdate', () => {
+        if(!isSeeking && videoPlayer.duration) progressBar.val((videoPlayer.currentTime/videoPlayer.duration)*100);
     });
 
-    // 再生位置 +10秒
-    $('#forward10').click(function () {
-        videoPlayer.currentTime = Math.min(videoPlayer.duration, videoPlayer.currentTime + 10);
-    });
+    progressBar.on('input', function() {
+        isSeeking = true;
+        videoPlayer.currentTime = (videoPlayer.duration * $(this).val())/100;
+    }).on('change', () => isSeeking=false);
 
+    $('#fullscreenBtn').click(toggleFullscreen);
+
+    function toggleFullscreen() {
+        if(!document.fullscreenElement) videoPlayer.requestFullscreen().catch(err=>console.error(err));
+        else document.exitFullscreen();
+    }
+
+    $(document).keydown(handleShortcuts);
+
+    function handleShortcuts(e){
+        switch(e.key){
+            case "ArrowLeft": seekBy(-10); break;
+            case "ArrowRight": seekBy(10); break;
+            case "ArrowUp": setVolume(0.05); break;
+            case "ArrowDown": setVolume(-0.05); break;
+            case " ": e.preventDefault(); videoPlayer.paused ? videoPlayer.play() : videoPlayer.pause(); break;
+            case "f": toggleFullscreen(); break;
+        }
+    }
+
+    function setVolume(delta){
+        videoPlayer.volume = Math.min(1, Math.max(0, videoPlayer.volume + delta));
+        $('#volumeControl').val(videoPlayer.volume*100);
+    }
+
+    // ------------------------------
+    // 初期化呼び出し
+    // ------------------------------
+    initVideoSelect();
+});
 </script>
-
 {% endblock %}
