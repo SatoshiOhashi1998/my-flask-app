@@ -32,7 +32,6 @@ tz = timezone(timedelta(hours=+9), "JST")
 
 # API URLテンプレート
 TARGET_URL = "https://api.openweathermap.org/data/2.5/forecast?q={city_name}&units=metric&appid={api_key}"
-# GAS_URL = os.getenv("GAS_WEATHER_URL")
 GAS_URL = os.getenv("GAS_UTIL_URL")
 
 

@@ -84,8 +84,7 @@ $(function() {
     // ------------------------------
     function initVideoSelect() {
         videoQueue.forEach(item => {
-            const dirName = item.dirpath.replace(/\\/g, '/').split('/').pop();
-            const videoPath = `static/video/${dirName}/${item.filename}`;
+            const videoPath = `${item.dirpath}\\${item.filename}`;
             select.append($('<option>').text(item.filetitle).val(videoPath).attr('data-filename', item.filename));
         });
 
