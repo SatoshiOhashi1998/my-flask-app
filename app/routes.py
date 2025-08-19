@@ -67,7 +67,6 @@ def watch_video() -> Response:
             }
             for item in videos
         ]
-        print(f'video_data[0]: {video_data[0]}')
 
         send_data: Dict[str, Any] = {
             "items": video_data,
