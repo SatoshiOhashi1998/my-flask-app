@@ -64,18 +64,17 @@ def watch_video() -> Response:
                 "dirpath": os.path.dirname(item.path),
                 "filename": item.new_name,
                 "filetitle": item.original_name,
-                "last_time": 0,
-                "memo": ""
             }
             for item in videos
         ]
 
         send_data: Dict[str, Any] = {
-            "v": v_param,
-            "t": time_param,
-            "filter": filter_param,
-            "mode": mode_param,
-            "items": video_data
+            "items": video_data,
+            "settings": {
+                "v": v_param or '',
+                "t": time_param or 0,
+                "mode": mode_param or 'loop',
+            }
         }
 
         response = make_response(
