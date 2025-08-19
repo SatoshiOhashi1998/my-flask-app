@@ -71,38 +71,58 @@ $(function() {
     let isSeeking = false;
 
     // ------------------------------
+    // URLパラメータ取得関数
+    // ------------------------------
+    function getURLParameter(name) {
+        const urlParams = new URLSearchParams(window.location.search);
+        const val = urlParams.get(name);
+        return val ? decodeURIComponent(val) : null;
+    }
+
+    // ------------------------------
     // 初期化関数
     // ------------------------------
     function initVideoSelect() {
         videoQueue.forEach(item => {
             const dirName = item.dirpath.replace(/\\/g, '/').split('/').pop();
             const videoPath = `static/video/${dirName}/${item.filename}`;
-            select.append($('<option>').text(item.filetitle).val(videoPath));
+            select.append($('<option>').text(item.filetitle).val(videoPath).attr('data-filename', item.filename));
         });
 
         select.select2({ placeholder: '動画を選択', allowClear: true, width: '100%' });
 
-        // settings.vに対応する動画を選択
-        const initialVideo = {{ data.settings.v | tojson }};
+        // settings.v または URL パラメータから初期選択
+        const urlV = getURLParameter('v');
+        const initialVideoTitleOrFile = {{ data.settings.v | tojson }};
         let firstOption = select.find('option:first');
-        let firstVideoPath = firstOption.val();
-        if (initialVideo) {
-            const matchOption = select.find('option').filter((i,opt) => {
-                return $(opt).text() === initialVideo || videoQueue[i].filename === initialVideo;
-            });
-            if (matchOption.length) firstVideoPath = matchOption.val();
+        let selectedOption = null;
+
+        if (urlV) {
+            selectedOption = select.find(`option[data-filename='${urlV}']`);
         }
+        if (!selectedOption || !selectedOption.length) {
+            selectedOption = select.find('option').filter((i,opt) => $(opt).text() === initialVideoTitleOrFile || $(opt).attr('data-filename') === initialVideoTitleOrFile);
+        }
+        if (!selectedOption || !selectedOption.length) selectedOption = firstOption;
 
-        select.val(firstVideoPath).trigger('change');
-        $('#videoSource').attr('src', firstVideoPath);
+        select.val(selectedOption.val()).trigger('change');
+        $('#videoSource').attr('src', selectedOption.val());
         videoPlayer.load();
-        document.title = select.find('option:selected').text();
 
-        // 初期URLをhistoryに設定
-        const initIndex = select.prop('selectedIndex');
-        const initFilename = videoQueue[initIndex].filename;
-        const initURL = `http://127.0.0.1:5000/watchVideo?v=${initFilename}`;
-        history.replaceState(null, '', initURL);
+        // 初期再生位置設定（URL t > settings.t）
+        let startTime = parseFloat(getURLParameter('t')) || {{ data.settings.t | tojson }} || 0;
+        videoPlayer.onloadedmetadata = () => {
+            if (!isNaN(startTime) && startTime > 0 && startTime < videoPlayer.duration) {
+                videoPlayer.currentTime = startTime;
+            }
+            videoPlayer.play();
+        };
+
+        // ブラウザURLも更新
+        const displayURL = `http://127.0.0.1:5000/watchVideo?v=${selectedOption.attr('data-filename')}`;
+        window.history.replaceState({}, '', displayURL);
+
+        document.title = selectedOption.text();
     }
 
     // ------------------------------
@@ -132,7 +152,6 @@ $(function() {
     // イベント登録
     // ------------------------------
     videoPlayer.addEventListener('ended', playNextVideo);
-
     $('#playMode').val(playMode).change(function() { playMode = $(this).val(); });
 
     select.on('change', function() {
@@ -144,14 +163,7 @@ $(function() {
             videoPlayer.load();
             videoPlayer.onloadedmetadata = () => videoPlayer.play();
             $('#videoPlayer').show();
-
-            // ブラウザのURLを書き換え
-            const filename = videoQueue[currentIndex].filename;
-            const newURL = `http://127.0.0.1:5000/watchVideo?v=${filename}`;
-            history.replaceState(null, '', newURL);
-        } else { 
-            $('#videoPlayer').hide(); 
-        }
+        } else { $('#videoPlayer').hide(); }
     });
 
     $('#volumeControl').on('input', function() { videoPlayer.volume = $(this).val()/100; });
@@ -181,7 +193,6 @@ $(function() {
     }
 
     $(document).keydown(handleShortcuts);
-
     function handleShortcuts(e){
         switch(e.key){
             case "ArrowLeft": seekBy(-10); break;
@@ -205,5 +216,5 @@ $(function() {
 });
 </script>
 
-    
+
 {% endblock %}
