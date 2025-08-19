@@ -67,13 +67,14 @@ def watch_video() -> Response:
             }
             for item in videos
         ]
+        print(f'video_data[0]: {video_data[0]}')
 
         send_data: Dict[str, Any] = {
             "items": video_data,
             "settings": {
-                "v": v_param,
-                "t": time_param,
-                "mode": mode_param,
+                "v": v_param or '',
+                "t": time_param or 0,
+                "mode": mode_param or 'loop',
             }
         }
 
