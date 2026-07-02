@@ -28,6 +28,7 @@ class UrlScheduler:
         self.url_jobs = [
             UrlJob(url=os.getenv('DYNALIST_URL'), job_id="target_job"),
             UrlJob(url=os.getenv('TENKI_URL'), job_id="weather_job"),
+            UrlJob(url=os.getenv('KIATSU_URL'), job_id="kiatsu_job"),
             UrlJob(url=os.getenv('ILLUST_LIST_URL'), job_id="illust_job")
         ]
 
@@ -51,17 +52,33 @@ class UrlScheduler:
             job_id="get_weather_data"
         )
 
-        self.add_job(
-            func=send_archived_streams_from_excel_channels,
-            trigger='cron',
-            hour=19,
-            minute=0,
-            job_id="get_YlArchive_data"
-        )
+        # self.add_job(
+        #     func=send_archived_streams_from_excel_channels,
+        #     trigger='cron',
+        #     hour=19,
+        #     minute=0,
+        #     job_id="get_YlArchive_data"
+        # )
 
     def schedule_url_jobs(self):
         """特定のURLを指定の時間に開くジョブをスケジュール"""
-        for hour in [0, 9, 12, 18]:
+        self.add_job(
+            webbrowser.open,
+            'cron',
+            hour=0,
+            minute=5,
+            args=[self.url_jobs[1].url],
+            job_id=f"{self.url_jobs[1].job_id}_{0}"
+        )
+        self.add_job(
+            webbrowser.open,
+            'cron',
+            hour=0,
+            minute=5,
+            args=[self.url_jobs[2].url],
+            job_id=f"{self.url_jobs[2].job_id}_{0}"
+        )
+        for hour in [9, 12, 18]:
             self.add_job(
                 webbrowser.open,
                 'cron',

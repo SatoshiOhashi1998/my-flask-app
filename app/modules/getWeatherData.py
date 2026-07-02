@@ -66,12 +66,12 @@ def get_weather_data(target_date=None, city_name="Tokyo"):
     avg_humidity = sum(item["main"]["humidity"] for item in daily_data) / len(daily_data)
 
     insert_data = (
-        f"天気: 最高気温 {max_temp}℃, "
-        f"最低気温 {min_temp}℃, "
-        f"降水確率 {total_precipitation_prob:.1f}%, "
+        f"天気: 最高気温 {max_temp:.1f}℃, "
+        f"最低気温 {min_temp:.1f}℃, "
+        f"降水確率 {total_precipitation_prob:.0f}%, "
         f"最高気圧 {max_pressure}hPa, "
         f"最低気圧 {min_pressure}hPa, "
-        f"平均湿度 {avg_humidity:.1f}%"
+        f"平均湿度 {avg_humidity:.0f}%"
     )
 
     end_date = (datetime.strptime(target_date_str, "%Y-%m-%d") + timedelta(days=1)).strftime("%Y-%m-%d")

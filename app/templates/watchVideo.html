@@ -118,10 +118,17 @@ $(function() {
         };
 
         // ブラウザURLも更新
-        const displayURL = `http://127.0.0.1:5000/watchVideo?v=${selectedOption.attr('data-filename')}`;
-        window.history.replaceState({}, '', displayURL);
+        updateBrowserURL(selectedOption);
 
         document.title = selectedOption.text();
+    }
+
+    // ------------------------------
+    // URL更新関数
+    // ------------------------------
+    function updateBrowserURL(option) {
+        const displayURL = `http://127.0.0.1:5000/watchVideo?v=${option.attr('data-filename')}`;
+        window.history.replaceState({}, '', displayURL);
     }
 
     // ------------------------------
@@ -155,14 +162,21 @@ $(function() {
 
     select.on('change', function() {
         const selectedVideo = $(this).val();
+        const selectedOption = $(this).find('option:selected');
         currentIndex = $(this).prop('selectedIndex');
+
         if (selectedVideo) {
             $('#videoSource').attr('src', selectedVideo);
-            document.title = $(this).find('option:selected').text();
+            document.title = selectedOption.text();
             videoPlayer.load();
             videoPlayer.onloadedmetadata = () => videoPlayer.play();
             $('#videoPlayer').show();
-        } else { $('#videoPlayer').hide(); }
+
+            // セレクト変更時にURLも更新
+            updateBrowserURL(selectedOption);
+        } else { 
+            $('#videoPlayer').hide(); 
+        }
     });
 
     $('#volumeControl').on('input', function() { videoPlayer.volume = $(this).val()/100; });
@@ -214,6 +228,5 @@ $(function() {
     initVideoSelect();
 });
 </script>
-
 
 {% endblock %}
