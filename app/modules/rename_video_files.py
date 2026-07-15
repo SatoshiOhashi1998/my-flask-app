@@ -159,7 +159,7 @@ def get_video_list_as_string() -> str:
     videos = VideoDataModel.query.order_by(VideoDataModel.path).all()
     
     videos = VideoDataModel.query.order_by(VideoDataModel.path).all()
-    base_url = "http://127.0.0.1:5000/watchVideo"
+    base_url = os.getenv("USE_URL")
     
     return [
         f"[{v.original_name}]({base_url}?v={v.new_name})"
