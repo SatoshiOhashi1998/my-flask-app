@@ -153,3 +153,15 @@ def restore_video_filenames_from_db(update_db: bool = False) -> List[Tuple[str, 
             update_video(video.id, video.original_name, restored_path)
 
     return restored_files
+
+def get_video_list_as_string() -> str:
+    """[original_name](new_name) の形式で全動画を連結して返す"""
+    videos = VideoDataModel.query.order_by(VideoDataModel.path).all()
+    
+    videos = VideoDataModel.query.order_by(VideoDataModel.path).all()
+    base_url = "http://127.0.0.1:5000/watchVideo"
+    
+    return [
+        f"[{v.original_name}]({base_url}?v={v.new_name})"
+        for v in videos
+    ]

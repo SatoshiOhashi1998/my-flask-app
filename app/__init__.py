@@ -39,6 +39,7 @@ def create_app():
                 template_folder='templates', 
                 static_folder='static')
     app.permanent_session_lifetime = timedelta(minutes=5)
+    app.config['JSON_AS_ASCII'] = False
 
     CORS(app)  # CORS有効化
 

@@ -24,7 +24,8 @@ from app.modules.getYouTubeLive import (
 )
 from app.modules.rename_video_files import (
     rename_videos_and_save_metadata,
-    remove_nonexistent_files_from_db
+    remove_nonexistent_files_from_db,
+    get_video_list_as_string
 )
 from app.models import db, VideoDataModel
 from myutils.gas_api.use_gas import send_to_gas
@@ -180,12 +181,17 @@ def reset_videos() -> Response:
 @main.route("/api/test", methods=["GET"])
 def test() -> Response:
     """テストコード"""
-    videos = VideoDataModel.query.all()
-    sorted_videos = VideoDataModel.query.order_by(
-        VideoDataModel.path, VideoDataModel.original_name
-    ).all()
+    # videos = VideoDataModel.query.all()
+    # sorted_videos = VideoDataModel.query.order_by(
+    #     VideoDataModel.path, VideoDataModel.original_name
+    # ).all()
 
-    for index, data in enumerate(videos):
-        print(f"{index}: {data.original_name}")
+    # for index, data in enumerate(videos):
+    #     print(f"{index}: {data.original_name}")
 
-    return jsonify({"response": ""})
+    senddata = get_video_list_as_string()
+
+    for text in get_video_list_as_string():
+        print(text)
+
+    return jsonify({"response": senddata})
