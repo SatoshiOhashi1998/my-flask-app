@@ -188,18 +188,4 @@ def get_video_info() -> Response:
 
 @main.route("/api/test", methods=["GET"])
 def test() -> Response:
-    """テストコード"""
-    # videos = VideoDataModel.query.all()
-    # sorted_videos = VideoDataModel.query.order_by(
-    #     VideoDataModel.path, VideoDataModel.original_name
-    # ).all()
-
-    # for index, data in enumerate(videos):
-    #     print(f"{index}: {data.original_name}")
-
-    senddata = get_video_list_as_string()
-
-    for text in get_video_list_as_string():
-        print(text)
-
-    return jsonify({"response": senddata})
+    return jsonify({"response": "test"})
