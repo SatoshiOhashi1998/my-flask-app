@@ -178,7 +178,7 @@ def reset_videos() -> Response:
     return jsonify({"response": ""})
 
 
-@main.route("/api/test", methods=["GET"])
+@main.route("/api/info/video", methods=["GET"])
 def get_video_info() -> Response:
     for text in get_video_list_as_string():
         print(text)
