@@ -179,6 +179,14 @@ def reset_videos() -> Response:
 
 
 @main.route("/api/test", methods=["GET"])
+def get_video_info() -> Response:
+    for text in get_video_list_as_string():
+        print(text)
+
+    return jsonify({"response": "check log"})
+
+
+@main.route("/api/test", methods=["GET"])
 def test() -> Response:
     """テストコード"""
     # videos = VideoDataModel.query.all()
