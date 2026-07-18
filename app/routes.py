@@ -27,7 +27,7 @@ from app.modules.rename_video_files import (
     remove_nonexistent_files_from_db,
     get_video_list_as_string
 )
-from app.models import db, VideoDataModel
+from app.models import db, VideoDataModel, Comment
 from myutils.gas_api.use_gas import send_to_gas
 
 
@@ -186,6 +186,52 @@ def get_video_info() -> Response:
     return jsonify({"response": "check log"})
 
 
-@main.route("/api/test", methods=["GET"])
-def test() -> Response:
-    return jsonify({"response": "test"})
+@main.route("/api/videos", methods=["GET"])
+def get_videos():
+    # 検索機能やページネーションを見越して、一旦全ての動画リストをJSONで返す
+    locale.setlocale(locale.LC_COLLATE, "ja_JP.UTF-8")
+
+    videos = db.session.query(VideoDataModel).order_by(VideoDataModel.path).all()
+
+    # ソート処理はそのまま活用
+    videos.sort(
+        key=lambda v: (
+            os.path.normpath(os.path.dirname(v.path)),
+            locale.strxfrm(v.original_name)
+        )
+    )
+
+    video_data = [
+        {
+            # React側で扱いやすいようにIDを付与（filenameをIDとして流用）
+            "id": os.path.splitext(item.new_name)[0], 
+            "dirpath": os.path.dirname(item.path).split('static')[-1],
+            "filename": item.new_name,
+            "filetitle": item.original_name,
+        }
+        for item in videos
+    ]
+
+    return jsonify({"items": video_data})
+
+# コメント一覧取得
+@main.route("/api/videos/<video_id>/comments", methods=["GET"])
+def get_comments(video_id):
+    comments = Comment.query.filter_by(video_id=video_id).order_by(Comment.created_at.desc()).all()
+    return jsonify([{
+        "id": c.id,
+        "content": c.content,
+        "created_at": c.created_at.strftime("%Y-%m-%d %H:%M:%S")
+    } for c in comments])
+
+# コメント投稿
+@main.route("/api/videos/<video_id>/comments", methods=["POST"])
+def post_comment(video_id):
+    data = request.json
+    new_comment = Comment(
+        video_id=video_id,
+        content=data.get("content")
+    )
+    db.session.add(new_comment)
+    db.session.commit()
+    return jsonify({"message": "コメントを投稿しました"}), 201
