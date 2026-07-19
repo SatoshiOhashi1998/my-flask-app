@@ -254,3 +254,17 @@ def post_comment(video_id):
     db.session.add(new_comment)
     db.session.commit()
     return jsonify({"message": "コメントを投稿しました"}), 201
+
+@main.route("/api/videos/<comment_id>/comments", methods=["PUT"])
+def update_comment(comment_id):
+    comment = Comment.query.get_or_404(comment_id)
+    comment.content = request.json.get("content")
+    db.session.commit()
+    return jsonify({"message": "更新しました"})
+
+@main.route("/api/videos/<comment_id>/comments", methods=["DELETE"])
+def delete_comment(comment_id):
+    comment = Comment.query.get_or_404(comment_id)
+    db.session.delete(comment)
+    db.session.commit()
+    return jsonify({"message": "削除しました"}), 200
