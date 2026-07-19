@@ -10,9 +10,34 @@ class VideoDataModel(db.Model):
     path = db.Column(db.String(collation="NOCASE"), nullable=False)
     original_name = db.Column(db.String(collation="NOCASE"), nullable=False)
 
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "new_name": self.new_name,
+            "path": self.path,
+            "original_name": self.original_name
+        }
 
     def __repr__(self):
         return f"<VideoData(id={self.id}, original_name={self.original_name}, new_name={self.new_name}, path={self.path})>"
+
+class MusicDataModel(db.Model):
+    __tablename__ = 'musics'
+    id = db.Column(db.String, primary_key=True)
+    new_name = db.Column(db.String, nullable=False)
+    path = db.Column(db.String(collation="NOCASE"), nullable=False)
+    original_name = db.Column(db.String(collation="NOCASE"), nullable=False)
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "new_name": self.new_name,
+            "path": self.path,
+            "original_name": self.original_name
+        }
+
+    def __repr__(self):
+        return f"<MusicData(id={self.id}, original_name={self.original_name}, new_name={self.new_name}, path={self.path})>"
 
 class Comment(db.Model):
     id = db.Column(db.Integer, primary_key=True)

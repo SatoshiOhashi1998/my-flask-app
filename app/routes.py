@@ -10,7 +10,8 @@ from flask import (
     request,
     jsonify,
     make_response,
-    Response
+    Response,
+    abort
 )
 
 from app.utils import (
@@ -25,7 +26,8 @@ from app.modules.getYouTubeLive import (
 from app.modules.rename_video_files import (
     rename_videos_and_save_metadata,
     remove_nonexistent_files_from_db,
-    get_video_list_as_string
+    get_video_list_as_string,
+    find_by_id
 )
 from app.models import db, VideoDataModel, Comment
 from myutils.gas_api.use_gas import send_to_gas
@@ -212,7 +214,24 @@ def get_videos():
         for item in videos
     ]
 
+    for video in video_data:
+        print(video)
+
     return jsonify({"items": video_data})
+
+@main.route("/api/videos/<video_id>/info", methods=["GET"])
+def get_video(video_id):
+    video = VideoDataModel.query.get(video_id)
+    video = {
+        "id": video.id,
+        "filetitle": video.original_name, # 表示用のタイトル
+        "dirpath": os.path.dirname(video.path).split('static')[-1], # static/ 以下のディレクトリパス
+        "filename": video.new_name # ファイル名
+    }
+    if not video:
+        return jsonify({"error": "Video not found"}), 404
+    return jsonify(video)
+
 
 # コメント一覧取得
 @main.route("/api/videos/<video_id>/comments", methods=["GET"])
