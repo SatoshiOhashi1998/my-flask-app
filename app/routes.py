@@ -214,9 +214,6 @@ def get_videos():
         for item in videos
     ]
 
-    for video in video_data:
-        print(video)
-
     return jsonify({"items": video_data})
 
 @main.route("/api/videos/<video_id>/info", methods=["GET"])
