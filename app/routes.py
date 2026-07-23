@@ -29,7 +29,7 @@ from app.modules.rename_video_files import (
     get_video_list_as_string,
     find_by_id
 )
-from app.models import db, VideoDataModel, Comment
+from app.models import db, VideoDataModel, MusicDataModel, Comment
 from myutils.gas_api.use_gas import send_to_gas
 
 
@@ -261,6 +261,82 @@ def update_comment(comment_id):
 
 @main.route("/api/videos/<comment_id>/comments", methods=["DELETE"])
 def delete_comment(comment_id):
+    comment = Comment.query.get_or_404(comment_id)
+    db.session.delete(comment)
+    db.session.commit()
+    return jsonify({"message": "削除しました"}), 200
+
+@main.route("/api/musics", methods=["GET"])
+def get_musics():
+    locale.setlocale(locale.LC_COLLATE, "ja_JP.UTF-8")
+    musics = db.session.query(MusicDataModel).order_by(MusicDataModel.path).all()
+
+    musics.sort(
+        key=lambda m: (
+            os.path.normpath(os.path.dirname(m.path)),
+            locale.strxfrm(m.original_name)
+        )
+    )
+
+    music_data = [
+        {
+            "id": os.path.splitext(item.new_name)[0],
+            "dirpath": os.path.dirname(item.path).split('static')[-1],
+            "filename": item.new_name,
+            "filetitle": item.original_name,
+            "type": "audio" # フロントのプレイヤー判別用
+        }
+        for item in musics
+    ]
+
+    return jsonify({"items": music_data})
+
+@main.route("/api/musics/<music_id>/info", methods=["GET"])
+def get_music(music_id):
+    music = MusicDataModel.query.get(music_id)
+    if not music:
+        return jsonify({"error": "Music not found"}), 404
+        
+    music_dict = {
+        "id": music.id,
+        "filetitle": music.original_name,
+        "dirpath": os.path.dirname(music.path).split('static')[-1],
+        "filename": music.new_name,
+        "type": "audio"
+    }
+    return jsonify(music_dict)
+
+# コメント一覧取得
+@main.route("/api/musics/<music_id>/comments", methods=["GET"])
+def get_music_comments(music_id):
+    comments = Comment.query.filter_by(video_id=music_id).order_by(Comment.created_at.desc()).all()
+    return jsonify([{
+        "id": c.id,
+        "content": c.content,
+        "created_at": c.created_at.strftime("%Y-%m-%d %H:%M:%S")
+    } for c in comments])
+
+# コメント投稿
+@main.route("/api/musics/<music_id>/comments", methods=["POST"])
+def post_music_comment(music_id):
+    data = request.json
+    new_comment = Comment(
+        video_id=music_id,
+        content=data.get("content")
+    )
+    db.session.add(new_comment)
+    db.session.commit()
+    return jsonify({"message": "コメントを投稿しました"}), 201
+
+@main.route("/api/musics/<comment_id>/comments", methods=["PUT"])
+def update_music_comment(comment_id):
+    comment = Comment.query.get_or_404(comment_id)
+    comment.content = request.json.get("content")
+    db.session.commit()
+    return jsonify({"message": "更新しました"})
+
+@main.route("/api/musics/<comment_id>/comments", methods=["DELETE"])
+def delete_music_comment(comment_id):
     comment = Comment.query.get_or_404(comment_id)
     db.session.delete(comment)
     db.session.commit()
