@@ -2,6 +2,7 @@ import os
 import locale
 import unicodedata
 from typing import Dict, Any
+import traceback
 
 import pandas as pd
 from flask import (
@@ -14,8 +15,12 @@ from flask import (
     abort
 )
 
+from googleapiclient.discovery import build
+from googleapiclient.errors import HttpError
+
 from app.utils import (
     get_video_directories,
+    get_audio_directories,
     download,
     VIDEO_BASE_PATH
 )
@@ -29,6 +34,9 @@ from app.modules.rename_video_files import (
     get_video_list_as_string,
     find_by_id
 )
+
+
+from app.modules.rename_audio_files import rename_musics_and_save_metadata, remove_nonexistent_audio_files_from_db
 from app.models import db, VideoDataModel, MusicDataModel, Comment
 from myutils.gas_api.use_gas import send_to_gas
 
@@ -92,32 +100,44 @@ def watch_video() -> Response:
 
 @main.route("/downloadVideo", methods=["GET", "POST"])
 def download_video() -> Response:
-    """動画をダウンロードするためのエンドポイント。
-
-    GET: 保存先ディレクトリの一覧を返す。
-    POST: 指定動画をダウンロードし JSON レスポンスを返す。
-    """
     if request.method == "GET":
-        dir_paths = get_video_directories()
-        return jsonify(dir_paths)
+        try:
+            print(get_audio_directories())
+            dir_paths = get_video_directories() + get_audio_directories()
+            print(dir_paths)
+            return jsonify(dir_paths)
+        except Exception as e:
+            return jsonify({"error": str(e)}), 500
 
     if request.method == "POST":
         data = request.json or {}
         video_id = data.get("video_id")
         save_dir = data.get("save_dir")
-        save_quality = data.get("save_quality")
+        save_quality = data.get("save_quality", "1080")
         start_time = data.get("start_time")
         end_time = data.get("end_time")
+        
+        # ★ 追加: ダウンロードのタイプ ('video' または 'audio'。デフォルトは video)
+        download_type = data.get("download_type", "video")
 
-        download(
-            video_id=video_id,
-            save_dir=save_dir,
-            quality=save_quality,
-            start_time=start_time,
-            end_time=end_time
-        )
+        if not video_id or not save_dir:
+            return jsonify({"error": "video_id and save_dir are required"}), 400
 
-        return jsonify({"response": f"{video_id} のダウンロードが完了しました"})
+        try:
+            target_path = download(
+                video_id=video_id,
+                save_dir=save_dir,
+                quality=save_quality,
+                start_time=start_time,
+                end_time=end_time,
+                download_type=download_type  # 引数として渡す
+            )
+            return jsonify({
+                "response": f"{video_id} のダウンロード（{download_type}）が完了しました",
+                "path": target_path
+            })
+        except Exception as e:
+            return jsonify({"error": f"ダウンロードに失敗しました: {str(e)}"}), 500
 
     return jsonify({"error": "Unsupported method"}), 405
 
@@ -210,6 +230,7 @@ def get_videos():
             "dirpath": os.path.dirname(item.path).split('static')[-1],
             "filename": item.new_name,
             "filetitle": item.original_name,
+            "type": "video"
         }
         for item in videos
     ]
@@ -341,3 +362,58 @@ def delete_music_comment(comment_id):
     db.session.delete(comment)
     db.session.commit()
     return jsonify({"message": "削除しました"}), 200
+
+@main.route("/test", methods=["GET"])
+def test():
+    target_path = r"C:\Users\user\PycharmProjects\MyUtilProject\MyApp\FlaskApp\app\static\audio"
+    rename_musics_and_save_metadata(target_path)
+    remove_nonexistent_audio_files_from_db()
+    return jsonify({"message": ""}), 200
+
+@main.route('/api/youtube/search', methods=['GET'])
+def search_youtube():
+    query = request.args.get('q', '')
+    if not query:
+        return jsonify({'items': []}), 200
+
+    api_key = os.getenv("YOUTUBE_API_KEY")
+    if not api_key:
+        print("Error: YOUTUBE_API_KEY is not set.")
+        return jsonify({'error': 'YouTube API Key is not configured'}), 500
+
+    try:
+        # YouTube APIクライアントの構築
+        youtube = build('youtube', 'v3', developerKey=api_key)
+
+        # 検索リクエストの実行
+        response = youtube.search().list(
+            q=query,
+            part='snippet',
+            type='video',
+            maxResults=45  # フロントの1ページ上限に合わせる
+        ).execute()
+
+        items = []
+        for item in response.get('items', []):
+            # videoIdが存在しないアイテム（チャンネル等）をスキップ
+            if 'videoId' not in item.get('id', {}):
+                continue
+
+            video_id = item['id']['videoId']
+            snippet = item['snippet']
+            
+            # フロント側のデータ構造（id, filetitle, dirpath, type）に合わせる
+            items.append({
+                'id': video_id,
+                'filetitle': snippet['title'],
+                'dirpath': f"YouTube / {snippet['channelTitle']}",
+                'thumbnail': snippet['thumbnails']['high']['url'],
+                'type': 'youtube'
+            })
+
+        return jsonify({'items': items}), 200
+
+    except Exception as e:
+        print("=== YouTube API Error Traceback ===")
+        traceback.print_exc()
+        return jsonify({'error': str(e)}), 500
