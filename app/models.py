@@ -1,7 +1,9 @@
 from datetime import datetime
+from zoneinfo import ZoneInfo
 from flask_sqlalchemy import SQLAlchemy
 
 db = SQLAlchemy()
+JST = ZoneInfo("Asia/Tokyo")
 
 class VideoDataModel(db.Model):
     __tablename__ = 'videos'
@@ -44,4 +46,4 @@ class Comment(db.Model):
     video_id = db.Column(db.String(100), nullable=False) # 拡張子なしのID
     author = db.Column(db.String(50), default="ゲスト")  # 必要に応じて追加
     content = db.Column(db.Text, nullable=False)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(JST))
