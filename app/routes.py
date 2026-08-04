@@ -22,7 +22,8 @@ from app.utils import (
     get_video_directories,
     get_audio_directories,
     download,
-    VIDEO_BASE_PATH
+    VIDEO_BASE_PATH,
+    AUDIO_BASE_PATH
 )
 from app.modules.getYouTubeLive import (
     get_archived_live_streams_by_query,
@@ -38,6 +39,7 @@ from app.modules.rename_video_files import (
 
 from app.modules.rename_audio_files import rename_musics_and_save_metadata, remove_nonexistent_audio_files_from_db
 from app.models import db, VideoDataModel, MusicDataModel, Comment
+from app.modules.export_comments import export_today_comments_to_md
 from myutils.gas_api.use_gas import send_to_gas
 
 
@@ -102,9 +104,7 @@ def watch_video() -> Response:
 def download_video() -> Response:
     if request.method == "GET":
         try:
-            print(get_audio_directories())
             dir_paths = get_video_directories() + get_audio_directories()
-            print(dir_paths)
             return jsonify(dir_paths)
         except Exception as e:
             return jsonify({"error": str(e)}), 500
@@ -116,8 +116,6 @@ def download_video() -> Response:
         save_quality = data.get("save_quality", "1080")
         start_time = data.get("start_time")
         end_time = data.get("end_time")
-        
-        # ★ 追加: ダウンロードのタイプ ('video' または 'audio'。デフォルトは video)
         download_type = data.get("download_type", "video")
 
         if not video_id or not save_dir:
@@ -130,7 +128,7 @@ def download_video() -> Response:
                 quality=save_quality,
                 start_time=start_time,
                 end_time=end_time,
-                download_type=download_type  # 引数として渡す
+                download_type=download_type
             )
             return jsonify({
                 "response": f"{video_id} のダウンロード（{download_type}）が完了しました",
@@ -197,6 +195,9 @@ def reset_videos() -> Response:
     """動画ファイルのメタデータをリセットし、DB を更新する。"""
     rename_videos_and_save_metadata(VIDEO_BASE_PATH)
     remove_nonexistent_files_from_db()
+    rename_musics_and_save_metadata(AUDIO_BASE_PATH)
+    remove_nonexistent_audio_files_from_db()
+
     return jsonify({"response": ""})
 
 
@@ -363,13 +364,6 @@ def delete_music_comment(comment_id):
     db.session.commit()
     return jsonify({"message": "削除しました"}), 200
 
-@main.route("/test", methods=["GET"])
-def test():
-    target_path = r"C:\Users\user\PycharmProjects\MyUtilProject\MyApp\FlaskApp\app\static\audio"
-    rename_musics_and_save_metadata(target_path)
-    remove_nonexistent_audio_files_from_db()
-    return jsonify({"message": ""}), 200
-
 @main.route('/api/youtube/search', methods=['GET'])
 def search_youtube():
     query = request.args.get('q', '')
@@ -417,3 +411,46 @@ def search_youtube():
         print("=== YouTube API Error Traceback ===")
         traceback.print_exc()
         return jsonify({'error': str(e)}), 500
+
+@main.route('/api/youtube/<video_id>/info', methods=['GET'])
+def get_youtube_info(video_id):
+    api_key = os.getenv("YOUTUBE_API_KEY")
+    if not api_key:
+        print("Error: YOUTUBE_API_KEY is not set.")
+        return jsonify({'error': 'YouTube API Key is not configured'}), 500
+
+    try:
+        youtube = build('youtube', 'v3', developerKey=api_key)
+
+        response = youtube.videos().list(
+            part='snippet',
+            id=video_id
+        ).execute()
+
+        items = response.get('items', [])
+        if not items:
+            return jsonify({'error': 'Video not found'}), 404
+
+        item = items[0]
+        snippet = item['snippet']
+
+        video_info = {
+            'id': video_id,
+            'filetitle': snippet['title'],
+            'dirpath': f"YouTube / {snippet['channelTitle']}",
+            'thumbnail': snippet['thumbnails']['high']['url'],
+            'type': 'youtube'
+        }
+
+        return jsonify(video_info), 200
+
+    except Exception as e:
+        print("=== YouTube API Error Traceback ===")
+        traceback.print_exc()
+        return jsonify({'error': str(e)}), 500
+
+@main.route("/test", methods=["GET"])
+def test():
+    export_today_comments_to_md()
+    return jsonify({"message": ""}), 200
+

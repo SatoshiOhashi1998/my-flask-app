@@ -40,15 +40,18 @@ def download(
     start_time: Optional[str] = None,
     end_time: Optional[str] = None,
     trim_overwrite: bool = True,
-    download_type: str = "video"  # ★ 追加
+    download_type: str = "video"
 ) -> str:
     clean_id = video_id.split("&")[0] if "&" in video_id else video_id
 
     os.makedirs(save_dir, exist_ok=True)
     os.makedirs(VIDEO_BASE_PATH, exist_ok=True)
 
-    # ★ 音声か動画かで yt-dlp のオプションを切り替える
     if download_type == "audio":
+        # ★ 音声の場合：quality の値をそのままビットレート（192, 320 など）として利用する設計にします
+        # （フロントから "192" や "320" などの文字列が送られてくると想定）
+        bitrate = quality if quality in ["128", "192", "320"] else "192"
+        
         ydl_opts = {
             'format': 'bestaudio/best',
             'ffmpeg_location': FFMPEG_DIR,
@@ -56,11 +59,12 @@ def download(
             'noplaylist': True,
             'postprocessors': [{
                 'key': 'FFmpegExtractAudio',
-                'preferredcodec': 'mp3',      # 保存したい音声フォーマット (mp3, m4a など)
-                'preferredquality': '192',    # 音質ビットレート (192kbpsなど)
+                'preferredcodec': 'mp3',
+                'preferredquality': bitrate, # 選択された音質を適用
             }],
         }
     else:
+        # 動画の場合（画質に合わせて音声の品質も連動するデフォルト設定）
         ydl_opts = {
             'format': f'bestvideo[height<={quality}]+bestaudio/best',
             'ffmpeg_location': FFMPEG_DIR,
@@ -74,7 +78,6 @@ def download(
         info = ydl.extract_info(clean_id, download=True)
         downloaded_filename = ydl.prepare_filename(info)
         
-        # 音声抽出の場合は拡張子が mp3 に変わるため補正
         if download_type == "audio":
             base, _ = os.path.splitext(downloaded_filename)
             downloaded_filename = base + ".mp3"
@@ -87,7 +90,6 @@ def download(
 
     target_filename = downloaded_filename
 
-    # トリミング処理（音声の場合も ffmpeg で ss / to による切り出しが可能です）
     if start_time or end_time:
         ext = ".tmp.mp3" if download_type == "audio" else ".tmp.mp4"
         output_file = os.path.splitext(downloaded_filename)[0] + ext
@@ -120,7 +122,6 @@ def download(
         remove_nonexistent_files_from_db()
         rename_musics_and_save_metadata(save_dir)
         remove_nonexistent_audio_files_from_db()
-
     except Exception as e:
         print(f"警告: DB更新中にエラーが発生しました: {str(e)}")
 
