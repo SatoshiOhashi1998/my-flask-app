@@ -7,6 +7,7 @@ from apscheduler.schedulers.background import BackgroundScheduler
 from app.modules import useMailServer
 from app.modules.getWeatherData import register_tomorrow_weather_to_calendar
 from app.modules.getYouTubeLive import send_archived_streams_from_excel_channels
+from app.modules.export_comments import export_today_comments_to_md
 
 logger = logging.getLogger(__name__)  # モジュール専用ロガー
 
@@ -50,6 +51,15 @@ class UrlScheduler:
             hour=23,
             minute=0,
             job_id="get_weather_data"
+        )
+
+        # 毎日23:55に本日のコメントをMarkdownに出力するジョブ
+        self.add_job(
+            func=export_today_comments_to_md,
+            trigger='cron',
+            hour=23,
+            minute=55,
+            job_id="export_today_comments"
         )
 
         # self.add_job(
