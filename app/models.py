@@ -45,5 +45,6 @@ class Comment(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     video_id = db.Column(db.String(100), nullable=False) # 拡張子なしのID
     author = db.Column(db.String(50), default="ゲスト")  # 必要に応じて追加
+    media_type = db.Column(db.String(20), default="video")
     content = db.Column(db.Text, nullable=False)
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(JST))

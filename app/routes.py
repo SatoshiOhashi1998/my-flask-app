@@ -213,12 +213,10 @@ def get_video_info() -> Response:
 
 @main.route("/api/videos", methods=["GET"])
 def get_videos():
-    # 検索機能やページネーションを見越して、一旦全ての動画リストをJSONで返す
     locale.setlocale(locale.LC_COLLATE, "ja_JP.UTF-8")
 
     videos = db.session.query(VideoDataModel).order_by(VideoDataModel.path).all()
 
-    # ソート処理はそのまま活用
     videos.sort(
         key=lambda v: (
             os.path.normpath(os.path.dirname(v.path)),
@@ -228,7 +226,6 @@ def get_videos():
 
     video_data = [
         {
-            # React側で扱いやすいようにIDを付与（filenameをIDとして流用）
             "id": os.path.splitext(item.new_name)[0], 
             "dirpath": os.path.dirname(item.path).split('static')[-1],
             "filename": item.new_name,
@@ -243,52 +240,18 @@ def get_videos():
 @main.route("/api/videos/<video_id>/info", methods=["GET"])
 def get_video(video_id):
     video = VideoDataModel.query.get(video_id)
-    video = {
-        "id": video.id,
-        "filetitle": video.original_name, # 表示用のタイトル
-        "dirpath": os.path.dirname(video.path).split('static')[-1], # static/ 以下のディレクトリパス
-        "filename": video.new_name # ファイル名
-    }
     if not video:
         return jsonify({"error": "Video not found"}), 404
-    return jsonify(video)
+        
+    video_dict = {
+        "id": video.id,
+        "filetitle": video.original_name,
+        "dirpath": os.path.dirname(video.path).split('static')[-1],
+        "filename": video.new_name,
+        "type": "video"
+    }
+    return jsonify(video_dict)
 
-
-# コメント一覧取得
-@main.route("/api/videos/<video_id>/comments", methods=["GET"])
-def get_comments(video_id):
-    comments = Comment.query.filter_by(video_id=video_id).order_by(Comment.created_at.desc()).all()
-    return jsonify([{
-        "id": c.id,
-        "content": c.content,
-        "created_at": c.created_at.strftime("%Y-%m-%d %H:%M:%S")
-    } for c in comments])
-
-# コメント投稿
-@main.route("/api/videos/<video_id>/comments", methods=["POST"])
-def post_comment(video_id):
-    data = request.json
-    new_comment = Comment(
-        video_id=video_id,
-        content=data.get("content")
-    )
-    db.session.add(new_comment)
-    db.session.commit()
-    return jsonify({"message": "コメントを投稿しました"}), 201
-
-@main.route("/api/videos/<comment_id>/comments", methods=["PUT"])
-def update_comment(comment_id):
-    comment = Comment.query.get_or_404(comment_id)
-    comment.content = request.json.get("content")
-    db.session.commit()
-    return jsonify({"message": "更新しました"})
-
-@main.route("/api/videos/<comment_id>/comments", methods=["DELETE"])
-def delete_comment(comment_id):
-    comment = Comment.query.get_or_404(comment_id)
-    db.session.delete(comment)
-    db.session.commit()
-    return jsonify({"message": "削除しました"}), 200
 
 @main.route("/api/musics", methods=["GET"])
 def get_musics():
@@ -308,7 +271,7 @@ def get_musics():
             "dirpath": os.path.dirname(item.path).split('static')[-1],
             "filename": item.new_name,
             "filetitle": item.original_name,
-            "type": "audio" # フロントのプレイヤー判別用
+            "type": "audio"
         }
         for item in musics
     ]
@@ -330,41 +293,48 @@ def get_music(music_id):
     }
     return jsonify(music_dict)
 
-# コメント一覧取得
-@main.route("/api/musics/<music_id>/comments", methods=["GET"])
-def get_music_comments(music_id):
-    comments = Comment.query.filter_by(video_id=music_id).order_by(Comment.created_at.desc()).all()
+
+# --- 統合されたコメント関連のエンドポイント ---
+
+@main.route("/api/items/<item_id>/comments", methods=["GET"])
+def get_comments(item_id):
+    media_type = request.args.get("type", "video")
+    comments = Comment.query.filter_by(video_id=item_id, media_type=media_type).order_by(Comment.created_at.desc()).all()
     return jsonify([{
         "id": c.id,
         "content": c.content,
+        "media_type": c.media_type,
         "created_at": c.created_at.strftime("%Y-%m-%d %H:%M:%S")
     } for c in comments])
 
-# コメント投稿
-@main.route("/api/musics/<music_id>/comments", methods=["POST"])
-def post_music_comment(music_id):
+@main.route("/api/items/<item_id>/comments", methods=["POST"])
+def post_comment(item_id):
     data = request.json
     new_comment = Comment(
-        video_id=music_id,
+        video_id=item_id,
+        media_type=data.get("media_type", "video"),
         content=data.get("content")
     )
     db.session.add(new_comment)
     db.session.commit()
     return jsonify({"message": "コメントを投稿しました"}), 201
 
-@main.route("/api/musics/<comment_id>/comments", methods=["PUT"])
-def update_music_comment(comment_id):
+@main.route("/api/comments/<comment_id>", methods=["PUT"])
+def update_comment(comment_id):
     comment = Comment.query.get_or_404(comment_id)
     comment.content = request.json.get("content")
     db.session.commit()
     return jsonify({"message": "更新しました"})
 
-@main.route("/api/musics/<comment_id>/comments", methods=["DELETE"])
-def delete_music_comment(comment_id):
+@main.route("/api/comments/<comment_id>", methods=["DELETE"])
+def delete_comment(comment_id):
     comment = Comment.query.get_or_404(comment_id)
     db.session.delete(comment)
     db.session.commit()
     return jsonify({"message": "削除しました"}), 200
+
+
+# --- YouTube関連 ---
 
 @main.route('/api/youtube/search', methods=['GET'])
 def search_youtube():
@@ -405,4 +375,3 @@ def get_youtube_info(video_id):
 def test():
     export_today_comments_to_md()
     return jsonify({"message": ""}), 200
-
