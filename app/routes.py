@@ -23,7 +23,9 @@ from app.utils import (
     get_audio_directories,
     download,
     VIDEO_BASE_PATH,
-    AUDIO_BASE_PATH
+    AUDIO_BASE_PATH,
+    fetch_youtube_videos,
+    fetch_youtube_video_info
 )
 from app.modules.getYouTubeLive import (
     get_archived_live_streams_by_query,
@@ -370,43 +372,13 @@ def search_youtube():
     if not query:
         return jsonify({'items': []}), 200
 
-    api_key = os.getenv("YOUTUBE_API_KEY")
-    if not api_key:
-        print("Error: YOUTUBE_API_KEY is not set.")
-        return jsonify({'error': 'YouTube API Key is not configured'}), 500
-
     try:
-        # YouTube APIクライアントの構築
-        youtube = build('youtube', 'v3', developerKey=api_key)
-
-        # 検索リクエストの実行
-        response = youtube.search().list(
-            q=query,
-            part='snippet',
-            type='video',
-            maxResults=45  # フロントの1ページ上限に合わせる
-        ).execute()
-
-        items = []
-        for item in response.get('items', []):
-            # videoIdが存在しないアイテム（チャンネル等）をスキップ
-            if 'videoId' not in item.get('id', {}):
-                continue
-
-            video_id = item['id']['videoId']
-            snippet = item['snippet']
-            
-            # フロント側のデータ構造（id, filetitle, dirpath, type）に合わせる
-            items.append({
-                'id': video_id,
-                'filetitle': snippet['title'],
-                'dirpath': f"YouTube / {snippet['channelTitle']}",
-                'thumbnail': snippet['thumbnails']['high']['url'],
-                'type': 'youtube'
-            })
-
+        items = fetch_youtube_videos(query)
         return jsonify({'items': items}), 200
 
+    except ValueError as e:
+        print(f"Error: {e}")
+        return jsonify({'error': str(e)}), 500
     except Exception as e:
         print("=== YouTube API Error Traceback ===")
         traceback.print_exc()
@@ -414,36 +386,16 @@ def search_youtube():
 
 @main.route('/api/youtube/<video_id>/info', methods=['GET'])
 def get_youtube_info(video_id):
-    api_key = os.getenv("YOUTUBE_API_KEY")
-    if not api_key:
-        print("Error: YOUTUBE_API_KEY is not set.")
-        return jsonify({'error': 'YouTube API Key is not configured'}), 500
-
     try:
-        youtube = build('youtube', 'v3', developerKey=api_key)
-
-        response = youtube.videos().list(
-            part='snippet',
-            id=video_id
-        ).execute()
-
-        items = response.get('items', [])
-        if not items:
+        video_info = fetch_youtube_video_info(video_id)
+        if not video_info:
             return jsonify({'error': 'Video not found'}), 404
-
-        item = items[0]
-        snippet = item['snippet']
-
-        video_info = {
-            'id': video_id,
-            'filetitle': snippet['title'],
-            'dirpath': f"YouTube / {snippet['channelTitle']}",
-            'thumbnail': snippet['thumbnails']['high']['url'],
-            'type': 'youtube'
-        }
 
         return jsonify(video_info), 200
 
+    except ValueError as e:
+        print(f"Error: {e}")
+        return jsonify({'error': str(e)}), 500
     except Exception as e:
         print("=== YouTube API Error Traceback ===")
         traceback.print_exc()
