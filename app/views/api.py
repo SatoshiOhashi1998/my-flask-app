@@ -62,24 +62,8 @@ def download_video():
     return jsonify({"error": "Unsupported method"}), 405
 
 
-@api_bp.route("/getYouTubeLive", methods=["GET", "POST"])
-def get_youtube_lives():
-    id_param = request.args.get("video_id")
-    query_param = request.args.get("q")
-    GAS_URL = os.getenv("GAS_UTIL_URL")
-
-    if id_param:
-        data = get_archived_live_stream_by_videoid(id_param)
-        send_to_gas(data, GAS_URL)
-    elif query_param:
-        data = get_archived_live_streams_by_query(query_param)
-        send_to_gas(data, GAS_URL)
-
-    return jsonify({"response": ""})
-
-
-@api_bp.route("/api/reset/video", methods=["GET"])
-def reset_videos():
+@api_bp.route("/api/reset/media", methods=["GET"])
+def reset_medias_id():
     rename_videos_and_save_metadata(VIDEO_BASE_PATH)
     remove_nonexistent_files_from_db()
     rename_musics_and_save_metadata(AUDIO_BASE_PATH)
