@@ -10,8 +10,8 @@ import yt_dlp
 import ffmpeg
 
 from app.models import db
-from app.modules.rename_video_files import rename_videos_and_save_metadata, remove_nonexistent_files_from_db
-from app.modules.rename_audio_files import rename_musics_and_save_metadata, remove_nonexistent_audio_files_from_db
+from app.modules.video_manager import rename_videos_and_save_metadata, remove_nonexistent_files_from_db
+from app.modules.audio_manager import rename_musics_and_save_metadata, remove_nonexistent_audio_files_from_db
 
 # 環境変数・ディレクトリ定義
 APP_BASE_PATH = os.getenv("APP_BASE_PATH", "")

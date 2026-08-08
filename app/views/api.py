@@ -12,10 +12,10 @@ from app.modules.youtube_api import fetch_youtube_videos, fetch_youtube_video_in
 from app.modules.getYouTubeLive import (
     get_archived_live_streams_by_query, get_archived_live_stream_by_videoid
 )
-from app.modules.rename_video_files import (
+from app.modules.video_manager import (
     rename_videos_and_save_metadata, remove_nonexistent_files_from_db, get_video_list_as_string
 )
-from app.modules.rename_audio_files import rename_musics_and_save_metadata, remove_nonexistent_audio_files_from_db
+from app.modules.audio_manager import rename_musics_and_save_metadata, remove_nonexistent_audio_files_from_db
 from app.modules.export_comments import export_today_comments_to_md
 from myutils.gas_api.use_gas import send_to_gas
 
