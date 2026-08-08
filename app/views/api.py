@@ -87,13 +87,6 @@ def reset_videos():
     return jsonify({"response": ""})
 
 
-@api_bp.route("/api/info/video", methods=["GET"])
-def get_video_info():
-    for text in get_video_list_as_string():
-        print(text)
-    return jsonify({"response": "check log"})
-
-
 @api_bp.route("/api/videos", methods=["GET"])
 def get_videos():
     locale.setlocale(locale.LC_COLLATE, "ja_JP.UTF-8")
