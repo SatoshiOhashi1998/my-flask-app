@@ -26,7 +26,11 @@ from myutils.gas_api.use_gas import send_to_gas
 api_bp = Blueprint("api", __name__)
 
 
-@api_bp.route("/downloadVideo", methods=["GET", "POST"])
+# ==========================================
+# 1. YouTube ダウンロード・管理関連
+# ==========================================
+
+@api_bp.route("/api/youtube/download", methods=["GET", "POST"])
 def download_video():
     if request.method == "GET":
         try:
@@ -71,6 +75,10 @@ def reset_medias_id():
     return jsonify({"response": ""})
 
 
+# ==========================================
+# 2. 動画 (Video) 関連
+# ==========================================
+
 @api_bp.route("/api/videos", methods=["GET"])
 def get_videos():
     locale.setlocale(locale.LC_COLLATE, "ja_JP.UTF-8")
@@ -105,6 +113,10 @@ def get_video(video_id):
     })
 
 
+# ==========================================
+# 3. 音声・音楽 (Music/Audio) 関連
+# ==========================================
+
 @api_bp.route("/api/musics", methods=["GET"])
 def get_musics():
     locale.setlocale(locale.LC_COLLATE, "ja_JP.UTF-8")
@@ -138,6 +150,10 @@ def get_music(music_id):
         "type": "audio"
     })
 
+
+# ==========================================
+# 4. コメント関連
+# ==========================================
 
 @api_bp.route("/api/items/<item_id>/comments", methods=["GET"])
 def get_comments(item_id):
@@ -180,6 +196,16 @@ def delete_comment(comment_id):
     return jsonify({"message": "削除しました"}), 200
 
 
+@api_bp.route("/api/comments/export", methods=["GET"])
+def export_comment():
+    export_today_comments_to_md()
+    return jsonify({"message": ""}), 200
+
+
+# ==========================================
+# 5. YouTube API 連携関連
+# ==========================================
+
 @api_bp.route('/api/youtube/search', methods=['GET'])
 def search_youtube():
     query = request.args.get('q', '')
@@ -206,13 +232,11 @@ def get_youtube_info(video_id):
         return jsonify({'error': str(e)}), 500
 
 
-@api_bp.route("/export_comment", methods=["GET"])
-def export_comment():
-    export_today_comments_to_md()
-    return jsonify({"message": ""}), 200
+# ==========================================
+# 6. Markdown・その他ユーティリティ関連
+# ==========================================
 
-
-@api_bp.route("/create_dailynote", methods=["GET"])
+@api_bp.route("/api/markdown/create_dailynote", methods=["GET"])
 def create_dailynote():
     target_path = os.getenv('DAILY_NOTE_DIR')
     template_path = os.getenv('DAILY_NOTE_TEMPLATE')
@@ -222,6 +246,6 @@ def create_dailynote():
     return jsonify({"message": ""}), 200
 
 
-@api_bp.route("/test", methods=["GET"])
+@api_bp.route("/api/test", methods=["GET"])
 def test():
     return jsonify({"message": ""}), 200
