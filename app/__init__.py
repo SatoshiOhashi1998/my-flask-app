@@ -13,7 +13,8 @@ Flaskアプリケーションモジュール
 - Flask: Webアプリケーションを構築するためのフレームワーク。
 - flask_cors: CORS (Cross-Origin Resource Sharing)を有効にするためのライブラリ。
 - app.log: ロギングの設定を行うためのカスタムモジュール。
-- app.routes: ルーティングを定義するためのカスタムモジュール。
+- app.views.web: 画面描画用ルーティングを定義するためのカスタムモジュール。
+- app.views.api: API用ルーティングを定義するためのカスタムモジュール。
 - app.scheduler: URLスケジューリングを管理するためのカスタムモジュール。
 
 設定内容:
@@ -29,7 +30,8 @@ from datetime import timedelta
 from flask import Flask
 from flask_cors import CORS
 from app.log import setup_logging
-from app.routes import main
+from app.views.web import web
+from app.views.api import api_bp
 from app.modules.scheduler import UrlScheduler
 from app.models import db
 
@@ -44,7 +46,8 @@ def create_app():
     CORS(app)  # CORS有効化
 
     # Blueprintを登録
-    app.register_blueprint(main)
+    app.register_blueprint(web)
+    app.register_blueprint(api_bp)
 
     setup_logging()
 

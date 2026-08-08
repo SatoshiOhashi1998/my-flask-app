@@ -1,109 +1,28 @@
 import os
 import locale
-import unicodedata
-from typing import Dict, Any
 import traceback
+from flask import Blueprint, request, jsonify
 
-import pandas as pd
-from flask import (
-    Blueprint,
-    render_template,
-    request,
-    jsonify,
-    make_response,
-    Response,
-    abort
-)
-
-from googleapiclient.discovery import build
-from googleapiclient.errors import HttpError
-
+from app.models import db, VideoDataModel, MusicDataModel, Comment
 from app.utils import (
-    get_video_directories,
-    get_audio_directories,
-    download,
-    VIDEO_BASE_PATH,
-    AUDIO_BASE_PATH,
-    fetch_youtube_videos,
-    fetch_youtube_video_info
+    get_video_directories, get_audio_directories, download,
+    VIDEO_BASE_PATH, AUDIO_BASE_PATH, fetch_youtube_videos, fetch_youtube_video_info
 )
 from app.modules.getYouTubeLive import (
-    get_archived_live_streams_by_query,
-    get_archived_live_stream_by_videoid
+    get_archived_live_streams_by_query, get_archived_live_stream_by_videoid
 )
 from app.modules.rename_video_files import (
-    rename_videos_and_save_metadata,
-    remove_nonexistent_files_from_db,
-    get_video_list_as_string,
-    find_by_id
+    rename_videos_and_save_metadata, remove_nonexistent_files_from_db, get_video_list_as_string
 )
-
-
 from app.modules.rename_audio_files import rename_musics_and_save_metadata, remove_nonexistent_audio_files_from_db
-from app.models import db, VideoDataModel, MusicDataModel, Comment
 from app.modules.export_comments import export_today_comments_to_md
 from myutils.gas_api.use_gas import send_to_gas
 
-
-main = Blueprint("main", __name__)
-
-
-@main.route("/watchVideo", methods=["GET", "POST"])
-def watch_video() -> Response:
-    """動画を視聴するためのページを提供するエンドポイント。
-
-    GET: watchVideo.html をレンダリングし動画データを埋め込む。
-    POST: 指定ディレクトリ内の動画パスリストを JSON 形式で返す。
-    """
-    if request.method == "GET":
-        v_param = request.args.get("v")
-        time_param = request.args.get("t")
-        filter_param = request.args.get("filter")
-        mode_param = request.args.get("mode")
-
-        locale.setlocale(locale.LC_COLLATE, "ja_JP.UTF-8")
-
-        videos = db.session.query(VideoDataModel).order_by(
-            VideoDataModel.path
-        ).all()
-
-        videos.sort(
-            key=lambda v: (
-                os.path.normpath(os.path.dirname(v.path)),
-                locale.strxfrm(v.original_name)
-            )
-        )
-
-        video_data = [
-            {
-                "dirpath": os.path.dirname(item.path)[os.path.dirname(item.path).index('static'):],
-                "filename": item.new_name,
-                "filetitle": item.original_name,
-            }
-            for item in videos
-        ]
-
-        send_data: Dict[str, Any] = {
-            "items": video_data,
-            "settings": {
-                "v": v_param or '',
-                "t": time_param or 0,
-                "mode": mode_param or 'loop',
-            }
-        }
-
-        response = make_response(
-            render_template("watchVideo.html", data=send_data)
-        )
-        response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
-        response.headers["Expires"] = 0
-        response.headers["Pragma"] = "no-cache"
-        return response
-    return jsonify({"error": "Unsupported method"}), 405
+api_bp = Blueprint("api", __name__)
 
 
-@main.route("/downloadVideo", methods=["GET", "POST"])
-def download_video() -> Response:
+@api_bp.route("/downloadVideo", methods=["GET", "POST"])
+def download_video():
     if request.method == "GET":
         try:
             dir_paths = get_video_directories() + get_audio_directories()
@@ -125,12 +44,8 @@ def download_video() -> Response:
 
         try:
             target_path = download(
-                video_id=video_id,
-                save_dir=save_dir,
-                quality=save_quality,
-                start_time=start_time,
-                end_time=end_time,
-                download_type=download_type
+                video_id=video_id, save_dir=save_dir, quality=save_quality,
+                start_time=start_time, end_time=end_time, download_type=download_type
             )
             return jsonify({
                 "response": f"{video_id} のダウンロード（{download_type}）が完了しました",
@@ -142,42 +57,8 @@ def download_video() -> Response:
     return jsonify({"error": "Unsupported method"}), 405
 
 
-@main.route("/mahjong", methods=["GET", "POST"])
-def mahjong() -> Response:
-    """麻雀データを環境変数から読み込み、HTML テンプレートに埋め込む。"""
-    env_paths = [
-        os.getenv("MAIN_DATA"),
-        os.getenv("VERSUS_TWO"),
-        os.getenv("NO_TENPAI"),
-        os.getenv("DEAL_IN_RATE"),
-        os.getenv("HANCHAN_EARNINGS"),
-        os.getenv("RIICHI_EV"),
-        os.getenv("OPEN_HAND_EV"),
-    ]
-    labels = [
-        "main_data",
-        "versus_two",
-        "no_tenpai",
-        "deal_in_rate",
-        "hanchan_earnings",
-        "riichi_ev_path",
-        "open_hand_ev_path",
-    ]
-
-    send_data: Dict[str, Any] = {}
-    for path, label in zip(env_paths, labels):
-        if path:
-            df = pd.read_csv(path)
-            send_data[label] = df.to_dict(orient="records")
-        else:
-            send_data[label] = []
-
-    return render_template("mahjong.html", data=send_data)
-
-
-@main.route("/getYouTubeLive", methods=["GET", "POST"])
-def get_youtube_lives() -> Response:
-    """YouTube ライブ配信のアーカイブを取得し GAS に送信する。"""
+@api_bp.route("/getYouTubeLive", methods=["GET", "POST"])
+def get_youtube_lives():
     id_param = request.args.get("video_id")
     query_param = request.args.get("q")
     GAS_URL = os.getenv("GAS_UTIL_URL")
@@ -192,41 +73,31 @@ def get_youtube_lives() -> Response:
     return jsonify({"response": ""})
 
 
-@main.route("/api/reset/video", methods=["GET"])
-def reset_videos() -> Response:
-    """動画ファイルのメタデータをリセットし、DB を更新する。"""
+@api_bp.route("/api/reset/video", methods=["GET"])
+def reset_videos():
     rename_videos_and_save_metadata(VIDEO_BASE_PATH)
     remove_nonexistent_files_from_db()
     rename_musics_and_save_metadata(AUDIO_BASE_PATH)
     remove_nonexistent_audio_files_from_db()
-
     return jsonify({"response": ""})
 
 
-@main.route("/api/info/video", methods=["GET"])
-def get_video_info() -> Response:
+@api_bp.route("/api/info/video", methods=["GET"])
+def get_video_info():
     for text in get_video_list_as_string():
         print(text)
-
     return jsonify({"response": "check log"})
 
 
-@main.route("/api/videos", methods=["GET"])
+@api_bp.route("/api/videos", methods=["GET"])
 def get_videos():
     locale.setlocale(locale.LC_COLLATE, "ja_JP.UTF-8")
-
     videos = db.session.query(VideoDataModel).order_by(VideoDataModel.path).all()
-
-    videos.sort(
-        key=lambda v: (
-            os.path.normpath(os.path.dirname(v.path)),
-            locale.strxfrm(v.original_name)
-        )
-    )
+    videos.sort(key=lambda v: (os.path.normpath(os.path.dirname(v.path)), locale.strxfrm(v.original_name)))
 
     video_data = [
         {
-            "id": os.path.splitext(item.new_name)[0], 
+            "id": os.path.splitext(item.new_name)[0],
             "dirpath": os.path.dirname(item.path).split('static')[-1],
             "filename": item.new_name,
             "filetitle": item.original_name,
@@ -234,36 +105,29 @@ def get_videos():
         }
         for item in videos
     ]
-
     return jsonify({"items": video_data})
 
-@main.route("/api/videos/<video_id>/info", methods=["GET"])
+
+@api_bp.route("/api/videos/<video_id>/info", methods=["GET"])
 def get_video(video_id):
     video = VideoDataModel.query.get(video_id)
     if not video:
         return jsonify({"error": "Video not found"}), 404
         
-    video_dict = {
+    return jsonify({
         "id": video.id,
         "filetitle": video.original_name,
         "dirpath": os.path.dirname(video.path).split('static')[-1],
         "filename": video.new_name,
         "type": "video"
-    }
-    return jsonify(video_dict)
+    })
 
 
-@main.route("/api/musics", methods=["GET"])
+@api_bp.route("/api/musics", methods=["GET"])
 def get_musics():
     locale.setlocale(locale.LC_COLLATE, "ja_JP.UTF-8")
     musics = db.session.query(MusicDataModel).order_by(MusicDataModel.path).all()
-
-    musics.sort(
-        key=lambda m: (
-            os.path.normpath(os.path.dirname(m.path)),
-            locale.strxfrm(m.original_name)
-        )
-    )
+    musics.sort(key=lambda m: (os.path.normpath(os.path.dirname(m.path)), locale.strxfrm(m.original_name)))
 
     music_data = [
         {
@@ -275,28 +139,25 @@ def get_musics():
         }
         for item in musics
     ]
-
     return jsonify({"items": music_data})
 
-@main.route("/api/musics/<music_id>/info", methods=["GET"])
+
+@api_bp.route("/api/musics/<music_id>/info", methods=["GET"])
 def get_music(music_id):
     music = MusicDataModel.query.get(music_id)
     if not music:
         return jsonify({"error": "Music not found"}), 404
         
-    music_dict = {
+    return jsonify({
         "id": music.id,
         "filetitle": music.original_name,
         "dirpath": os.path.dirname(music.path).split('static')[-1],
         "filename": music.new_name,
         "type": "audio"
-    }
-    return jsonify(music_dict)
+    })
 
 
-# --- 統合されたコメント関連のエンドポイント ---
-
-@main.route("/api/items/<item_id>/comments", methods=["GET"])
+@api_bp.route("/api/items/<item_id>/comments", methods=["GET"])
 def get_comments(item_id):
     media_type = request.args.get("type", "video")
     comments = Comment.query.filter_by(video_id=item_id, media_type=media_type).order_by(Comment.created_at.desc()).all()
@@ -307,7 +168,8 @@ def get_comments(item_id):
         "created_at": c.created_at.strftime("%Y-%m-%d %H:%M:%S")
     } for c in comments])
 
-@main.route("/api/items/<item_id>/comments", methods=["POST"])
+
+@api_bp.route("/api/items/<item_id>/comments", methods=["POST"])
 def post_comment(item_id):
     data = request.json
     new_comment = Comment(
@@ -319,14 +181,16 @@ def post_comment(item_id):
     db.session.commit()
     return jsonify({"message": "コメントを投稿しました"}), 201
 
-@main.route("/api/comments/<comment_id>", methods=["PUT"])
+
+@api_bp.route("/api/comments/<comment_id>", methods=["PUT"])
 def update_comment(comment_id):
     comment = Comment.query.get_or_404(comment_id)
     comment.content = request.json.get("content")
     db.session.commit()
     return jsonify({"message": "更新しました"})
 
-@main.route("/api/comments/<comment_id>", methods=["DELETE"])
+
+@api_bp.route("/api/comments/<comment_id>", methods=["DELETE"])
 def delete_comment(comment_id):
     comment = Comment.query.get_or_404(comment_id)
     db.session.delete(comment)
@@ -334,9 +198,7 @@ def delete_comment(comment_id):
     return jsonify({"message": "削除しました"}), 200
 
 
-# --- YouTube関連 ---
-
-@main.route('/api/youtube/search', methods=['GET'])
+@api_bp.route('/api/youtube/search', methods=['GET'])
 def search_youtube():
     query = request.args.get('q', '')
     if not query:
@@ -345,33 +207,24 @@ def search_youtube():
     try:
         items = fetch_youtube_videos(query)
         return jsonify({'items': items}), 200
-
-    except ValueError as e:
-        print(f"Error: {e}")
-        return jsonify({'error': str(e)}), 500
     except Exception as e:
-        print("=== YouTube API Error Traceback ===")
         traceback.print_exc()
         return jsonify({'error': str(e)}), 500
 
-@main.route('/api/youtube/<video_id>/info', methods=['GET'])
+
+@api_bp.route('/api/youtube/<video_id>/info', methods=['GET'])
 def get_youtube_info(video_id):
     try:
         video_info = fetch_youtube_video_info(video_id)
         if not video_info:
             return jsonify({'error': 'Video not found'}), 404
-
         return jsonify(video_info), 200
-
-    except ValueError as e:
-        print(f"Error: {e}")
-        return jsonify({'error': str(e)}), 500
     except Exception as e:
-        print("=== YouTube API Error Traceback ===")
         traceback.print_exc()
         return jsonify({'error': str(e)}), 500
 
-@main.route("/test", methods=["GET"])
+
+@api_bp.route("/test", methods=["GET"])
 def test():
     export_today_comments_to_md()
     return jsonify({"message": ""}), 200
