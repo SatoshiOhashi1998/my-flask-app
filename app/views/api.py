@@ -2,6 +2,7 @@ import os
 import locale
 import traceback
 from flask import Blueprint, request, jsonify
+from datetime import datetime
 
 from app.models import db, VideoDataModel, MusicDataModel, Comment
 from app.utils import (
@@ -17,6 +18,9 @@ from app.modules.video_manager import (
 )
 from app.modules.audio_manager import rename_musics_and_save_metadata, remove_nonexistent_audio_files_from_db
 from app.modules.export_comments import export_today_comments_to_md
+from myutils.markdown.yaml_editor import add_tag_to_markdown
+from myutils.markdown.create_dailynote import batch_create_dailies_from_file
+from myutils.markdown.fetch_md_file import get_file_content, get_content_by_heading, get_all_yaml_properties, get_yaml_property_value, append_content_to_heading
 from myutils.gas_api.use_gas import send_to_gas
 
 api_bp = Blueprint("api", __name__)
@@ -225,7 +229,22 @@ def get_youtube_info(video_id):
         return jsonify({'error': str(e)}), 500
 
 
+@api_bp.route("/export_comment", methods=["GET"])
+def export_comment():
+    export_today_comments_to_md()
+    return jsonify({"message": ""}), 200
+
+
+@api_bp.route("/create_dailynote", methods=["GET"])
+def create_dailynote():
+    target_path = os.getenv('DAILY_NOTE_DIR')
+    template_path = os.getenv('DAILY_NOTE_TEMPLATE')
+    start_date = datetime.now()
+    batch_create_dailies_from_file(target_path, start_date, 7, template_path)
+
+    return jsonify({"message": ""}), 200
+
+
 @api_bp.route("/test", methods=["GET"])
 def test():
-    export_today_comments_to_md()
     return jsonify({"message": ""}), 200
