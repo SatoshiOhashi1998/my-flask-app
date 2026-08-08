@@ -48,3 +48,17 @@ class Comment(db.Model):
     media_type = db.Column(db.String(20), default="video")
     content = db.Column(db.Text, nullable=False)
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(JST))
+
+class Vocabulary(db.Model):
+    __tablename__ = 'vocabularies'
+
+    id = db.Column(db.Integer, primary_key=True)
+    word = db.Column(db.String(255), nullable=False, unique=True)  # 単語
+    meaning = db.Column(db.Text, nullable=False)                    # 意味
+    source = db.Column(db.String(255), nullable=True)               # 出典
+    tag = db.Column(db.String(255), nullable=True)                  # タグ
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)    # 初回登録日
+    last_reviewed_at = db.Column(db.DateTime, nullable=True)        # 最終復習日
+
+    def __repr__(self):
+        return f"<Vocabulary {self.word}>"
