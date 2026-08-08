@@ -8,7 +8,6 @@ from contextlib import contextmanager
 
 import yt_dlp
 import ffmpeg
-from googleapiclient.discovery import build
 
 from app.models import db
 from app.modules.rename_video_files import rename_videos_and_save_metadata, remove_nonexistent_files_from_db
@@ -29,7 +28,7 @@ def get_video_directories(base_path: str = VIDEO_BASE_PATH) -> List[str]:
     return [d for d in glob.glob(os.path.join(base_path, '*')) if os.path.isdir(d)]
 
 def get_audio_directories(base_path: str = AUDIO_BASE_PATH) -> List[str]:
-    """動画ディレクトリ一覧を取得"""
+    """音声ディレクトリ一覧を取得"""
     response = [AUDIO_BASE_PATH] + [d for d in glob.glob(os.path.join(base_path, '*')) if os.path.isdir(d)]
     return response
 
@@ -49,8 +48,6 @@ def download(
     os.makedirs(VIDEO_BASE_PATH, exist_ok=True)
 
     if download_type == "audio":
-        # ★ 音声の場合：quality の値をそのままビットレート（192, 320 など）として利用する設計にします
-        # （フロントから "192" や "320" などの文字列が送られてくると想定）
         bitrate = quality if quality in ["128", "192", "320"] else "192"
         
         ydl_opts = {
@@ -61,11 +58,10 @@ def download(
             'postprocessors': [{
                 'key': 'FFmpegExtractAudio',
                 'preferredcodec': 'mp3',
-                'preferredquality': bitrate, # 選択された音質を適用
+                'preferredquality': bitrate,
             }],
         }
     else:
-        # 動画の場合（画質に合わせて音声の品質も連動するデフォルト設定）
         ydl_opts = {
             'format': f'bestvideo[height<={quality}]+bestaudio/best',
             'ffmpeg_location': FFMPEG_DIR,
@@ -127,67 +123,3 @@ def download(
         print(f"警告: DB更新中にエラーが発生しました: {str(e)}")
 
     return final_target_path
-
-def fetch_youtube_videos(query: str, max_results: int = 45) -> list:
-    """YouTube Data APIを使用して動画を検索し、整形したリストを返す"""
-    if not query:
-        return []
-
-    api_key = os.getenv("YOUTUBE_API_KEY")
-    if not api_key:
-        raise ValueError("YOUTUBE_API_KEY is not set.")
-
-    youtube = build('youtube', 'v3', developerKey=api_key)
-    
-    response = youtube.search().list(
-        q=query,
-        part='snippet',
-        type='video',
-        maxResults=max_results
-    ).execute()
-
-    items = []
-    for item in response.get('items', []):
-        if 'videoId' not in item.get('id', {}):
-            continue
-
-        video_id = item['id']['videoId']
-        snippet = item['snippet']
-        
-        items.append({
-            'id': video_id,
-            'filetitle': snippet['title'],
-            'dirpath': f"YouTube / {snippet['channelTitle']}",
-            'thumbnail': snippet['thumbnails']['high']['url'],
-            'type': 'youtube'
-        })
-
-    return items
-
-def fetch_youtube_video_info(video_id: str) -> dict:
-    """YouTube Data APIを使用して指定動画の詳細情報を取得する"""
-    api_key = os.getenv("YOUTUBE_API_KEY")
-    if not api_key:
-        raise ValueError("YOUTUBE_API_KEY is not set.")
-
-    youtube = build('youtube', 'v3', developerKey=api_key)
-    
-    response = youtube.videos().list(
-        part='snippet',
-        id=video_id
-    ).execute()
-
-    items = response.get('items', [])
-    if not items:
-        return None
-
-    item = items[0]
-    snippet = item['snippet']
-
-    return {
-        'id': video_id,
-        'filetitle': snippet['title'],
-        'dirpath': f"YouTube / {snippet['channelTitle']}",
-        'thumbnail': snippet['thumbnails']['high']['url'],
-        'type': 'youtube'
-    }

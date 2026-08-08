@@ -8,6 +8,7 @@ from app.utils import (
     get_video_directories, get_audio_directories, download,
     VIDEO_BASE_PATH, AUDIO_BASE_PATH, fetch_youtube_videos, fetch_youtube_video_info
 )
+from app.modules.youtube_api import fetch_youtube_videos, fetch_youtube_video_info
 from app.modules.getYouTubeLive import (
     get_archived_live_streams_by_query, get_archived_live_stream_by_videoid
 )
