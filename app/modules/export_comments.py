@@ -1,7 +1,7 @@
 from datetime import datetime, time
 import os
 from app.models import db, Comment, VideoDataModel, MusicDataModel
-from app.utils import fetch_youtube_video_info
+from app.modules.youtube_api import fetch_youtube_video_info
 
 def export_today_comments_to_md(output_dir=None):
     if not output_dir:
