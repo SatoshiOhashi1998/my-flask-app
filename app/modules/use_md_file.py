@@ -1,12 +1,12 @@
 import csv
 import os
 from datetime import datetime
-from myutils.markdown.api import (
+from myutils.markdown.parser_api import (
     extract_lists_from_heading,
     extract_lists_from_all_sub_headings,
     parse_vocabulary_line
 )
-from myutils.markdown.create_dailynote import batch_create_dailies_from_file
+from myutils.markdown.note_generator import batch_create_dailies_from_file
 
 def convert_single_result_to_wordholic(single_result):
     """
