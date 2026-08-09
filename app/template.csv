@@ -1,0 +1,35 @@
+FrontText,BackText,Comment,FrontTextLanguage,BackTextLanguage
+,,,,
+,,,,
+,,,,
+* Delete the following samples when you upload to the app.,,,,
+你好,谢谢,Mandarin Chinese,zh-CN,zh-CN
+你好,多謝,Cantonese,zh-HK,zh-HK
+Hello,Thank you,US English,en-US,en-US
+Hello,Thank you,UK English,en-GB,en-GB
+こんにちは,ありがとう,Japanese,ja-JP,ja-JP
+Dobrý den!,Děkuji!,Czech,cs-CZ,cs-CZ
+God dag,Tak,Danish,da-DK,da-DK
+GutenTag.,Danke schön.,German,de-DE,de-DE
+Γειά σας,Ευχαριστώ,Greek,el-GR,el-GR
+Buenas tardes.,Gracias.,Spanish,es-ES,es-ES
+Hyvää päivää,Kiitos,Finnish,fi-FI,fi-FI
+Bonjour,Mercibeaucoup.,French,fr-FR,fr-FR
+Jó napot!,Köszönöm!,Hungarian,hu-HU,hu-HU
+Buon giorno,Grazie,Italian,it-IT,it-IT
+Goededag,Dank je wel,Dutch,nl-NL,nl-NL
+God dag,Takk,Norwegian,nb-NO,nb-NO
+Dzień dobry,Dziękuję,Polish,pl-PL,pl-PL
+Boa tarde,"Obrigado, Obrigada",Portuguese,pt-PT,pt-PT
+Bună ziua,Mersi,Romanian,ro-RO,ro-RO
+Добрый день,Спасибо,Russian,ru-RU,ru-RU
+Dobrý deň,Ďakujem,Slovak,sk-SK,sk-SK
+Hej,Tack,Swedish,sv-SE,sv-SE
+Selam,Teşekkür ederim,Turkish,tr-TR,tr-TR
+السلام عليكم,شكرا,Arabic,ar-SA,ar-SA
+שלום,תוֹדָה,Hebrew,he-IL,he-IL
+नमस्ते,धन्यवाद,Hindi,hi-IN,hi-IN
+"Selamat siang, Selamat sore",Terima kasih,Indonesian,id-ID,id-ID
+안녕하세요,감사합니다,Korean,ko-KR,ko-KR
+"สวัสดี ครับ, สวัสดี ค่ะ","ขอบคุณ ครับ, ขอบคุณ ค่ะ",Thai,th-TH,th-TH
+Xin chào,Cảm ơn,Vietnamese,vi-VN,vi-VN

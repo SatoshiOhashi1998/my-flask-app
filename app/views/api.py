@@ -18,9 +18,11 @@ from app.modules.video_manager import (
 )
 from app.modules.audio_manager import rename_musics_and_save_metadata, remove_nonexistent_audio_files_from_db
 from app.modules.export_comments import export_today_comments_to_md
+from app.modules.use_md_file import *
 from myutils.markdown.yaml_editor import add_tag_to_markdown
 from myutils.markdown.create_dailynote import batch_create_dailies_from_file
 from myutils.markdown.fetch_md_file import get_file_content, get_content_by_heading, get_all_yaml_properties, get_yaml_property_value, append_content_to_heading
+from myutils.markdown.api import extract_lists_from_heading, extract_lists_from_all_sub_headings
 from myutils.gas_api.use_gas import send_to_gas
 
 api_bp = Blueprint("api", __name__)
@@ -233,14 +235,37 @@ def reset_medias_id():
 
 
 @api_bp.route("/api/markdown/create_dailynote", methods=["GET"])
-def create_dailynote():
-    target_path = os.getenv('DAILY_NOTE_DIR')
-    template_path = os.getenv('DAILY_NOTE_TEMPLATE')
-    start_date = datetime.now()
-    batch_create_dailies_from_file(target_path, start_date, 7, template_path)
-
+def create_dailynotes():
+    create_dailynote()
     return jsonify({"message": ""}), 200
 
+
+
+@api_bp.route("/api/markdown/export_english", methods=["GET"])
+def export_english():
+    file_path = os.getenv("PATH_ENG")
+    target_heading = os.getenv("TARGET_HEAD_ENG")
+    # --- 2. 配下のすべての下位見出しから抽出してCSV保存 ---
+    print("\n--- 2. 配下のすべての下位見出しから抽出 ---")
+    all_results = extract_lists_from_all_sub_headings(file_path, target_heading)
+    all_rows = convert_all_sub_headings_to_wordholic(all_results)
+
+    # CSV出力
+    export_rows_to_csv(all_rows, "output_all.csv")
+    return jsonify({"message": ""}), 200
+
+
+@api_bp.route("/api/markdown/export_vocablary", methods=["GET"])
+def export_vocablary():
+    file_path = os.getenv("PATH_VOCAB")
+    target_heading = os.getenv("TARGET_HEAD_VOCAB")
+    print("--- 1. 単一の見出しから抽出 ---")
+    single_result = extract_lists_from_heading(file_path, target_heading)
+    single_rows = convert_single_result_to_wordholic(single_result)
+
+    # CSV出力
+    export_rows_to_csv(single_rows, "output_single.csv")
+    return jsonify({"message": ""}), 200
 
 @api_bp.route("/api/test", methods=["GET"])
 def test():
