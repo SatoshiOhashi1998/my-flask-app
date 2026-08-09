@@ -2,7 +2,6 @@ import os
 import locale
 import traceback
 from flask import Blueprint, request, jsonify
-from datetime import datetime
 
 from app.models import db, VideoDataModel, MusicDataModel, Comment
 from app.utils import (
@@ -10,20 +9,13 @@ from app.utils import (
     VIDEO_BASE_PATH, AUDIO_BASE_PATH
 )
 from app.modules.youtube_api import fetch_youtube_videos, fetch_youtube_video_info
-from app.modules.getYouTubeLive import (
-    get_archived_live_streams_by_query, get_archived_live_stream_by_videoid
-)
 from app.modules.video_manager import (
-    rename_videos_and_save_metadata, remove_nonexistent_files_from_db, get_video_list_as_string
+    rename_videos_and_save_metadata, remove_nonexistent_files_from_db
 )
 from app.modules.audio_manager import rename_musics_and_save_metadata, remove_nonexistent_audio_files_from_db
 from app.modules.export_comments import export_today_comments_to_md
-from app.modules.use_md_file import *
-from myutils.markdown.yaml_editor import add_tag_to_markdown
-from myutils.markdown.create_dailynote import batch_create_dailies_from_file
-from myutils.markdown.fetch_md_file import get_file_content, get_content_by_heading, get_all_yaml_properties, get_yaml_property_value, append_content_to_heading
-from myutils.markdown.api import extract_lists_from_heading, extract_lists_from_all_sub_headings
-from myutils.gas_api.use_gas import send_to_gas
+from myutils.markdown.note_generator import batch_create_dailies_from_file
+from myutils.markdown.parser_api import extract_lists_from_heading, extract_lists_from_all_sub_headings
 
 api_bp = Blueprint("api", __name__)
 
@@ -240,17 +232,14 @@ def create_dailynotes():
     return jsonify({"message": ""}), 200
 
 
-
 @api_bp.route("/api/markdown/export_english", methods=["GET"])
 def export_english():
     file_path = os.getenv("PATH_ENG")
     target_heading = os.getenv("TARGET_HEAD_ENG")
-    # --- 2. 配下のすべての下位見出しから抽出してCSV保存 ---
     print("\n--- 2. 配下のすべての下位見出しから抽出 ---")
     all_results = extract_lists_from_all_sub_headings(file_path, target_heading)
     all_rows = convert_all_sub_headings_to_wordholic(all_results)
 
-    # CSV出力
     export_rows_to_csv(all_rows, "output_all.csv")
     return jsonify({"message": ""}), 200
 
@@ -263,9 +252,9 @@ def export_vocablary():
     single_result = extract_lists_from_heading(file_path, target_heading)
     single_rows = convert_single_result_to_wordholic(single_result)
 
-    # CSV出力
     export_rows_to_csv(single_rows, "output_single.csv")
     return jsonify({"message": ""}), 200
+
 
 @api_bp.route("/api/test", methods=["GET"])
 def test():
