@@ -9,10 +9,6 @@ from myutils.markdown.parser_api import (
 from myutils.markdown.note_generator import batch_create_dailies_from_file
 
 def convert_single_result_to_wordholic(single_result):
-    """
-    extract_lists_from_heading のデータ用:
-    single_result['file_name'] を Comment に挿入する
-    """
     comment = single_result['file_name']
     wordholic_rows = []
     
@@ -30,10 +26,6 @@ def convert_single_result_to_wordholic(single_result):
     return wordholic_rows
 
 def convert_all_sub_headings_to_wordholic(all_results):
-    """
-    extract_lists_from_all_sub_headings のデータ用:
-    各結果の res['heading'] を Comment に挿入する
-    """
     all_wordholic_rows = []
     
     for res in all_results:
@@ -52,9 +44,6 @@ def convert_all_sub_headings_to_wordholic(all_results):
     return all_wordholic_rows
 
 def export_rows_to_csv(wordholic_rows, output_csv_path):
-    """
-    変換済みの行データをWordHolic用のCSVとして保存する
-    """
     if not wordholic_rows:
         print("出力するデータが見つかりませんでした。")
         return
@@ -76,3 +65,17 @@ def create_dailynote():
     template_path = os.getenv('DAILY_NOTE_TEMPLATE')
     start_date = datetime.now()
     batch_create_dailies_from_file(target_path, start_date, 7, template_path)
+
+def export_english_vocabulary():
+    file_path = os.getenv("PATH_ENG")
+    target_heading = os.getenv("TARGET_HEAD_ENG")
+    all_results = extract_lists_from_all_sub_headings(file_path, target_heading)
+    all_rows = convert_all_sub_headings_to_wordholic(all_results)
+    export_rows_to_csv(all_rows, "output_all.csv")
+
+def export_single_vocabulary():
+    file_path = os.getenv("PATH_VOCAB")
+    target_heading = os.getenv("TARGET_HEAD_VOCAB")
+    single_result = extract_lists_from_heading(file_path, target_heading)
+    single_rows = convert_single_result_to_wordholic(single_result)
+    export_rows_to_csv(single_rows, "output_single.csv")

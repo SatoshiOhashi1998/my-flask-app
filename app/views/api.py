@@ -14,8 +14,7 @@ from app.modules.video_manager import (
 )
 from app.modules.audio_manager import rename_musics_and_save_metadata, remove_nonexistent_audio_files_from_db
 from app.modules.export_comments import export_today_comments_to_md
-from myutils.markdown.note_generator import batch_create_dailies_from_file
-from myutils.markdown.parser_api import extract_lists_from_heading, extract_lists_from_all_sub_headings
+from app.modules.use_md_file import create_dailynote, export_english_vocabulary, export_single_vocabulary
 
 api_bp = Blueprint("api", __name__)
 
@@ -234,25 +233,13 @@ def create_dailynotes():
 
 @api_bp.route("/api/markdown/export_english", methods=["GET"])
 def export_english():
-    file_path = os.getenv("PATH_ENG")
-    target_heading = os.getenv("TARGET_HEAD_ENG")
-    print("\n--- 2. 配下のすべての下位見出しから抽出 ---")
-    all_results = extract_lists_from_all_sub_headings(file_path, target_heading)
-    all_rows = convert_all_sub_headings_to_wordholic(all_results)
-
-    export_rows_to_csv(all_rows, "output_all.csv")
+    export_english_vocabulary()
     return jsonify({"message": ""}), 200
 
 
 @api_bp.route("/api/markdown/export_vocablary", methods=["GET"])
 def export_vocablary():
-    file_path = os.getenv("PATH_VOCAB")
-    target_heading = os.getenv("TARGET_HEAD_VOCAB")
-    print("--- 1. 単一の見出しから抽出 ---")
-    single_result = extract_lists_from_heading(file_path, target_heading)
-    single_rows = convert_single_result_to_wordholic(single_result)
-
-    export_rows_to_csv(single_rows, "output_single.csv")
+    export_single_vocabulary()
     return jsonify({"message": ""}), 200
 
 
