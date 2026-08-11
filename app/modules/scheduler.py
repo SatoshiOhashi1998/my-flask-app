@@ -21,11 +21,11 @@ class UrlJob:
 class UrlScheduler:
     """URLのスケジュール管理を行うクラス"""
     
-    def __init__(self):
+    def __init__(self, app=None):
+        self.app = app
         self.scheduler = BackgroundScheduler(max_instances=1)
         self.scheduler.start()
 
-        # スケジュールするURLとジョブIDを設定
         self.url_jobs = [
             UrlJob(url=os.getenv('DYNALIST_URL'), job_id="target_job"),
             UrlJob(url=os.getenv('TENKI_URL'), job_id="weather_job"),
@@ -33,10 +33,8 @@ class UrlScheduler:
             UrlJob(url=os.getenv('ILLUST_LIST_URL'), job_id="illust_job")
         ]
 
-        # ジョブ登録
         self.schedule_url_jobs()
 
-        # メールサーバー確認ジョブ
         self.add_job(
             func=useMailServer.check_email,
             trigger="interval",
@@ -44,7 +42,6 @@ class UrlScheduler:
             job_id="check_email"
         )
 
-        # 各種batファイル起動ジョブ
         self.add_job(
             func=register_tomorrow_weather_to_calendar,
             trigger='cron',
@@ -53,22 +50,22 @@ class UrlScheduler:
             job_id="get_weather_data"
         )
 
+        # アプリコンテキストを付与して呼び出すラッパー関数
+        def run_export_comments():
+            if self.app:
+                with self.app.app_context():
+                    export_today_comments_to_md()
+            else:
+                export_today_comments_to_md()
+
         # 毎日23:55に本日のコメントをMarkdownに出力するジョブ
         self.add_job(
-            func=export_today_comments_to_md,
+            func=run_export_comments,
             trigger='cron',
             hour=23,
             minute=55,
             job_id="export_today_comments"
         )
-
-        # self.add_job(
-        #     func=send_archived_streams_from_excel_channels,
-        #     trigger='cron',
-        #     hour=19,
-        #     minute=0,
-        #     job_id="get_YlArchive_data"
-        # )
 
     def schedule_url_jobs(self):
         """特定のURLを指定の時間に開くジョブをスケジュール"""

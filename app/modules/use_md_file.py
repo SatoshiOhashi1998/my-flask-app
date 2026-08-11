@@ -1,12 +1,12 @@
 import csv
 import os
-from datetime import datetime
+from datetime import datetime, timedelta
 from myutils.markdown.parser_api import (
     extract_lists_from_heading,
     extract_lists_from_all_sub_headings,
     parse_vocabulary_line
 )
-from myutils.markdown.note_generator import batch_create_dailies_from_file
+from myutils.markdown.note_generator import batch_create_dailies_from_file, create_weekly_note
 
 def convert_single_result_to_wordholic(single_result):
     comment = single_result['file_name']
@@ -65,6 +65,22 @@ def create_dailynote():
     template_path = os.getenv('DAILY_NOTE_TEMPLATE')
     start_date = datetime.now()
     batch_create_dailies_from_file(target_path, start_date, 7, template_path)
+
+def create_next_weekly_note():
+    output_dir = os.getenv('WEEKLY_NOTE_DIR')
+    template_path = os.getenv('WEEKLY_NOTE_TEMPLATE')
+    plan_dir = os.getenv('PLAN_NOTE_DIR')
+    
+    today = datetime.now()
+    next_week_date = today + timedelta(days=7)
+    
+    create_weekly_note(
+        output_dir=output_dir,
+        target_date=next_week_date,
+        template_path=template_path,
+        plan_dir=plan_dir,
+        start_of_week="monday"
+    )
 
 def export_english_vocabulary():
     file_path = os.getenv("PATH_ENG")

@@ -51,15 +51,16 @@ def create_app():
 
     setup_logging()
 
-    scheduler = UrlScheduler()
-
+    # DB設定
     DB_PATH = Path(__file__).resolve().parent / 'video_data.db'
-    DB_PATH = f"sqlite:///{DB_PATH}"
-    app.config['SQLALCHEMY_DATABASE_URI'] = DB_PATH
+    app.config['SQLALCHEMY_DATABASE_URI'] = f"sqlite:///{DB_PATH}"
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
     db.init_app(app)
 
     with app.app_context():
         db.create_all()
+
+    # app を渡してスケジューラーを初期化
+    scheduler = UrlScheduler(app=app)
 
     return app
