@@ -102,5 +102,16 @@ def register_tomorrow_weather_to_calendar():
         print("Error:", event_data["error"])
 
 
+def register_today_weather_to_calendar():
+    """
+    当日の天気データを取得してGoogleカレンダーに送信
+    """
+    event_data = get_weather_data(datetime.now(tz))
+    if "error" not in event_data:
+        send_to_gas(event_data, GAS_URL)
+    else:
+        print("Error:", event_data["error"])
+
+
 if __name__ == '__main__':
     register_tomorrow_weather_to_calendar()

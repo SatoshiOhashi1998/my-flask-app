@@ -15,6 +15,7 @@ from app.modules.video_manager import (
 from app.modules.audio_manager import rename_musics_and_save_metadata, remove_nonexistent_audio_files_from_db
 from app.modules.export_comments import export_today_comments_to_md
 from app.modules.use_md_file import create_dailynote, export_english_vocabulary, export_single_vocabulary, create_next_weekly_note
+from app.modules.getWeatherData import register_tomorrow_weather_to_calendar, register_today_weather_to_calendar
 
 api_bp = Blueprint("api", __name__)
 
@@ -247,3 +248,18 @@ def export_vocablary():
 def test():
     create_next_weekly_note()
     return jsonify({"message": ""}), 200
+
+# ==========================================
+# 6. Google Calender関連
+# ==========================================
+
+@api_bp.route("/api/weather/get/today", methods=["GET"])
+def register_today_weather():
+    register_today_weather_to_calendar()
+    return jsonify({"message": "本日の天気情報をカレンダーに登録しました"}), 200
+
+@api_bp.route("/api/weather/get/tomorrow", methods=["GET"])
+def register_tomorrow_weather():
+    register_tomorrow_weather_to_calendar()
+    return jsonify({"message": "翌日の天気情報をカレンダーに登録しました"}), 200
+
