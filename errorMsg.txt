@@ -654,3 +654,31 @@ ConnectionAbortedError: [WinError 10053] 確立された接続がホスト コンピューターの
                ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 socket.gaierror: [Errno 11001] getaddrinfo failed
 
+2026-08-12 06:14:49.897846 - ERROR: IMAP接続エラー: Traceback (most recent call last):
+  File "C:\Users\user\PycharmProjects\MyUtilProject\MyApp\FlaskApp\app\modules\useMailServer.py", line 85, in check_email
+    mail = imaplib.IMAP4_SSL(imap_server)
+  File "C:\Users\user\AppData\Local\Programs\Python\Python313\Lib\imaplib.py", line 1315, in __init__
+    IMAP4.__init__(self, host, port, timeout)
+    ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\user\AppData\Local\Programs\Python\Python313\Lib\imaplib.py", line 205, in __init__
+    self.open(host, port, timeout)
+    ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\user\AppData\Local\Programs\Python\Python313\Lib\imaplib.py", line 1328, in open
+    IMAP4.open(self, host, port, timeout)
+    ~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\user\AppData\Local\Programs\Python\Python313\Lib\imaplib.py", line 315, in open
+    self.sock = self._create_socket(timeout)
+                ~~~~~~~~~~~~~~~~~~~^^^^^^^^^
+  File "C:\Users\user\AppData\Local\Programs\Python\Python313\Lib\imaplib.py", line 1318, in _create_socket
+    sock = IMAP4._create_socket(self, timeout)
+  File "C:\Users\user\AppData\Local\Programs\Python\Python313\Lib\imaplib.py", line 305, in _create_socket
+    return socket.create_connection(address)
+           ~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^
+  File "C:\Users\user\AppData\Local\Programs\Python\Python313\Lib\socket.py", line 840, in create_connection
+    for res in getaddrinfo(host, port, 0, SOCK_STREAM):
+               ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\user\AppData\Local\Programs\Python\Python313\Lib\socket.py", line 977, in getaddrinfo
+    for res in _socket.getaddrinfo(host, port, family, type, proto, flags):
+               ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+socket.gaierror: [Errno 11001] getaddrinfo failed
+

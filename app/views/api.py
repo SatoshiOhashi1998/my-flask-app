@@ -14,7 +14,7 @@ from app.modules.video_manager import (
 )
 from app.modules.audio_manager import rename_musics_and_save_metadata, remove_nonexistent_audio_files_from_db
 from app.modules.export_comments import export_today_comments_to_md
-from app.modules.use_md_file import create_dailynote, export_english_vocabulary, export_single_vocabulary, create_next_weekly_note
+from app.modules.use_md_file import create_dailynote, export_english_vocabulary, export_single_vocabulary, create_next_weekly_note, test_md
 from app.modules.getWeatherData import register_tomorrow_weather_to_calendar, register_today_weather_to_calendar
 
 api_bp = Blueprint("api", __name__)
@@ -246,7 +246,7 @@ def export_vocablary():
 
 @api_bp.route("/api/test", methods=["GET"])
 def test():
-    create_next_weekly_note()
+    test_md()
     return jsonify({"message": ""}), 200
 
 # ==========================================
