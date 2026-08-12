@@ -1,13 +1,20 @@
 import csv
-import os
 from datetime import datetime, timedelta
-from myutils.markdown.headings import find_headings_by_tag_in_directory
+import os
+from myutils.markdown.headings import (
+    find_headings_by_tag_in_directory,
+    get_content_by_heading,  # 追加: 本文取得用
+)
 from myutils.markdown.lists import (
     extract_lists_from_all_sub_headings,
     extract_lists_from_heading,
+    extract_nested_lists_from_content,  # 追加: ネストリスト抽出用
+)
+from myutils.markdown.note_generator import (
+    batch_create_dailies_from_file,
+    create_weekly_note,
 )
 from myutils.markdown.utils import parse_vocabulary_line
-from myutils.markdown.note_generator import batch_create_dailies_from_file, create_weekly_note
 
 def convert_single_result_to_wordholic(single_result):
     comment = single_result['file_name']
@@ -98,5 +105,49 @@ def export_single_vocabulary():
     export_rows_to_csv(single_rows, "output_single.csv")
 
 def test_md():
-    print("================test_md===============")
-    response = find_headings_by_tag_in_directory(r"C:\Users\user\OneDrive\Desktop\Obsidian\Exports", "test")
+    # print("================test_md===============")
+    # response = find_headings_by_tag_in_directory(r"C:\Users\user\OneDrive\Desktop\Obsidian\Exports", "test")
+    # print(response)
+    print_nested_lists_from_heading(r"C:\Users\user\OneDrive\Desktop\Obsidian\Daily Notes\2026-08-13.md", "Tasks")
+
+def print_nested_lists_from_heading(
+    file_path: str, target_heading: str
+) -> dict | None:
+    """指定したファイルの見出しから本文を取得し、インデント付きリストを抽出・表示する。
+
+    Args:
+        file_path (str): Markdownファイルのパス
+        target_heading (str): 対象の見出しテキスト
+
+    Returns:
+        dict | None: 抽出されたリスト情報。見出しが存在しない場合は None
+    """
+    # 1. 見出しから本文を取得
+    content = get_content_by_heading(file_path, target_heading)
+    if content is None:
+        print(f"見出し '{target_heading}' が見つかりませんでした。")
+        return None
+
+    # 2. 本文からネストされたリストを抽出
+    nested_lists = extract_nested_lists_from_content(content)
+
+    # 3. 画面に表示
+    print(f"=== [{target_heading}] のリスト一覧 ===")
+
+    if nested_lists.get("bullets"):
+        print("\n【箇条書き】")
+        for item in nested_lists["bullets"]:
+            indent_str = " " * item["indent"]
+            print(f"{indent_str}- {item['text']}")
+
+    if nested_lists.get("tasks"):
+        print("\n【タスク】")
+        # 表示用のループ処理部分
+        for item in nested_lists["tasks"]:
+            # indentの数だけそのままスペースを出力
+            indent_str = " " * item["indent"]
+            status = "[x]" if item["completed"] else "[ ]"
+            print(f"{indent_str}- {status} {item['text']}")
+
+    return nested_lists
+

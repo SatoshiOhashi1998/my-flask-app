@@ -74,6 +74,18 @@ def get_weather_data(target_date=None, city_name="Tokyo"):
         f"平均湿度 {avg_humidity:.0f}%"
     )
 
+    # 3時間ごとの詳細データを箇条書きで作成（湿度を追加）
+    details = []
+    for item in daily_data:
+        time_str = datetime.fromtimestamp(item["dt"], tz).strftime("%H:%M")
+        temp = item["main"]["temp"]
+        pressure = item["main"]["pressure"]
+        humidity = item["main"]["humidity"]
+        pop = item.get("pop", 0) * 100
+        details.append(f"・{time_str} - 気温: {temp:.1f}℃, 気圧: {pressure}hPa, 湿度: {humidity}%, 降水確率: {pop:.0f}%")
+    
+    description_text = "\n".join(details)
+
     end_date = (datetime.strptime(target_date_str, "%Y-%m-%d") + timedelta(days=1)).strftime("%Y-%m-%d")
 
     event_data = {
@@ -82,7 +94,7 @@ def get_weather_data(target_date=None, city_name="Tokyo"):
             "title": insert_data,
             "start": target_date_str,
             "end": end_date,
-            "description": insert_data,
+            "description": description_text,
             "allDay": True,
             "color": "YELLOW"
         }]
