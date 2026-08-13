@@ -2,6 +2,7 @@ import os
 import locale
 import traceback
 from flask import Blueprint, request, jsonify
+from datetime import datetime
 
 from app.models import db, VideoDataModel, MusicDataModel, Comment
 from app.utils import (
@@ -14,7 +15,7 @@ from app.modules.video_manager import (
 )
 from app.modules.audio_manager import rename_musics_and_save_metadata, remove_nonexistent_audio_files_from_db
 from app.modules.export_comments import export_today_comments_to_md
-from app.modules.use_md_file import create_dailynote, export_english_vocabulary, export_single_vocabulary, create_next_weekly_note, test_md
+from app.modules.use_md_file import create_dailynote, export_english_vocabulary, export_single_vocabulary, create_next_weekly_note, test_md, register_tasks_by_date
 from app.modules.getWeatherData import register_tomorrow_weather_to_calendar, register_today_weather_to_calendar
 
 api_bp = Blueprint("api", __name__)
@@ -262,4 +263,102 @@ def register_today_weather():
 def register_tomorrow_weather():
     register_tomorrow_weather_to_calendar()
     return jsonify({"message": "翌日の天気情報をカレンダーに登録しました"}), 200
+
+# 1. 【当日】のタスクをGoogleカレンダーに送信
+@api_bp.route("/api/calendar/sync-tasks/today", methods=["GET"])
+def sync_today_tasks_to_calendar():
+    """本日のDaily NoteのタスクをGoogleカレンダーへ送信する"""
+    today_str = datetime.now().strftime("%Y-%m-%d")
+    start_time = request.args.get("start_time", "09:00")  # デフォルトは朝9時
+
+    register_tasks_by_date(
+        target_date=today_str,
+        start_hour_min=start_time,
+        sunday_first=False,
+    )
+    return (
+        jsonify(
+            {
+                "status": "success",
+                "message": f"本日 ({today_str}) のタスクをGoogleカレンダーに送信しました。",
+                "date": today_str,
+            }
+        ),
+        200,
+    )
+
+
+# 2. 【翌日】のタスクをGoogleカレンダーに送信
+@api_bp.route("/api/calendar/sync-tasks/tomorrow", methods=["GET"])
+def sync_tomorrow_tasks_to_calendar():
+    """翌日のDaily NoteのタスクをGoogleカレンダーへ送信する"""
+    tomorrow_str = (datetime.now() + timedelta(days=1)).strftime("%Y-%m-%d")
+    start_time = request.args.get("start_time", "09:00")  # デフォルトは朝9時
+
+    register_tasks_by_date(
+        target_date=tomorrow_str,
+        start_hour_min=start_time,
+        sunday_first=False,
+    )
+    return (
+        jsonify(
+            {
+                "status": "success",
+                "message": f"翌日 ({tomorrow_str}) のタスクをGoogleカレンダーに送信しました。",
+                "date": tomorrow_str,
+            }
+        ),
+        200,
+    )
+
+
+# 3. 【日付指定】でタスクをGoogleカレンダーに送信
+@api_bp.route("/api/calendar/sync-tasks/date", methods=["GET"])
+def sync_tasks_by_date_to_calendar():
+    """指定日のDaily NoteのタスクをGoogleカレンダーへ送信する
+    例: /api/calendar/sync-tasks/date?date=2026-08-13&start_time=15:00
+    """
+    date_str = request.args.get("date")
+    start_time = request.args.get("start_time", "09:00")
+
+    if not date_str:
+        return (
+            jsonify(
+                {
+                    "status": "error",
+                    "message": "クエリパラメータ 'date' (YYYY-MM-DD) は必須です。",
+                }
+            ),
+            400,
+        )
+
+    # 日付フォーマットの簡易チェック
+    try:
+        datetime.strptime(date_str, "%Y-%m-%d")
+    except ValueError:
+        return (
+            jsonify(
+                {
+                    "status": "error",
+                    "message": "無効な日付フォーマットです。YYYY-MM-DD 形式で指定してください。",
+                }
+            ),
+            400,
+        )
+
+    register_tasks_by_date(
+        target_date=date_str,
+        start_hour_min=start_time,
+        sunday_first=False,
+    )
+    return (
+        jsonify(
+            {
+                "status": "success",
+                "message": f"{date_str} のタスクをGoogleカレンダーに送信しました。",
+                "date": date_str,
+            }
+        ),
+        200,
+    )
 
