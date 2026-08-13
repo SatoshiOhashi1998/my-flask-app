@@ -52,18 +52,28 @@ def _format_media_item(item, media_type: str) -> dict:
     }
 
 
-def _execute_task_sync(target_date: str, start_time: str):
-    """タスク同期共通ロジックとレスポンス整形"""
-    register_tasks_by_date(
-        target_date=target_date,
-        start_hour_min=start_time,
-        sunday_first=False,
-    )
-    return jsonify({
-        "status": "success",
-        "message": f"{target_date} のタスクをGoogleカレンダーに送信しました。",
-        "date": target_date,
-    }), 200
+def _execute_task_sync(date_str: str, start_time: str, target_heading: str = "Tasks"):
+    """タスク同期処理の共通実行関数"""
+    try:
+        register_tasks_by_date(
+            target_date=date_str,
+            start_hour_min=start_time,
+            target_heading=target_heading,
+            sunday_first=False,
+        )
+        return jsonify({
+            "status": "success",
+            "message": f"{date_str} の [{target_heading}] のタスクをGoogleカレンダーへ送信しました。",
+            "date": date_str,
+            "start_time": start_time,
+            "target_heading": target_heading,
+        }), 200
+    except Exception as e:
+        traceback.print_exc()
+        return jsonify({
+            "status": "error",
+            "message": f"タスクの同期処理中にエラーが発生しました: {str(e)}"
+        }), 500
 
 
 # ==========================================
@@ -316,3 +326,26 @@ def sync_tasks_by_date_to_calendar():
         return jsonify({"status": "error", "message": "無効な日付フォーマットです。YYYY-MM-DD 形式で指定してください。"}), 400
 
     return _execute_task_sync(date_str, start_time)
+
+@api_bp.route("/api/calendar/sync-tasks/before-15", methods=["GET"])
+def sync_before_15_tasks_to_calendar():
+    """「15時まで」のタスクをGoogleカレンダーへ送信する"""
+    date_str = request.args.get("date", datetime.now().strftime("%Y-%m-%d"))
+    start_time = request.args.get("start_time", "09:00")
+    return _execute_task_sync(date_str, start_time, target_heading="15時まで")
+
+
+@api_bp.route("/api/calendar/sync-tasks/before-18", methods=["GET"])
+def sync_before_18_tasks_to_calendar():
+    """「18時まで」のタスクをGoogleカレンダーへ送信する"""
+    date_str = request.args.get("date", datetime.now().strftime("%Y-%m-%d"))
+    start_time = request.args.get("start_time", "15:00")
+    return _execute_task_sync(date_str, start_time, target_heading="18時まで")
+
+
+@api_bp.route("/api/calendar/sync-tasks/after-18", methods=["GET"])
+def sync_after_18_tasks_to_calendar():
+    """「18時以降」のタスクをGoogleカレンダーへ送信する"""
+    date_str = request.args.get("date", datetime.now().strftime("%Y-%m-%d"))
+    start_time = request.args.get("start_time", "18:00")
+    return _execute_task_sync(date_str, start_time, target_heading="18時以降")
