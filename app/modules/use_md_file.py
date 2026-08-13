@@ -1,8 +1,8 @@
 import csv
+import re
+from typing import List, Optional, Union, Dict, Any
 from datetime import datetime, timedelta, timezone
 import os
-import re
-from typing import Any, Dict, List, Optional, Union
 
 from myutils.gas_api.use_gas import send_to_gas
 from myutils.markdown.headings import (
@@ -21,6 +21,7 @@ tz = timezone(timedelta(hours=+9), "JST")
 GAS_URL = os.getenv("GAS_UTIL_URL")
 DAILY_DIR = os.getenv("DAILY_NOTE_DIR")
 WEEKLY_DIR = os.getenv("WEEKLY_NOTE_DIR")
+DAILY_TASK = os.getenv("DAILY_TASK")
 
 # タグに応じた送信先カレンダーのマップ
 TAG_CALENDAR_MAP = {
@@ -31,6 +32,9 @@ TAG_CALENDAR_MAP = {
     "音楽鑑賞": "1 like",
     "ゲーム": "1 like",
     "日記": "Diary",
+    "食事": "Daily Life",
+    "睡眠": "Daily Life",
+    "風呂": "Daily Life"
 }
 
 # 基本の色マップ（赤・緑・青・グレーなど）
@@ -41,11 +45,12 @@ TAG_COLOR_MAP = {
     "仕事": "GREEN",
     "食事": "GREEN",
     "風呂": "GREEN",
+    "睡眠": "GREEN",
     # 青: 趣味
-    "アニメ鑑賞": "BLUE",
-    "映画鑑賞": "BLUE",
-    "音楽鑑賞": "BLUE",
-    "ゲーム": "BLUE",
+    "アニメ鑑賞": "CYAN",
+    "映画鑑賞": "CYAN",
+    "音楽鑑賞": "CYAN",
+    "ゲーム": "CYAN",
     "読書": "RED",
     # グレー: その他
     "日記": "GRAY",
@@ -213,14 +218,14 @@ def get_focus_tags_from_weekly_note(
 
 
 def register_tasks_from_markdown_to_calendar(
-    file_path: str,
+    file_path: Union[str, List[str]],
     target_heading: str,
     weekly_dir: str,
     start_time: Optional[Union[str, datetime]] = None,
     default_calendar_key: str = "Daily Life",
     sunday_first: bool = False,
 ) -> None:
-    """Markdownからタスクを読み込み、GAS経由でGoogleカレンダーに登録する"""
+    """Markdown（複数ファイル対応）からタスクを読み込み、GAS経由でGoogleカレンダーに登録する"""
     if isinstance(start_time, str):
         start_time = datetime.strptime(start_time, "%Y-%m-%d %H:%M").replace(tzinfo=tz)
     elif start_time is None:
@@ -228,19 +233,32 @@ def register_tasks_from_markdown_to_calendar(
 
     focus_tags = get_focus_tags_from_weekly_note(weekly_dir, start_time, sunday_first=sunday_first)
 
-    task_tree = get_heading_task_tree(file_path, target_heading)
-    if not task_tree:
+    # --- 各ファイルから個別でタスクツリーを取得して結合 ---
+    file_paths = [file_path] if isinstance(file_path, str) else file_path
+    combined_task_tree = []
+
+    for path in file_paths:
+        if path and os.path.exists(path):
+            tasks = get_heading_task_tree(path, target_heading)
+            if tasks:
+                print(f"[DEBUG] {os.path.basename(path)} から {len(tasks)} 件のタスクノードを取得しました")
+                combined_task_tree.extend(tasks)
+            else:
+                print(f"[DEBUG] {os.path.basename(path)} には '{target_heading}' のタスクがありませんでした")
+
+    if not combined_task_tree:
         print(f"❌ タスクが見つかりませんでした: {target_heading}")
         return
 
     events_by_calendar: Dict[str, List[Dict[str, Any]]] = {}
     current_time = start_time
 
-    for node in task_tree:
+    # 統合した combined_task_tree を順に処理
+    for node in combined_task_tree:
         if "tag" in node and "minutes" in node:
             tag = node["tag"]
             
-            # --- 子タスクのテキスト抽出（文字列・辞書の両形式に対応） ---
+            # --- 子タスクのテキスト抽出 ---
             raw_children = node.get("children", [])
             children_texts = []
             for c in raw_children:
@@ -249,10 +267,8 @@ def register_tasks_from_markdown_to_calendar(
                 elif isinstance(c, str):
                     children_texts.append(c)
 
-            # 空文字を除外
             children_texts = [t.strip() for t in children_texts if t.strip()]
 
-            # タイトルと説明文の構築
             children_str = ", ".join(children_texts)
             title = f"{tag}: {children_str}" if children_str else tag
             description = "\n".join(f"- {t}" for t in children_texts)
@@ -283,7 +299,7 @@ def register_tasks_from_markdown_to_calendar(
             target_cal_key = TAG_CALENDAR_MAP.get(tag, default_calendar_key)
 
             event_payload = {
-                "title": title,  # 例: "運動: Pamela 10分下半身, Pamela 10分下半身, のがちゃんねるHIIT 10分"
+                "title": title,
                 "start": current_time.strftime("%Y-%m-%dT%H:%M:%S"),
                 "end": end_time.strftime("%Y-%m-%dT%H:%M:%S"),
                 "description": description,
@@ -321,7 +337,6 @@ def register_tasks_from_markdown_to_calendar(
     print("カレンダー登録処理が完了しました")
     print("=" * 60)
 
-
 def register_tasks_by_date(
     target_date: str,
     start_hour_min: str = "15:00",
@@ -338,14 +353,29 @@ def register_tasks_by_date(
 
     print(f"📅 【対象日】: {target_date}")
     print(f"📄 【ファイル】: {file_path}")
+    if DAILY_TASK and os.path.exists(DAILY_TASK):
+        print(f"🔄 【共通タスク】: {DAILY_TASK}")
     print(f"⏰ 【開始時刻】: {start_time_str}\n")
 
-    if not os.path.exists(file_path):
-        print(f"❌ ファイルが存在しません: {file_path}")
+    # 読み込む対象ファイルリストを作成
+    target_files = []
+
+    # 1. 個別ノート（例: 2026-08-15.md）を先にリストに追加
+    if os.path.exists(file_path):
+        target_files.append(file_path)
+    else:
+        print(f"⚠️ 指定日のノートが存在しないため、DAILY_TASK のみを処理対象とします: {file_path}")
+
+    # 2. DAILY_TASK（ルーティン）を後にリストに追加
+    if DAILY_TASK and os.path.exists(DAILY_TASK):
+        target_files.append(DAILY_TASK)
+
+    if not target_files:
+        print("❌ 処理対象のファイル（DAILY_TASK / 個別ノート）が存在しません。")
         return
 
     register_tasks_from_markdown_to_calendar(
-        file_path=file_path,
+        file_path=target_files,  # 個別ノート -> DAILY_TASK の順で渡される
         target_heading=target_heading,
         weekly_dir=WEEKLY_DIR or DAILY_DIR,
         start_time=start_time_str,
