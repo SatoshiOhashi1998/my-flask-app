@@ -239,11 +239,37 @@ def register_tasks_from_markdown_to_calendar(
     for node in task_tree:
         if "tag" in node and "minutes" in node:
             tag = node["tag"]
-            children_texts = [c["text"] for c in node.get("children", [])]
-            children_str = ", ".join(children_texts)
+            
+            # --- 子タスクのテキスト抽出（文字列・辞書の両形式に対応） ---
+            raw_children = node.get("children", [])
+            children_texts = []
+            for c in raw_children:
+                if isinstance(c, dict):
+                    children_texts.append(c.get("text", ""))
+                elif isinstance(c, str):
+                    children_texts.append(c)
 
+            # 空文字を除外
+            children_texts = [t.strip() for t in children_texts if t.strip()]
+
+            # タイトルと説明文の構築
+            children_str = ", ".join(children_texts)
             title = f"{tag}: {children_str}" if children_str else tag
             description = "\n".join(f"- {t}" for t in children_texts)
+
+            # --- 時間指定の割り込み処理 ---
+            node_start_time = node.get("start_time")
+            if node_start_time:
+                try:
+                    hour_str, min_str = node_start_time.split(":")
+                    current_time = current_time.replace(
+                        hour=int(hour_str),
+                        minute=int(min_str),
+                        second=0,
+                        microsecond=0
+                    )
+                except ValueError:
+                    pass
 
             duration = timedelta(minutes=node["minutes"])
             end_time = current_time + duration
@@ -257,7 +283,7 @@ def register_tasks_from_markdown_to_calendar(
             target_cal_key = TAG_CALENDAR_MAP.get(tag, default_calendar_key)
 
             event_payload = {
-                "title": title,
+                "title": title,  # 例: "運動: Pamela 10分下半身, Pamela 10分下半身, のがちゃんねるHIIT 10分"
                 "start": current_time.strftime("%Y-%m-%dT%H:%M:%S"),
                 "end": end_time.strftime("%Y-%m-%dT%H:%M:%S"),
                 "description": description,
