@@ -25,36 +25,48 @@ DAILY_TASK = os.getenv("DAILY_TASK")
 
 # タグに応じた送信先カレンダーのマップ
 TAG_CALENDAR_MAP = {
-    "天気": "weather",
+    # Daily Life
     "運動": "Daily Life",
+    "食事": "Daily Life",
+    "睡眠": "Daily Life",
+    "風呂": "Daily Life",
+    # 1 like
     "アニメ鑑賞": "1 like",
     "映画鑑賞": "1 like",
     "音楽鑑賞": "1 like",
     "ゲーム": "1 like",
+    "配信": "1 like",
+    "配信視聴": "1 like",
+    "雑談配信": "1 like",
+    "傾聴雑談": "1 like",
+    # その他
+    "天気": "Daily Life",
     "日記": "Diary",
-    "食事": "Daily Life",
-    "睡眠": "Daily Life",
-    "風呂": "Daily Life"
 }
 
 # 基本の色マップ（赤・緑・青・グレーなど）
 TAG_COLOR_MAP = {
     # 緑: 生活
+    "仕事": "GREEN",
     "運動": "RED",
     "散歩": "GREEN",
-    "仕事": "GREEN",
     "食事": "GREEN",
-    "風呂": "GREEN",
     "睡眠": "GREEN",
+    "風呂": "GREEN",
     # 青: 趣味
     "アニメ鑑賞": "CYAN",
     "映画鑑賞": "CYAN",
     "音楽鑑賞": "CYAN",
     "ゲーム": "CYAN",
+    "配信": "CYAN",
+    "配信視聴": "CYAN",
+    "雑談配信": "CYAN",
+    "傾聴雑談": "RED",
     "読書": "RED",
     # グレー: その他
     "日記": "GRAY",
     "買い物": "GRAY",
+    "天気": "GREEN",
 }
 
 
