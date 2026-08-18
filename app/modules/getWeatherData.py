@@ -96,7 +96,7 @@ def get_weather_data(target_date=None, city_name="Tokyo"):
             "end": end_date,
             "description": description_text,
             "allDay": True,
-            "color": "YELLOW"
+            "color": "GREEN"
         }]
     }
 

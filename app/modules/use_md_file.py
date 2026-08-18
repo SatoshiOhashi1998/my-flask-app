@@ -39,6 +39,8 @@ TAG_CALENDAR_MAP = {
     "配信視聴": "1 like",
     "雑談配信": "1 like",
     "傾聴雑談": "1 like",
+    "倍速雑談": "1 like",
+    "将棋": "1 like",
     # その他
     "天気": "Daily Life",
     "日記": "Diary",
@@ -62,7 +64,9 @@ TAG_COLOR_MAP = {
     "配信視聴": "CYAN",
     "雑談配信": "CYAN",
     "傾聴雑談": "RED",
+    "倍速雑談": "RED",
     "読書": "RED",
+    "将棋": "CYAN",
     # グレー: その他
     "日記": "GRAY",
     "買い物": "GRAY",
@@ -270,16 +274,18 @@ def register_tasks_from_markdown_to_calendar(
         if "tag" in node and "minutes" in node:
             tag = node["tag"]
             
-            # --- 子タスクのテキスト抽出 ---
+            # --- 子タスクのテキスト抽出 & Obsidianリンク削除 ---
             raw_children = node.get("children", [])
             children_texts = []
             for c in raw_children:
-                if isinstance(c, dict):
-                    children_texts.append(c.get("text", ""))
-                elif isinstance(c, str):
-                    children_texts.append(c)
-
-            children_texts = [t.strip() for t in children_texts if t.strip()]
+                text = c.get("text", "") if isinstance(c, dict) else (c if isinstance(c, str) else "")
+                
+                # Obsidianの内部リンク（[[リンク名]] または [[リンク名|表示名]]）を削除
+                # リンクごと完全に消す場合は下の行を使用
+                text = re.sub(r'\[\[[^\]]+\]\]', '', text)
+                
+                if text.strip():
+                    children_texts.append(text.strip())
 
             children_str = ", ".join(children_texts)
             title = f"{tag}: {children_str}" if children_str else tag
