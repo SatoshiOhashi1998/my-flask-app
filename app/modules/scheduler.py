@@ -58,12 +58,12 @@ class UrlScheduler:
             else:
                 export_today_comments_to_md()
 
-        # 毎日23:55に本日のコメントをMarkdownに出力するジョブ
+        # 毎日22:00に本日のコメントをMarkdownに出力するジョブ
         self.add_job(
             func=run_export_comments,
             trigger='cron',
-            hour=23,
-            minute=55,
+            hour=22,
+            minute=00,
             job_id="export_today_comments"
         )
 
