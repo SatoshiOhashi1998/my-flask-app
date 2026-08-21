@@ -291,6 +291,9 @@ def register_tasks_from_markdown_to_calendar(
         return
 
     events_by_calendar: Dict[str, List[Dict[str, Any]]] = {}
+    
+    # 基準となる日付を固定（日付跨ぎによる時間ズレを防止）
+    base_date = start_time.date()
     current_time = start_time
 
     # 統合した combined_task_tree を順に処理
@@ -305,7 +308,6 @@ def register_tasks_from_markdown_to_calendar(
                 text = c.get("text", "") if isinstance(c, dict) else (c if isinstance(c, str) else "")
                 
                 # Obsidianの内部リンク（[[リンク名]] または [[リンク名|表示名]]）を削除
-                # リンクごと完全に消す場合は下の行を使用
                 text = re.sub(r'\[\[[^\]]+\]\]', '', text)
                 
                 if text.strip():
@@ -320,12 +322,9 @@ def register_tasks_from_markdown_to_calendar(
             if node_start_time:
                 try:
                     hour_str, min_str = node_start_time.split(":")
-                    current_time = current_time.replace(
-                        hour=int(hour_str),
-                        minute=int(min_str),
-                        second=0,
-                        microsecond=0
-                    )
+                    # current_time の日付ではなく、基準日(base_date)に対して時刻をセットする
+                    target_time = datetime.strptime(f"{hour_str}:{min_str}", "%H:%M").time()
+                    current_time = datetime.combine(base_date, target_time).replace(tzinfo=tz)
                 except ValueError:
                     pass
 
