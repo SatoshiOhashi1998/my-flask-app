@@ -163,12 +163,36 @@ def export_single_vocabulary() -> None:
 # ノート自動生成関数
 # ==========================================
 
-def create_dailynote() -> None:
-    """デイリーノートを生成（向こう7日間分）"""
+def get_daily_template_spec() -> dict:
+    """環境変数から曜日別テンプレートのマップを構築する"""
+    default_template = os.getenv("DAILY_NOTE_TEMPLATE")
+    return {
+        "MONDAY": os.getenv("DAILY_NOTE_TEMPLATE_MONDAY", default_template),
+        "TUESDAY": os.getenv("DAILY_NOTE_TEMPLATE_TUESDAY", default_template),
+        "WEDNESDAY": os.getenv("DAILY_NOTE_TEMPLATE_WEDNESDAY", default_template),
+        "THURSDAY": os.getenv("DAILY_NOTE_TEMPLATE_THURSDAY", default_template),
+        "FRIDAY": os.getenv("DAILY_NOTE_TEMPLATE_FRIDAY", default_template),
+        "SATURDAY": os.getenv("DAILY_NOTE_TEMPLATE_SATURDAY", default_template),
+        "SUNDAY": os.getenv("DAILY_NOTE_TEMPLATE_SUNDAY", default_template),
+        "DEFAULT": default_template,
+    }
+
+
+def create_dailynote(start_date: Optional[datetime] = None) -> None:
+    """デイリーノートを生成（指定日、または本日から向こう7日間分）"""
     target_path = os.getenv("DAILY_NOTE_DIR")
-    template_path = os.getenv("DAILY_NOTE_TEMPLATE")
-    start_date = datetime.now()
-    batch_create_dailies_from_file(target_path, start_date, 7, template_path)
+    template_spec = get_daily_template_spec()
+    
+    # 引数が渡されなかった場合は現在日時を使用
+    if start_date is None:
+        start_date = datetime.now()
+    
+    batch_create_dailies_from_file(
+        output_dir=target_path, 
+        start_date=start_date, 
+        days_count=7, 
+        template_spec=template_spec
+    )
 
 
 def create_next_weekly_note() -> None:

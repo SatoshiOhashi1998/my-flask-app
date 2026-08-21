@@ -257,8 +257,38 @@ def reset_medias_id():
 
 @api_bp.route("/api/markdown/create_dailynote", methods=["GET"])
 def create_dailynotes():
-    create_dailynote()
-    return jsonify({"message": "デイリーノートを作成しました"}), 200
+    """
+    デイリーノートを作成するエンドポイント
+    クエリパラメータ:
+      - start_date (任意): 開始日付 (YYYY-MM-DD)。省略時は本日。
+    """
+    start_date_str = request.args.get("start_date")
+    start_date = None
+
+    if start_date_str:
+        try:
+            start_date = datetime.strptime(start_date_str, "%Y-%m-%d")
+        except ValueError:
+            return jsonify({
+                "status": "error",
+                "message": "無効な日付フォーマットです。YYYY-MM-DD 形式で指定してください。"
+            }), 400
+
+    try:
+        create_dailynote(start_date=start_date)
+        
+        target_date_str = (start_date or datetime.now()).strftime("%Y-%m-%d")
+        return jsonify({
+            "status": "success",
+            "message": f"{target_date_str} から7日分のデイリーノートを作成しました",
+            "start_date": target_date_str
+        }), 200
+
+    except Exception as e:
+        return jsonify({
+            "status": "error",
+            "message": f"デイリーノートの作成中にエラーが発生しました: {str(e)}"
+        }), 500
 
 
 @api_bp.route("/api/markdown/export_english", methods=["GET"])
