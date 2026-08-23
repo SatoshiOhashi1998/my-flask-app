@@ -16,6 +16,7 @@ from app.modules.getWeatherData import (
 )
 from app.modules.use_md_file import (
     create_dailynote,
+    create_next_weekly_note,
     export_english_vocabulary,
     export_single_vocabulary,
     register_tasks_by_date,
@@ -32,6 +33,10 @@ from app.utils import (
     download,
     get_audio_directories,
     get_video_directories,
+)
+
+from myutils.markdown.note_generator import (
+    create_weekly_note,
 )
 
 api_bp = Blueprint("api", __name__)
@@ -379,3 +384,73 @@ def sync_after_18_tasks_to_calendar():
     date_str = request.args.get("date", datetime.now().strftime("%Y-%m-%d"))
     start_time = request.args.get("start_time", "18:00")
     return _execute_task_sync(date_str, start_time, target_heading="18時以降")
+
+@api_bp.route("/api/markdown/create_weekly_note", methods=["GET"])
+def create_weekly_note_endpoint():
+    """
+    指定日の属する週のウィークリーノートを作成するエンドポイント
+    クエリパラメータ:
+      - target_date (任意): 対象日付 (YYYY-MM-DD)。省略時は本日。
+    """
+    target_date_str = request.args.get("target_date")
+    target_date = None
+
+    if target_date_str:
+        try:
+            target_date = datetime.strptime(target_date_str, "%Y-%m-%d")
+        except ValueError:
+            return jsonify({
+                "status": "error",
+                "message": "無効な日付フォーマットです。YYYY-MM-DD 形式で指定してください。"
+            }), 400
+    else:
+        target_date = datetime.now()
+
+    output_dir = os.getenv("WEEKLY_NOTE_DIR")
+    template_path = os.getenv("WEEKLY_NOTE_TEMPLATE")
+    plan_dir = os.getenv("PLAN_NOTE_DIR")
+
+    if not output_dir or not template_path:
+        return jsonify({
+            "status": "error",
+            "message": "環境変数 WEEKLY_NOTE_DIR または WEEKLY_NOTE_TEMPLATE が設定されていません。"
+        }), 500
+
+    try:
+        create_weekly_note(
+            output_dir=output_dir,
+            target_date=target_date,
+            template_path=template_path,
+            plan_dir=plan_dir,
+            start_of_week="monday",
+        )
+        return jsonify({
+            "status": "success",
+            "message": f"{target_date.strftime('%Y-%m-%d')} の属する週のウィークリーノートを作成しました",
+            "target_date": target_date.strftime('%Y-%m-%d')
+        }), 200
+
+    except Exception as e:
+        return jsonify({
+            "status": "error",
+            "message": f"ウィークリーノートの作成中にエラーが発生しました: {str(e)}"
+        }), 500
+
+
+@api_bp.route("/api/markdown/create_next_weekly_note", methods=["GET"])
+def create_next_weekly_note_endpoint():
+    """
+    翌週分のウィークリーノートを作成するエンドポイント
+    """
+    try:
+        create_next_weekly_note()
+        return jsonify({
+            "status": "success",
+            "message": "翌週分のウィークリーノートを作成しました"
+        }), 200
+
+    except Exception as e:
+        return jsonify({
+            "status": "error",
+            "message": f"翌週のウィークリーノートの作成中にエラーが発生しました: {str(e)}"
+        }), 500
