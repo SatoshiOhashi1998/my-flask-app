@@ -66,13 +66,25 @@ def get_weather_data(target_date=None, city_name="Tokyo"):
     avg_humidity = sum(item["main"]["humidity"] for item in daily_data) / len(daily_data)
 
     insert_data = (
-        f"天気: 最高気温 {max_temp}℃, "
-        f"最低気温 {min_temp}℃, "
-        f"降水確率 {total_precipitation_prob:.1f}%, "
+        f"天気: 最高気温 {max_temp:.1f}℃, "
+        f"最低気温 {min_temp:.1f}℃, "
+        f"降水確率 {total_precipitation_prob:.0f}%, "
         f"最高気圧 {max_pressure}hPa, "
         f"最低気圧 {min_pressure}hPa, "
-        f"平均湿度 {avg_humidity:.1f}%"
+        f"平均湿度 {avg_humidity:.0f}%"
     )
+
+    # 3時間ごとの詳細データを箇条書きで作成（湿度を追加）
+    details = []
+    for item in daily_data:
+        time_str = datetime.fromtimestamp(item["dt"], tz).strftime("%H:%M")
+        temp = item["main"]["temp"]
+        pressure = item["main"]["pressure"]
+        humidity = item["main"]["humidity"]
+        pop = item.get("pop", 0) * 100
+        details.append(f"・{time_str} - 気温: {temp:.1f}℃, 気圧: {pressure}hPa, 湿度: {humidity}%, 降水確率: {pop:.0f}%")
+    
+    description_text = "\n".join(details)
 
     end_date = (datetime.strptime(target_date_str, "%Y-%m-%d") + timedelta(days=1)).strftime("%Y-%m-%d")
 
@@ -82,9 +94,9 @@ def get_weather_data(target_date=None, city_name="Tokyo"):
             "title": insert_data,
             "start": target_date_str,
             "end": end_date,
-            "description": insert_data,
+            "description": description_text,
             "allDay": True,
-            "color": "YELLOW"
+            "color": "GREEN"
         }]
     }
 
@@ -96,6 +108,17 @@ def register_tomorrow_weather_to_calendar():
     翌日の天気データを取得してGoogleカレンダーに送信
     """
     event_data = get_weather_data()
+    if "error" not in event_data:
+        send_to_gas(event_data, GAS_URL)
+    else:
+        print("Error:", event_data["error"])
+
+
+def register_today_weather_to_calendar():
+    """
+    当日の天気データを取得してGoogleカレンダーに送信
+    """
+    event_data = get_weather_data(datetime.now(tz))
     if "error" not in event_data:
         send_to_gas(event_data, GAS_URL)
     else:

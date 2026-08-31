@@ -7,6 +7,7 @@ from apscheduler.schedulers.background import BackgroundScheduler
 from app.modules import useMailServer
 from app.modules.getWeatherData import register_tomorrow_weather_to_calendar
 from app.modules.getYouTubeLive import send_archived_streams_from_excel_channels
+from app.modules.export_comments import export_today_comments_to_md
 
 logger = logging.getLogger(__name__)  # モジュール専用ロガー
 
@@ -20,21 +21,20 @@ class UrlJob:
 class UrlScheduler:
     """URLのスケジュール管理を行うクラス"""
     
-    def __init__(self):
+    def __init__(self, app=None):
+        self.app = app
         self.scheduler = BackgroundScheduler(max_instances=1)
         self.scheduler.start()
 
-        # スケジュールするURLとジョブIDを設定
         self.url_jobs = [
             UrlJob(url=os.getenv('DYNALIST_URL'), job_id="target_job"),
             UrlJob(url=os.getenv('TENKI_URL'), job_id="weather_job"),
+            UrlJob(url=os.getenv('KIATSU_URL'), job_id="kiatsu_job"),
             UrlJob(url=os.getenv('ILLUST_LIST_URL'), job_id="illust_job")
         ]
 
-        # ジョブ登録
         self.schedule_url_jobs()
 
-        # メールサーバー確認ジョブ
         self.add_job(
             func=useMailServer.check_email,
             trigger="interval",
@@ -42,7 +42,6 @@ class UrlScheduler:
             job_id="check_email"
         )
 
-        # 各種batファイル起動ジョブ
         self.add_job(
             func=register_tomorrow_weather_to_calendar,
             trigger='cron',
@@ -51,17 +50,42 @@ class UrlScheduler:
             job_id="get_weather_data"
         )
 
+        # アプリコンテキストを付与して呼び出すラッパー関数
+        def run_export_comments():
+            if self.app:
+                with self.app.app_context():
+                    export_today_comments_to_md()
+            else:
+                export_today_comments_to_md()
+
+        # 毎日22:00に本日のコメントをMarkdownに出力するジョブ
         self.add_job(
-            func=send_archived_streams_from_excel_channels,
+            func=run_export_comments,
             trigger='cron',
-            hour=19,
-            minute=0,
-            job_id="get_YlArchive_data"
+            hour=22,
+            minute=00,
+            job_id="export_today_comments"
         )
 
     def schedule_url_jobs(self):
         """特定のURLを指定の時間に開くジョブをスケジュール"""
-        for hour in [0, 9, 12, 18]:
+        self.add_job(
+            webbrowser.open,
+            'cron',
+            hour=0,
+            minute=5,
+            args=[self.url_jobs[1].url],
+            job_id=f"{self.url_jobs[1].job_id}_{0}"
+        )
+        self.add_job(
+            webbrowser.open,
+            'cron',
+            hour=0,
+            minute=5,
+            args=[self.url_jobs[2].url],
+            job_id=f"{self.url_jobs[2].job_id}_{0}"
+        )
+        for hour in [9, 12, 18]:
             self.add_job(
                 webbrowser.open,
                 'cron',
