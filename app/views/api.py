@@ -20,7 +20,6 @@ from app.modules.use_md_file import (
     export_english_vocabulary,
     export_single_vocabulary,
     register_tasks_by_date,
-    test_md,
 )
 from app.modules.video_manager import (
     remove_nonexistent_files_from_db,
@@ -306,12 +305,6 @@ def export_english():
 def export_vocablary():
     export_single_vocabulary()
     return jsonify({"message": "語彙を出力しました"}), 200
-
-
-@api_bp.route("/api/test", methods=["GET"])
-def test():
-    test_md()
-    return jsonify({"message": "テスト処理を実行しました"}), 200
 
 
 # ==========================================

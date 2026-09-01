@@ -424,14 +424,3 @@ def register_tasks_by_date(
         start_time=start_time_str,
         sunday_first=sunday_first,
     )
-
-
-def test_md() -> None:
-    """動作確認用テスト関数"""
-    print("================test_md===============")
-    today_str = datetime.now().strftime("%Y-%m-%d")
-    register_tasks_by_date(
-        target_date=today_str,
-        start_hour_min="15:00",
-        sunday_first=False,
-    )
