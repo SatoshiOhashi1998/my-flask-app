@@ -4,6 +4,9 @@ from unittest.mock import patch, MagicMock
 from app.modules.use_md_file import (
     get_focus_tags_from_weekly_note,
     register_tasks_from_markdown_to_calendar,
+    get_daily_template_spec,
+    create_dailynote,
+    create_next_weekly_note,
 )
 
 # ==========================================
@@ -103,3 +106,49 @@ def test_register_tasks_multiple_files_and_children(mock_get_focus, mock_get_tre
     # 2. file2側: ルーティン側のタスクが正しく後に続いているか
     assert events[1]["title"] == "仕事: メール確認"
     assert events[1]["color"] == "GREEN"  # TAG_COLOR_MAP による
+
+# ==========================================
+# 3. ノート作成関連のテスト
+# ==========================================
+
+def test_get_daily_template_spec(monkeypatch):
+    # 環境変数を設定してテンプレート仕様の辞書が正しく構築されるか
+    monkeypatch.setenv("DAILY_NOTE_TEMPLATE", "default_template.md")
+    monkeypatch.setenv("DAILY_NOTE_TEMPLATE_MONDAY", "monday_template.md")
+
+    spec = get_daily_template_spec()
+    assert spec["DEFAULT"] == "default_template.md"
+    assert spec["MONDAY"] == "monday_template.md"
+    assert spec["TUESDAY"] == "default_template.md"  # 未設定の曜日はデフォルトにフォールバック
+
+
+@patch("app.modules.use_md_file.batch_create_dailies_from_file")
+def test_create_dailynote(mock_batch_create, monkeypatch):
+    # 環境変数とデイリーノート生成関数のモック化
+    monkeypatch.setenv("DAILY_NOTE_DIR", "/dummy/daily_dir")
+
+    target_date = datetime(2026, 9, 1, 9, 0)
+    create_dailynote(target_date)
+
+    mock_batch_create.assert_called_once()
+    _, kwargs = mock_batch_create.call_args
+    assert kwargs["output_dir"] == "/dummy/daily_dir"
+    assert kwargs["start_date"] == target_date
+    assert kwargs["days_count"] == 7
+
+
+@patch("app.modules.use_md_file.create_weekly_note")
+def test_create_next_weekly_note(mock_create_weekly, monkeypatch):
+    # 環境変数とウィークリーノート生成関数のモック化
+    monkeypatch.setenv("WEEKLY_NOTE_DIR", "/dummy/weekly_dir")
+    monkeypatch.setenv("WEEKLY_NOTE_TEMPLATE", "/dummy/weekly_template.md")
+    monkeypatch.setenv("PLAN_NOTE_DIR", "/dummy/plan_dir")
+
+    create_next_weekly_note()
+
+    mock_create_weekly.assert_called_once()
+    _, kwargs = mock_create_weekly.call_args
+    assert kwargs["output_dir"] == "/dummy/weekly_dir"
+    assert kwargs["template_path"] == "/dummy/weekly_template.md"
+    assert kwargs["plan_dir"] == "/dummy/plan_dir"
+    assert kwargs["start_of_week"] == "monday"
