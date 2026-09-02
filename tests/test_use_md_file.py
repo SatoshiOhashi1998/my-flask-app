@@ -43,9 +43,9 @@ def test_get_focus_tags_success(tmp_path):
 #    （複数ファイル結合 ＆ 子タスク結合）
 # ==========================================
 
-@patch("app.modules.test.use_md_file.send_to_gas")
-@patch("app.modules.test.use_md_file.NoteParser")
-@patch("app.modules.test.use_md_file.get_focus_tags_from_weekly_note")
+@patch("app.modules.use_md_file.send_to_gas")
+@patch("app.modules.use_md_file.NoteParser")
+@patch("app.modules.use_md_file.get_focus_tags_from_weekly_note")
 def test_register_tasks_multiple_files_and_children(
     mock_get_focus,
     mock_note_parser,
@@ -209,7 +209,7 @@ def test_get_daily_template_spec(monkeypatch):
 
 
 @patch(
-    "app.modules.test.use_md_file.NoteGenerator.batch_create_dailies"
+    "app.modules.use_md_file.NoteGenerator.batch_create_dailies"
 )
 def test_create_dailynote(
     mock_batch_create,
@@ -258,7 +258,7 @@ def test_create_dailynote(
 
 
 @patch(
-    "app.modules.test.use_md_file.NoteGenerator.create_weekly_note"
+    "app.modules.use_md_file.NoteGenerator.create_weekly_note"
 )
 def test_create_next_weekly_note(
     mock_create_weekly,

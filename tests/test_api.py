@@ -208,9 +208,8 @@ def test_create_dailynotes_invalid_date(client):
     assert data["status"] == "error"
 
 
-@patch("app.views.api.create_weekly_note")
+@patch("app.views.api.NoteGenerator.create_weekly_note")
 def test_create_weekly_note_success(mock_create, client, monkeypatch):
-    # 環境変数を一時的に設定して正常系テスト
     monkeypatch.setenv("WEEKLY_NOTE_DIR", "/dummy/dir")
     monkeypatch.setenv("WEEKLY_NOTE_TEMPLATE", "/dummy/template.md")
 
