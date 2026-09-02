@@ -10,7 +10,7 @@ from app.modules.use_md_file import (
     create_dailynote,
     create_next_weekly_note,
 )
-from myutils.markdown.dev.note_processor import NoteParser, NoteGenerator
+from myutils.markdown.note_processor import NoteParser, NoteGenerator
 
 
 # ==========================================
