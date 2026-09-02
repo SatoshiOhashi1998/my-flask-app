@@ -5,16 +5,9 @@ from datetime import datetime, timedelta, timezone
 import os
 
 from myutils.gas_api.use_gas import send_to_gas
-from myutils.markdown.headings import (
-    extract_lists_from_all_sub_headings,
-    extract_lists_from_heading,
-    get_heading_task_tree,
-)
-from myutils.markdown.note_generator import (
-    batch_create_dailies_from_file,
-    create_weekly_note,
-)
-from myutils.markdown.utils import parse_vocabulary_line
+from myutils.markdown.vault import Note, Vault
+from myutils.markdown.note_processor import NoteGenerator, NoteParser
+from myutils.markdown.utils import MarkdownUtils
 
 # タイムゾーン・環境変数の設定
 tz = timezone(timedelta(hours=+9), "JST")
@@ -84,7 +77,7 @@ def _parse_lines_to_wordholic(lines: List[str], comment: str) -> List[Dict[str, 
     """箇条書きリストの各行を解析し、Wordholic形式の辞書リストに変換する"""
     rows = []
     for line in lines:
-        parsed = parse_vocabulary_line(line)
+        parsed = MarkdownUtils.parse_vocabulary_line(line)
         if parsed:
             rows.append({
                 "FrontText": parsed["word"],
@@ -143,7 +136,8 @@ def export_english_vocabulary() -> None:
         print("❌ エラー: PATH_ENG または TARGET_HEAD_ENG が設定されていません。")
         return
 
-    all_results = extract_lists_from_all_sub_headings(file_path, target_heading)
+    parser = NoteParser(Note(file_path))
+    all_results = parser.extract_lists_from_all_sub_headings(target_heading)
     all_rows = convert_all_sub_headings_to_wordholic(all_results)
     export_rows_to_csv(all_rows, "output_all.csv")
 
@@ -156,7 +150,8 @@ def export_single_vocabulary() -> None:
         print("❌ エラー: PATH_VOCAB または TARGET_HEAD_VOCAB が設定されていません。")
         return
 
-    single_result = extract_lists_from_heading(file_path, target_heading)
+    parser = NoteParser(Note(file_path))
+    single_result = parser.extract_lists_from_heading(target_heading)
     single_rows = convert_single_result_to_wordholic(single_result)
     export_rows_to_csv(single_rows, "output_single.csv")
 
@@ -189,11 +184,13 @@ def create_dailynote(start_date: Optional[datetime] = None) -> None:
     if start_date is None:
         start_date = datetime.now()
     
-    batch_create_dailies_from_file(
-        output_dir=target_path, 
-        start_date=start_date, 
-        days_count=7, 
-        template_spec=template_spec
+    vault = Vault(target_path)
+    generator = NoteGenerator(vault)
+    generator.batch_create_dailies(
+        output_dir="",
+        start_date=start_date,
+        days_count=7,
+        template_spec=template_spec,
     )
 
 
@@ -205,8 +202,10 @@ def create_next_weekly_note() -> None:
 
     next_week_date = datetime.now() + timedelta(days=7)
 
-    create_weekly_note(
-        output_dir=output_dir,
+    vault = Vault(output_dir)
+    generator = NoteGenerator(vault)
+    generator.create_weekly_note(
+        output_dir="",
         target_date=next_week_date,
         template_path=template_path,
         plan_dir=plan_dir,
@@ -281,7 +280,7 @@ def register_tasks_from_markdown_to_calendar(
 
     for path in file_paths:
         if path and os.path.exists(path):
-            tasks = get_heading_task_tree(path, target_heading)
+            tasks = NoteParser(Note(path)).get_heading_task_tree(target_heading)
             if tasks:
                 print(f"[DEBUG] {os.path.basename(path)} から {len(tasks)} 件のタスクノードを取得しました")
                 combined_task_tree.extend(tasks)
