@@ -34,9 +34,8 @@ from app.utils import (
     get_video_directories,
 )
 
-from myutils.markdown.note_generator import (
-    create_weekly_note,
-)
+from myutils.markdown.vault import Vault
+from myutils.markdown.note_processor import NoteGenerator
 
 api_bp = Blueprint("api", __name__)
 
@@ -390,11 +389,14 @@ def create_weekly_note_endpoint():
 
     if target_date_str:
         try:
-            target_date = datetime.strptime(target_date_str, "%Y-%m-%d")
+            target_date = datetime.strptime(
+                target_date_str,
+                "%Y-%m-%d",
+            )
         except ValueError:
             return jsonify({
                 "status": "error",
-                "message": "無効な日付フォーマットです。YYYY-MM-DD 形式で指定してください。"
+                "message": "無効な日付フォーマットです。YYYY-MM-DD 形式で指定してください。",
             }), 400
     else:
         target_date = datetime.now()
@@ -406,27 +408,31 @@ def create_weekly_note_endpoint():
     if not output_dir or not template_path:
         return jsonify({
             "status": "error",
-            "message": "環境変数 WEEKLY_NOTE_DIR または WEEKLY_NOTE_TEMPLATE が設定されていません。"
+            "message": "環境変数 WEEKLY_NOTE_DIR または WEEKLY_NOTE_TEMPLATE が設定されていません。",
         }), 500
 
     try:
-        create_weekly_note(
-            output_dir=output_dir,
+        vault = Vault(output_dir)
+        generator = NoteGenerator(vault)
+
+        generator.create_weekly_note(
+            output_dir="",
             target_date=target_date,
             template_path=template_path,
             plan_dir=plan_dir,
             start_of_week="monday",
         )
+
         return jsonify({
             "status": "success",
             "message": f"{target_date.strftime('%Y-%m-%d')} の属する週のウィークリーノートを作成しました",
-            "target_date": target_date.strftime('%Y-%m-%d')
+            "target_date": target_date.strftime("%Y-%m-%d"),
         }), 200
 
     except Exception as e:
         return jsonify({
             "status": "error",
-            "message": f"ウィークリーノートの作成中にエラーが発生しました: {str(e)}"
+            "message": f"ウィークリーノートの作成中にエラーが発生しました: {str(e)}",
         }), 500
 
 
