@@ -2,7 +2,7 @@ import locale
 import os
 import traceback
 from datetime import datetime, timedelta
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, jsonify, request, send_from_directory
 
 from app.models import Comment, MusicDataModel, VideoDataModel, db
 from app.modules.audio_manager import (
@@ -100,6 +100,15 @@ def get_video(video_id):
 
     return jsonify(_format_media_item(video, "video"))
 
+@api_bp.route("/api/videos/<video_id>/stream", methods=["GET"])
+def stream_video(video_id):
+    video = VideoDataModel.query.get_or_404(video_id)
+
+    directory = os.path.dirname(video.path)
+    filename = video.new_name
+
+    return send_from_directory(directory, filename)
+
 
 # ==========================================
 # 2. 音声・音楽 (Music/Audio) 関連
@@ -121,6 +130,15 @@ def get_music(music_id):
         return jsonify({"error": "Music not found"}), 404
 
     return jsonify(_format_media_item(music, "audio"))
+
+@api_bp.route("/api/musics/<music_id>/stream", methods=["GET"])
+def stream_music(music_id):
+    music = MusicDataModel.query.get_or_404(music_id)
+
+    directory = os.path.dirname(music.path)
+    filename = music.new_name
+
+    return send_from_directory(directory, filename)
 
 
 # ==========================================
