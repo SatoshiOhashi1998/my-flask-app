@@ -1,7 +1,7 @@
 import os
 
 from app.models import db, VideoDataModel, MusicDataModel
-from app.modules import utils
+from app import utils
 
 
 def test_download_registers_video_to_db(client, tmp_path, monkeypatch):
