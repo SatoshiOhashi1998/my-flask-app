@@ -8,9 +8,13 @@ from typing import List, Optional
 import yt_dlp
 import ffmpeg
 
-from app.models import db
+from app.models import VideoDataModel, MusicDataModel
 from app.modules.video_manager import insert_video, remove_nonexistent_files_from_db
 from app.modules.audio_manager import insert_music, remove_nonexistent_audio_files_from_db
+from app.modules.media_manager import (
+    insert_media,
+    remove_nonexistent_files,
+)
 
 # 環境変数・ディレクトリ定義
 APP_BASE_PATH = os.getenv("APP_BASE_PATH", "")
@@ -126,11 +130,23 @@ def download(
         new_name = os.path.basename(final_target_path)
 
         if download_type == "audio":
-            remove_nonexistent_audio_files_from_db()
-            insert_music(clean_id, original_title, new_name, final_target_path)
+            remove_nonexistent_files(MusicDataModel)
+            insert_media(
+                MusicDataModel,
+                clean_id,
+                original_title,
+                new_name,
+                final_target_path,
+            )
         else:
-            remove_nonexistent_files_from_db()
-            insert_video(clean_id, original_title, new_name, final_target_path)
+            remove_nonexistent_files(VideoDataModel)
+            insert_media(
+                VideoDataModel,
+                clean_id,
+                original_title,
+                new_name,
+                final_target_path,
+            )
 
     except Exception as e:
         print(f"警告: DB更新中にエラーが発生しました: {str(e)}")
