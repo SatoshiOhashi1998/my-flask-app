@@ -494,7 +494,6 @@ def test_create_next_weekly_note_success(
 def test_stream_video_success(
     client,
     tmp_path,
-    clean_video,
 ):
     video_id = "test_video_01"
 
@@ -507,7 +506,11 @@ def test_stream_video_success(
     video_file.write_bytes(file_content)
 
     with client.application.app_context():
-        clean_video(video_id)
+        existing = db.session.get(VideoDataModel, video_id)
+
+        if existing:
+            db.session.delete(existing)
+            db.session.commit()
 
         video = VideoDataModel(
             id=video_id,
@@ -529,7 +532,11 @@ def test_stream_video_success(
     assert response.headers.get("Content-Type") is not None
 
     with client.application.app_context():
-        clean_video(video_id)
+        video = db.session.get(VideoDataModel, video_id)
+
+        if video:
+            db.session.delete(video)
+            db.session.commit()
 
 
 def test_stream_video_not_found(client):
@@ -543,7 +550,6 @@ def test_stream_video_not_found(client):
 def test_stream_music_success(
     client,
     tmp_path,
-    clean_music,
 ):
     music_id = "test_music_01"
 
@@ -556,7 +562,11 @@ def test_stream_music_success(
     music_file.write_bytes(file_content)
 
     with client.application.app_context():
-        clean_music(music_id)
+        existing = db.session.get(MusicDataModel, music_id)
+
+        if existing:
+            db.session.delete(existing)
+            db.session.commit()
 
         music = MusicDataModel(
             id=music_id,
@@ -578,7 +588,11 @@ def test_stream_music_success(
     assert response.headers.get("Content-Type") is not None
 
     with client.application.app_context():
-        clean_music(music_id)
+        music = db.session.get(MusicDataModel, music_id)
+
+        if music:
+            db.session.delete(music)
+            db.session.commit()
 
 
 def test_stream_music_not_found(client):
@@ -596,7 +610,6 @@ def test_stream_music_not_found(client):
 def test_stream_video_range_request(
     client,
     tmp_path,
-    clean_video,
 ):
     video_id = "test_range_video"
 
@@ -609,7 +622,11 @@ def test_stream_video_range_request(
     video_file.write_bytes(file_content)
 
     with client.application.app_context():
-        clean_video(video_id)
+        existing = db.session.get(VideoDataModel, video_id)
+
+        if existing:
+            db.session.delete(existing)
+            db.session.commit()
 
         video = VideoDataModel(
             id=video_id,
@@ -637,13 +654,16 @@ def test_stream_video_range_request(
     )
 
     with client.application.app_context():
-        clean_video(video_id)
+        video = db.session.get(VideoDataModel, video_id)
+
+        if video:
+            db.session.delete(video)
+            db.session.commit()
 
 
 def test_stream_music_range_request(
     client,
     tmp_path,
-    clean_music,
 ):
     music_id = "test_range_music"
 
@@ -656,7 +676,11 @@ def test_stream_music_range_request(
     music_file.write_bytes(file_content)
 
     with client.application.app_context():
-        clean_music(music_id)
+        existing = db.session.get(MusicDataModel, music_id)
+
+        if existing:
+            db.session.delete(existing)
+            db.session.commit()
 
         music = MusicDataModel(
             id=music_id,
@@ -684,4 +708,8 @@ def test_stream_music_range_request(
     )
 
     with client.application.app_context():
-        clean_music(music_id)
+        music = db.session.get(MusicDataModel, music_id)
+
+        if music:
+            db.session.delete(music)
+            db.session.commit()
