@@ -1,4 +1,5 @@
 from unittest.mock import patch
+
 import pytest
 
 from app.models import Comment, VideoDataModel, MusicDataModel, db
@@ -11,6 +12,7 @@ from app.models import Comment, VideoDataModel, MusicDataModel, db
 @patch("app.views.api.register_tasks_by_date")
 def test_sync_today_tasks(mock_register, client):
     response = client.get("/api/calendar/sync-tasks/today")
+
     assert response.status_code == 200
 
     data = response.get_json()
@@ -24,6 +26,7 @@ def test_sync_today_tasks(mock_register, client):
 @patch("app.views.api.register_tasks_by_date")
 def test_sync_tomorrow_tasks(mock_register, client):
     response = client.get("/api/calendar/sync-tasks/tomorrow")
+
     assert response.status_code == 200
 
     data = response.get_json()
@@ -491,10 +494,10 @@ def test_create_next_weekly_note_success(
 def test_stream_video_success(
     client,
     tmp_path,
+    clean_video,
 ):
-    # ------------------------------------------
-    # テスト用動画ファイル
-    # ------------------------------------------
+    video_id = "test_video_01"
+
     video_dir = tmp_path / "video"
     video_dir.mkdir()
 
@@ -503,12 +506,11 @@ def test_stream_video_success(
     file_content = b"test video content"
     video_file.write_bytes(file_content)
 
-    # ------------------------------------------
-    # DB登録
-    # ------------------------------------------
     with client.application.app_context():
+        clean_video(video_id)
+
         video = VideoDataModel(
-            id="test_video_01",
+            id=video_id,
             new_name="test_video.mp4",
             path=str(video_file),
             original_name="テスト動画",
@@ -517,25 +519,17 @@ def test_stream_video_success(
         db.session.add(video)
         db.session.commit()
 
-    # ------------------------------------------
-    # API呼び出し
-    # ------------------------------------------
     response = client.get(
-        "/api/videos/test_video_01/stream"
+        f"/api/videos/{video_id}/stream"
     )
 
-    # ------------------------------------------
-    # 検証
-    # ------------------------------------------
     assert response.status_code == 200
     assert response.data == file_content
-
-    # send_from_directory により Content-Length が設定される
     assert response.content_length == len(file_content)
-
-    # ファイル名に対応したContent-Disposition等の挙動を
-    # Flask/Werkzeugに任せていることを確認
     assert response.headers.get("Content-Type") is not None
+
+    with client.application.app_context():
+        clean_video(video_id)
 
 
 def test_stream_video_not_found(client):
@@ -549,10 +543,10 @@ def test_stream_video_not_found(client):
 def test_stream_music_success(
     client,
     tmp_path,
+    clean_music,
 ):
-    # ------------------------------------------
-    # テスト用音声ファイル
-    # ------------------------------------------
+    music_id = "test_music_01"
+
     music_dir = tmp_path / "audio"
     music_dir.mkdir()
 
@@ -561,12 +555,11 @@ def test_stream_music_success(
     file_content = b"test music content"
     music_file.write_bytes(file_content)
 
-    # ------------------------------------------
-    # DB登録
-    # ------------------------------------------
     with client.application.app_context():
+        clean_music(music_id)
+
         music = MusicDataModel(
-            id="test_music_01",
+            id=music_id,
             new_name="test_music.mp3",
             path=str(music_file),
             original_name="テスト音声",
@@ -575,22 +568,17 @@ def test_stream_music_success(
         db.session.add(music)
         db.session.commit()
 
-    # ------------------------------------------
-    # API呼び出し
-    # ------------------------------------------
     response = client.get(
-        "/api/musics/test_music_01/stream"
+        f"/api/musics/{music_id}/stream"
     )
 
-    # ------------------------------------------
-    # 検証
-    # ------------------------------------------
     assert response.status_code == 200
     assert response.data == file_content
-
     assert response.content_length == len(file_content)
-
     assert response.headers.get("Content-Type") is not None
+
+    with client.application.app_context():
+        clean_music(music_id)
 
 
 def test_stream_music_not_found(client):
@@ -608,19 +596,23 @@ def test_stream_music_not_found(client):
 def test_stream_video_range_request(
     client,
     tmp_path,
+    clean_video,
 ):
+    video_id = "test_range_video"
+
     video_dir = tmp_path / "video"
     video_dir.mkdir()
 
     video_file = video_dir / "test_range.mp4"
 
-    # 100バイトのテストデータ
     file_content = bytes(range(100))
     video_file.write_bytes(file_content)
 
     with client.application.app_context():
+        clean_video(video_id)
+
         video = VideoDataModel(
-            id="test_range_video",
+            id=video_id,
             new_name="test_range.mp4",
             path=str(video_file),
             original_name="Rangeテスト動画",
@@ -630,29 +622,31 @@ def test_stream_video_range_request(
         db.session.commit()
 
     response = client.get(
-        "/api/videos/test_range_video/stream",
+        f"/api/videos/{video_id}/stream",
         headers={
             "Range": "bytes=0-9",
         },
     )
 
-    # WerkzeugがRangeを処理していれば206になる
     assert response.status_code == 206
-
-    # 0～9なので10バイト
     assert response.data == file_content[:10]
     assert response.content_length == 10
-
     assert (
         response.headers.get("Content-Range")
         == "bytes 0-9/100"
     )
 
+    with client.application.app_context():
+        clean_video(video_id)
+
 
 def test_stream_music_range_request(
     client,
     tmp_path,
+    clean_music,
 ):
+    music_id = "test_range_music"
+
     music_dir = tmp_path / "audio"
     music_dir.mkdir()
 
@@ -662,8 +656,10 @@ def test_stream_music_range_request(
     music_file.write_bytes(file_content)
 
     with client.application.app_context():
+        clean_music(music_id)
+
         music = MusicDataModel(
-            id="test_range_music",
+            id=music_id,
             new_name="test_range.mp3",
             path=str(music_file),
             original_name="Rangeテスト音声",
@@ -673,18 +669,19 @@ def test_stream_music_range_request(
         db.session.commit()
 
     response = client.get(
-        "/api/musics/test_range_music/stream",
+        f"/api/musics/{music_id}/stream",
         headers={
             "Range": "bytes=10-19",
         },
     )
 
     assert response.status_code == 206
-
     assert response.data == file_content[10:20]
     assert response.content_length == 10
-
     assert (
         response.headers.get("Content-Range")
         == "bytes 10-19/100"
     )
+
+    with client.application.app_context():
+        clean_music(music_id)
