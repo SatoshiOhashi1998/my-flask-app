@@ -42,6 +42,12 @@ def get_audio_directories(base_path: str = AUDIO_BASE_PATH) -> List[str]:
     response = [AUDIO_BASE_PATH] + [d for d in glob.glob(os.path.join(base_path, '*')) if os.path.isdir(d)]
     return response
 
+def get_media_directories() -> List[str]:
+    return [
+        path
+        for path in MEDIA_BASE_PATHS
+        if os.path.isdir(path)
+    ]
 
 def download(
     video_id: str,
