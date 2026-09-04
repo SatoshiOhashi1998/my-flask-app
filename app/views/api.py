@@ -207,11 +207,6 @@ def export_comment():
 @api_bp.route("/api/youtube/download", methods=["GET", "POST"])
 def download_video():
     if request.method == "GET":
-        # try:
-        #     dir_paths = get_video_directories() + get_audio_directories()
-        #     return jsonify(dir_paths), 200
-        # except Exception as e:
-        #     return jsonify({"error": str(e)}), 500
         try:
             return jsonify(get_media_directories()), 200
         except Exception as e:
