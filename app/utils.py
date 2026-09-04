@@ -43,11 +43,16 @@ def get_audio_directories(base_path: str = AUDIO_BASE_PATH) -> List[str]:
     return response
 
 def get_media_directories() -> List[str]:
-    return [
-        path
-        for path in MEDIA_BASE_PATHS
-        if os.path.isdir(path)
-    ]
+    directories = []
+
+    for base_path in MEDIA_BASE_PATHS:
+        if not os.path.isdir(base_path):
+            continue
+
+        for root, dirs, _ in os.walk(base_path):
+            directories.append(root)
+
+    return directories
 
 def download(
     video_id: str,
