@@ -407,23 +407,15 @@ def test_download_with_trim_overwrite(
         DummyYoutubeDL,
     )
 
-    def fake_ffmpeg_run(stream, overwrite_output, cmd):
-        output_file = stream["output_file"]
-        with open(output_file, "wb") as f:
-            f.write(b"trimmed video")
-
-    class DummyStream:
-        def __getitem__(self, key):
-            if key == "output_file":
-                return str(tmp_path / "downloaded.tmp.mp4")
-            raise KeyError(key)
-
     def fake_input(*args, **kwargs):
-        return DummyStream()
+        return object()
 
     def fake_output(stream, output_file, **kwargs):
-        stream["output_file"] = output_file
-        return stream
+        return output_file
+
+    def fake_run(stream, overwrite_output, cmd):
+        with open(stream, "wb") as f:
+            f.write(b"trimmed video")
 
     monkeypatch.setattr(
         utils.ffmpeg,
@@ -440,7 +432,7 @@ def test_download_with_trim_overwrite(
     monkeypatch.setattr(
         utils.ffmpeg,
         "run",
-        fake_ffmpeg_run,
+        fake_run,
     )
 
     with client.application.app_context():
@@ -454,8 +446,11 @@ def test_download_with_trim_overwrite(
         )
 
         assert result == str(downloaded_file.resolve())
+
+        # トリミング後の内容で上書きされている
         assert downloaded_file.read_bytes() == b"trimmed video"
 
+        # DB登録も確認
         video = db.session.get(
             VideoDataModel,
             video_id,
@@ -464,5 +459,6 @@ def test_download_with_trim_overwrite(
         assert video is not None
         assert video.path == str(downloaded_file.resolve())
 
+        # 後始末
         db.session.delete(video)
         db.session.commit()
