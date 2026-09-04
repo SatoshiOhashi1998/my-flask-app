@@ -290,10 +290,13 @@ def get_youtube_info(video_id):
 
 @api_bp.route("/api/reset/media", methods=["GET"])
 def reset_medias_id():
-    rename_videos_and_save_metadata(VIDEO_BASE_PATH)
+    for base_path in MEDIA_BASE_PATHS:
+        rename_videos_and_save_metadata(base_path)
+        rename_musics_and_save_metadata(base_path)
+
     remove_nonexistent_files_from_db()
-    rename_musics_and_save_metadata(AUDIO_BASE_PATH)
     remove_nonexistent_audio_files_from_db()
+
     return jsonify({"message": "メディアメタデータをリセットしました"}), 200
 
 
