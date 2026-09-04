@@ -371,3 +371,98 @@ def test_download_rejects_invalid_time_range():
             start_time="02:00",
             end_time="01:00",
         )
+
+def test_download_with_trim_overwrite(
+    client,
+    tmp_path,
+    monkeypatch,
+):
+    video_id = "test_trim_overwrite"
+
+    downloaded_file = tmp_path / "downloaded.mp4"
+    downloaded_file.write_bytes(b"original video")
+
+    class DummyYoutubeDL:
+        def __init__(self, options):
+            self.options = options
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc_value, traceback):
+            pass
+
+        def extract_info(self, video_id, download=True):
+            return {
+                "id": video_id,
+                "title": "Trim Overwrite Test",
+            }
+
+        def prepare_filename(self, info):
+            return str(downloaded_file)
+
+    monkeypatch.setattr(
+        utils.yt_dlp,
+        "YoutubeDL",
+        DummyYoutubeDL,
+    )
+
+    def fake_ffmpeg_run(stream, overwrite_output, cmd):
+        output_file = stream["output_file"]
+        with open(output_file, "wb") as f:
+            f.write(b"trimmed video")
+
+    class DummyStream:
+        def __getitem__(self, key):
+            if key == "output_file":
+                return str(tmp_path / "downloaded.tmp.mp4")
+            raise KeyError(key)
+
+    def fake_input(*args, **kwargs):
+        return DummyStream()
+
+    def fake_output(stream, output_file, **kwargs):
+        stream["output_file"] = output_file
+        return stream
+
+    monkeypatch.setattr(
+        utils.ffmpeg,
+        "input",
+        fake_input,
+    )
+
+    monkeypatch.setattr(
+        utils.ffmpeg,
+        "output",
+        fake_output,
+    )
+
+    monkeypatch.setattr(
+        utils.ffmpeg,
+        "run",
+        fake_ffmpeg_run,
+    )
+
+    with client.application.app_context():
+        result = utils.download(
+            video_id,
+            str(tmp_path),
+            start_time="00:10",
+            end_time="00:20",
+            trim_overwrite=True,
+            download_type="video",
+        )
+
+        assert result == str(downloaded_file.resolve())
+        assert downloaded_file.read_bytes() == b"trimmed video"
+
+        video = db.session.get(
+            VideoDataModel,
+            video_id,
+        )
+
+        assert video is not None
+        assert video.path == str(downloaded_file.resolve())
+
+        db.session.delete(video)
+        db.session.commit()
