@@ -22,6 +22,12 @@ VIDEO_BASE_PATH = os.path.join(APP_BASE_PATH, "static", "video")
 AUDIO_BASE_PATH = os.path.join(APP_BASE_PATH, "static", "audio")
 SOUND_FILE_PATH = os.path.join(APP_BASE_PATH, "static", "sound")
 
+MEDIA_BASE_PATHS = [
+    path.strip()
+    for path in os.getenv("MEDIA_BASE_PATHS", "").split("|")
+    if path.strip()
+]
+
 FFMPEG_PATH = os.getenv('FFMPEG_PATH')
 FFMPEG_DIR = os.getenv('FFMPEG_DIR')
 
