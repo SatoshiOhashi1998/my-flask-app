@@ -36,31 +36,43 @@ from app.modules.scheduler import UrlScheduler
 from app.models import db
 
 
-def create_app():
-    app = Flask(__name__, 
-                template_folder='templates', 
-                static_folder='static')
+def create_app(test_config=None):
+    app = Flask(
+        __name__,
+        template_folder='templates',
+        static_folder='static'
+    )
+
     app.permanent_session_lifetime = timedelta(minutes=5)
     app.config['JSON_AS_ASCII'] = False
 
-    CORS(app)  # CORS有効化
+    if test_config:
+        app.config.update(test_config)
 
-    # Blueprintを登録
+    CORS(app)
+
     app.register_blueprint(web)
     app.register_blueprint(api_bp)
 
     setup_logging()
 
     # DB設定
-    DB_PATH = Path(__file__).resolve().parent / 'video_data.db'
-    app.config['SQLALCHEMY_DATABASE_URI'] = f"sqlite:///{DB_PATH}"
-    app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+    if 'SQLALCHEMY_DATABASE_URI' not in app.config:
+        DB_PATH = Path(__file__).resolve().parent / 'video_data.db'
+        app.config['SQLALCHEMY_DATABASE_URI'] = f"sqlite:///{DB_PATH}"
+
+    app.config.setdefault(
+        'SQLALCHEMY_TRACK_MODIFICATIONS',
+        False
+    )
+
     db.init_app(app)
 
     with app.app_context():
         db.create_all()
 
-    # app を渡してスケジューラーを初期化
-    scheduler = UrlScheduler(app=app)
+    # テスト時はスケジューラーを起動しない
+    if not app.config.get('TESTING'):
+        scheduler = UrlScheduler(app=app)
 
     return app
