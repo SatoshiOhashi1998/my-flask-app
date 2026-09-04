@@ -29,6 +29,7 @@ from app.modules.youtube_api import fetch_youtube_video_info, fetch_youtube_vide
 from app.utils import (
     AUDIO_BASE_PATH,
     VIDEO_BASE_PATH,
+    MEDIA_BASE_PATHS,
     download,
     get_audio_directories,
     get_video_directories,
@@ -46,10 +47,30 @@ api_bp = Blueprint("api", __name__)
 # ==========================================
 
 def _format_media_item(item, media_type: str) -> dict:
-    """VideoDataModel / MusicDataModel からレスポンス用辞書を作成"""
+    directory = os.path.dirname(item.path)
+
+    dirpath = directory
+
+    for base_path in MEDIA_BASE_PATHS:
+        try:
+            relative_path = os.path.relpath(directory, base_path)
+
+            # base_path自身、またはその配下なら採用
+            if relative_path == ".":
+                dirpath = ""
+                break
+
+            if not relative_path.startswith("..") and not os.path.isabs(relative_path):
+                dirpath = relative_path
+                break
+
+        except ValueError:
+            # Windowsでドライブが異なる場合など
+            continue
+
     return {
         "id": os.path.splitext(item.new_name)[0],
-        "dirpath": os.path.dirname(item.path).split("static")[-1],
+        "dirpath": dirpath,
         "filename": item.new_name,
         "filetitle": item.original_name,
         "type": media_type,
