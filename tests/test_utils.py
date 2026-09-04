@@ -296,3 +296,77 @@ def test_download_db_error_does_not_raise(
         )
 
         assert video is None
+
+def test_download_rejects_empty_video_id():
+    with pytest.raises(ValueError, match="video_idは空にできません"):
+        utils.download(
+            "",
+            "dummy_dir",
+        )
+
+
+def test_download_rejects_invalid_download_type():
+    with pytest.raises(ValueError, match="download_typeが不正です"):
+        utils.download(
+            "test_video",
+            "dummy_dir",
+            download_type="invalid",
+        )
+
+
+def test_download_rejects_invalid_audio_quality():
+    with pytest.raises(ValueError, match="音声のqualityが不正です"):
+        utils.download(
+            "test_video",
+            "dummy_dir",
+            quality="256",
+            download_type="audio",
+        )
+
+
+def test_download_rejects_invalid_video_quality():
+    with pytest.raises(ValueError, match="動画のqualityが不正です"):
+        utils.download(
+            "test_video",
+            "dummy_dir",
+            quality="abc",
+            download_type="video",
+        )
+
+
+def test_download_rejects_negative_video_quality():
+    with pytest.raises(ValueError, match="正の整数"):
+        utils.download(
+            "test_video",
+            "dummy_dir",
+            quality="-1",
+            download_type="video",
+        )
+
+
+def test_download_rejects_invalid_start_time():
+    with pytest.raises(ValueError, match="時間指定の形式が不正です"):
+        utils.download(
+            "test_video",
+            "dummy_dir",
+            start_time="abc",
+        )
+
+
+def test_download_rejects_invalid_end_time():
+    with pytest.raises(ValueError, match="時間指定の形式が不正です"):
+        utils.download(
+            "test_video",
+            "dummy_dir",
+            end_time="abc",
+        )
+
+
+def test_download_rejects_invalid_time_range():
+    with pytest.raises(ValueError, match="start_timeはend_timeより前"):
+        utils.download(
+            "test_video",
+            "dummy_dir",
+            start_time="02:00",
+            end_time="01:00",
+        )
