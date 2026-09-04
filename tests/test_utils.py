@@ -462,3 +462,102 @@ def test_download_with_trim_overwrite(
         # 後始末
         db.session.delete(video)
         db.session.commit()
+
+def test_download_with_trim_without_overwrite(
+    client,
+    tmp_path,
+    monkeypatch,
+):
+    video_id = "test_trim_no_overwrite"
+
+    downloaded_file = tmp_path / "downloaded.mp4"
+    downloaded_file.write_bytes(b"original video")
+
+    class DummyYoutubeDL:
+        def __init__(self, options):
+            self.options = options
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc_value, traceback):
+            pass
+
+        def extract_info(self, video_id, download=True):
+            return {
+                "id": video_id,
+                "title": "Trim No Overwrite Test",
+            }
+
+        def prepare_filename(self, info):
+            return str(downloaded_file)
+
+    monkeypatch.setattr(
+        utils.yt_dlp,
+        "YoutubeDL",
+        DummyYoutubeDL,
+    )
+
+    def fake_input(*args, **kwargs):
+        return object()
+
+    def fake_output(stream, output_file, **kwargs):
+        return output_file
+
+    def fake_run(stream, overwrite_output, cmd):
+        with open(stream, "wb") as f:
+            f.write(b"trimmed video")
+
+    monkeypatch.setattr(
+        utils.ffmpeg,
+        "input",
+        fake_input,
+    )
+
+    monkeypatch.setattr(
+        utils.ffmpeg,
+        "output",
+        fake_output,
+    )
+
+    monkeypatch.setattr(
+        utils.ffmpeg,
+        "run",
+        fake_run,
+    )
+
+    with client.application.app_context():
+        result = utils.download(
+            video_id,
+            str(tmp_path),
+            start_time="00:10",
+            end_time="00:20",
+            trim_overwrite=False,
+            download_type="video",
+        )
+
+        trimmed_file = tmp_path / "downloaded.tmp.mp4"
+
+        # 戻り値はトリミング後の別ファイル
+        assert result == str(trimmed_file.resolve())
+
+        # 元ファイルはそのまま残っている
+        assert downloaded_file.read_bytes() == b"original video"
+
+        # トリミング後のファイルが存在する
+        assert trimmed_file.exists()
+        assert trimmed_file.read_bytes() == b"trimmed video"
+
+        # DBにはトリミング後のファイルが登録される
+        video = db.session.get(
+            VideoDataModel,
+            video_id,
+        )
+
+        assert video is not None
+        assert video.path == str(trimmed_file.resolve())
+        assert video.new_name == "downloaded.tmp.mp4"
+
+        # 後始末
+        db.session.delete(video)
+        db.session.commit()
