@@ -52,6 +52,107 @@ def get_media_directories() -> List[str]:
 
     return directories
 
+def _validate_download_params(
+    video_id: str,
+    save_dir: str,
+    quality: str,
+    start_time: Optional[str],
+    end_time: Optional[str],
+    download_type: str,
+) -> None:
+    """download() の引数を検証する。"""
+
+    # video_id
+    if not isinstance(video_id, str) or not video_id.strip():
+        raise ValueError("video_idは空にできません。")
+
+    # save_dir
+    if not isinstance(save_dir, str) or not save_dir.strip():
+        raise ValueError("save_dirは空にできません。")
+
+    if os.path.exists(save_dir) and not os.path.isdir(save_dir):
+        raise ValueError(f"save_dirがディレクトリではありません: {save_dir}")
+
+    # download_type
+    if download_type not in ("video", "audio"):
+        raise ValueError(
+            f"download_typeが不正です: {download_type!r} "
+            "(video または audio を指定してください)"
+        )
+
+    # quality
+    if download_type == "audio":
+        if quality not in ("128", "192", "320"):
+            raise ValueError(
+                f"音声のqualityが不正です: {quality!r} "
+                "(128, 192, 320 のいずれかを指定してください)"
+            )
+    else:
+        try:
+            quality_value = int(quality)
+        except (TypeError, ValueError):
+            raise ValueError(
+                f"動画のqualityが不正です: {quality!r}"
+            )
+
+        if quality_value <= 0:
+            raise ValueError(
+                f"動画のqualityは正の整数で指定してください: {quality!r}"
+            )
+
+    # 時刻
+    def parse_time(value: Optional[str]) -> Optional[float]:
+        if value is None:
+            return None
+
+        if not isinstance(value, str) or not value.strip():
+            raise ValueError(
+                f"時間指定が不正です: {value!r}"
+            )
+
+        parts = value.split(":")
+
+        try:
+            if len(parts) == 2:
+                minutes, seconds = parts
+                total = int(minutes) * 60 + float(seconds)
+
+            elif len(parts) == 3:
+                hours, minutes, seconds = parts
+                total = (
+                    int(hours) * 3600
+                    + int(minutes) * 60
+                    + float(seconds)
+                )
+
+            else:
+                raise ValueError
+
+        except ValueError:
+            raise ValueError(
+                f"時間指定の形式が不正です: {value!r} "
+                "(例: 90、01:30、01:02:30)"
+            )
+
+        if total < 0:
+            raise ValueError(
+                f"時間指定は0以上にしてください: {value!r}"
+            )
+
+        return total
+
+    start_seconds = parse_time(start_time)
+    end_seconds = parse_time(end_time)
+
+    if (
+        start_seconds is not None
+        and end_seconds is not None
+        and start_seconds >= end_seconds
+    ):
+        raise ValueError(
+            "start_timeはend_timeより前に指定してください。"
+        )
+
 def download(
     video_id: str,
     save_dir: str,
@@ -61,6 +162,16 @@ def download(
     trim_overwrite: bool = True,
     download_type: str = "video"
 ) -> str:
+
+    _validate_download_params(
+        video_id,
+        save_dir,
+        quality,
+        start_time,
+        end_time,
+        download_type,
+    )
+
     clean_id = video_id.split("&")[0] if "&" in video_id else video_id
 
     os.makedirs(save_dir, exist_ok=True)

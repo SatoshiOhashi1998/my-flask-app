@@ -20,8 +20,14 @@ import pytest
 from app import create_app
 
 @pytest.fixture
-def client():
-    app = create_app()
-    app.config["TESTING"] = True
+def client(tmp_path):
+    test_db = tmp_path / "test.db"
+
+    app = create_app({
+        "TESTING": True,
+        "SQLALCHEMY_DATABASE_URI": f"sqlite:///{test_db}",
+        "SQLALCHEMY_TRACK_MODIFICATIONS": False,
+    })
+
     with app.test_client() as client:
         yield client
