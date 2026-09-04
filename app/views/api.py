@@ -27,12 +27,8 @@ from app.modules.video_manager import (
 )
 from app.modules.youtube_api import fetch_youtube_video_info, fetch_youtube_videos
 from app.utils import (
-    AUDIO_BASE_PATH,
-    VIDEO_BASE_PATH,
     MEDIA_BASE_PATHS,
     download,
-    get_audio_directories,
-    get_video_directories,
     get_media_directories,
 )
 

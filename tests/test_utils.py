@@ -275,7 +275,7 @@ def test_download_db_error_does_not_raise(
 
     monkeypatch.setattr(
         utils,
-        "insert_video",
+        "insert_media",
         raise_db_error,
     )
 
@@ -289,3 +289,10 @@ def test_download_db_error_does_not_raise(
         # 現在の仕様ではDBエラーを握りつぶし、
         # ダウンロード自体は成功として扱う
         assert result == str(downloaded_file.resolve())
+
+        video = db.session.get(
+            VideoDataModel,
+            video_id,
+        )
+
+        assert video is None

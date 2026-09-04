@@ -9,8 +9,6 @@ import yt_dlp
 import ffmpeg
 
 from app.models import VideoDataModel, MusicDataModel
-from app.modules.video_manager import insert_video, remove_nonexistent_files_from_db
-from app.modules.audio_manager import insert_music, remove_nonexistent_audio_files_from_db
 from app.modules.media_manager import (
     insert_media,
     remove_nonexistent_files,
