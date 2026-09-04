@@ -197,7 +197,7 @@ def download(
         ydl_opts = {
             'format': f'bestvideo[height<={quality}]+bestaudio/best',
             'ffmpeg_location': FFMPEG_DIR,
-            'outtmpl': os.path.join(VIDEO_BASE_PATH, filename_template),
+            'outtmpl': os.path.join(save_dir, filename_template),
             'noplaylist': True,
             'merge_output_format': 'mp4',
         }
