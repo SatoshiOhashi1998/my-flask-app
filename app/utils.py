@@ -66,7 +66,6 @@ def download(
     clean_id = video_id.split("&")[0] if "&" in video_id else video_id
 
     os.makedirs(save_dir, exist_ok=True)
-    os.makedirs(VIDEO_BASE_PATH, exist_ok=True)
 
     # ファイル名自体は「ID.拡張子」にする（%(id)s.%(ext)s）
     filename_template = '%(id)s.%(ext)s'
@@ -77,7 +76,7 @@ def download(
         ydl_opts = {
             'format': 'bestaudio/best',
             'ffmpeg_location': FFMPEG_DIR,
-            'outtmpl': os.path.join(VIDEO_BASE_PATH, filename_template),
+            'outtmpl': os.path.join(save_dir, filename_template),
             'noplaylist': True,
             'postprocessors': [{
                 'key': 'FFmpegExtractAudio',
