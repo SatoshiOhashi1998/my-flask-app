@@ -220,3 +220,5 @@ FlaskApp.sublime-workspace
 
 .vscode/
 logs/
+
+errorMsg.txt

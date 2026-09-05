@@ -181,6 +181,30 @@ def get_comments(item_id):
         for c in comments
     ])
 
+@api_bp.route("/api/comments/<item_id>/others", methods=["GET"])
+def get_other_comments(item_id):
+    exclude_type = request.args.get("exclude_type", "youtube")
+
+    comments = (
+        Comment.query
+        .filter(
+            Comment.video_id == item_id,
+            Comment.media_type != exclude_type
+        )
+        .order_by(Comment.created_at.desc())
+        .all()
+    )
+
+    return jsonify([
+        {
+            "id": c.id,
+            "content": c.content,
+            "media_type": c.media_type,
+            "created_at": c.created_at.strftime("%Y-%m-%d %H:%M:%S"),
+        }
+        for c in comments
+    ])
+
 
 @api_bp.route("/api/comments/<item_id>", methods=["POST"])
 def post_comment(item_id):
