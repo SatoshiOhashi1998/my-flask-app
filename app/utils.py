@@ -8,15 +8,23 @@ from typing import List, Optional
 import yt_dlp
 import ffmpeg
 
-from app.models import db
-from app.modules.video_manager import insert_video, remove_nonexistent_files_from_db
-from app.modules.audio_manager import insert_music, remove_nonexistent_audio_files_from_db
+from app.models import VideoDataModel, MusicDataModel
+from app.modules.media_manager import (
+    insert_media,
+    remove_nonexistent_files,
+)
 
 # 環境変数・ディレクトリ定義
 APP_BASE_PATH = os.getenv("APP_BASE_PATH", "")
 VIDEO_BASE_PATH = os.path.join(APP_BASE_PATH, "static", "video")
 AUDIO_BASE_PATH = os.path.join(APP_BASE_PATH, "static", "audio")
 SOUND_FILE_PATH = os.path.join(APP_BASE_PATH, "static", "sound")
+
+MEDIA_BASE_PATHS = [
+    path.strip()
+    for path in os.getenv("MEDIA_BASE_PATHS", "").split("|")
+    if path.strip()
+]
 
 FFMPEG_PATH = os.getenv('FFMPEG_PATH')
 FFMPEG_DIR = os.getenv('FFMPEG_DIR')
@@ -32,6 +40,118 @@ def get_audio_directories(base_path: str = AUDIO_BASE_PATH) -> List[str]:
     response = [AUDIO_BASE_PATH] + [d for d in glob.glob(os.path.join(base_path, '*')) if os.path.isdir(d)]
     return response
 
+def get_media_directories() -> List[str]:
+    directories = []
+
+    for base_path in MEDIA_BASE_PATHS:
+        if not os.path.isdir(base_path):
+            continue
+
+        for root, dirs, _ in os.walk(base_path):
+            directories.append(root)
+
+    return directories
+
+def _validate_download_params(
+    video_id: str,
+    save_dir: str,
+    quality: str,
+    start_time: Optional[str],
+    end_time: Optional[str],
+    download_type: str,
+) -> None:
+    """download() の引数を検証する。"""
+
+    # video_id
+    if not isinstance(video_id, str) or not video_id.strip():
+        raise ValueError("video_idは空にできません。")
+
+    # save_dir
+    if not isinstance(save_dir, str) or not save_dir.strip():
+        raise ValueError("save_dirは空にできません。")
+
+    if os.path.exists(save_dir) and not os.path.isdir(save_dir):
+        raise ValueError(f"save_dirがディレクトリではありません: {save_dir}")
+
+    # download_type
+    if download_type not in ("video", "audio"):
+        raise ValueError(
+            f"download_typeが不正です: {download_type!r} "
+            "(video または audio を指定してください)"
+        )
+
+    # quality
+    if download_type == "audio":
+        if quality not in ("128", "192", "320"):
+            raise ValueError(
+                f"音声のqualityが不正です: {quality!r} "
+                "(128, 192, 320 のいずれかを指定してください)"
+            )
+    else:
+        try:
+            quality_value = int(quality)
+        except (TypeError, ValueError):
+            raise ValueError(
+                f"動画のqualityが不正です: {quality!r}"
+            )
+
+        if quality_value <= 0:
+            raise ValueError(
+                f"動画のqualityは正の整数で指定してください: {quality!r}"
+            )
+
+    # 時刻
+    def parse_time(value: Optional[str]) -> Optional[float]:
+        if value is None:
+            return None
+
+        if not isinstance(value, str) or not value.strip():
+            raise ValueError(
+                f"時間指定が不正です: {value!r}"
+            )
+
+        parts = value.split(":")
+
+        try:
+            if len(parts) == 2:
+                minutes, seconds = parts
+                total = int(minutes) * 60 + float(seconds)
+
+            elif len(parts) == 3:
+                hours, minutes, seconds = parts
+                total = (
+                    int(hours) * 3600
+                    + int(minutes) * 60
+                    + float(seconds)
+                )
+
+            else:
+                raise ValueError
+
+        except ValueError:
+            raise ValueError(
+                f"時間指定の形式が不正です: {value!r} "
+                "(例: 90、01:30、01:02:30)"
+            )
+
+        if total < 0:
+            raise ValueError(
+                f"時間指定は0以上にしてください: {value!r}"
+            )
+
+        return total
+
+    start_seconds = parse_time(start_time)
+    end_seconds = parse_time(end_time)
+
+    if (
+        start_seconds is not None
+        and end_seconds is not None
+        and start_seconds >= end_seconds
+    ):
+        raise ValueError(
+            "start_timeはend_timeより前に指定してください。"
+        )
 
 def download(
     video_id: str,
@@ -42,10 +162,19 @@ def download(
     trim_overwrite: bool = True,
     download_type: str = "video"
 ) -> str:
+
+    _validate_download_params(
+        video_id,
+        save_dir,
+        quality,
+        start_time,
+        end_time,
+        download_type,
+    )
+
     clean_id = video_id.split("&")[0] if "&" in video_id else video_id
 
     os.makedirs(save_dir, exist_ok=True)
-    os.makedirs(VIDEO_BASE_PATH, exist_ok=True)
 
     # ファイル名自体は「ID.拡張子」にする（%(id)s.%(ext)s）
     filename_template = '%(id)s.%(ext)s'
@@ -56,7 +185,7 @@ def download(
         ydl_opts = {
             'format': 'bestaudio/best',
             'ffmpeg_location': FFMPEG_DIR,
-            'outtmpl': os.path.join(VIDEO_BASE_PATH, filename_template),
+            'outtmpl': os.path.join(save_dir, filename_template),
             'noplaylist': True,
             'postprocessors': [{
                 'key': 'FFmpegExtractAudio',
@@ -126,11 +255,23 @@ def download(
         new_name = os.path.basename(final_target_path)
 
         if download_type == "audio":
-            remove_nonexistent_audio_files_from_db()
-            insert_music(clean_id, original_title, new_name, final_target_path)
+            remove_nonexistent_files(MusicDataModel)
+            insert_media(
+                MusicDataModel,
+                clean_id,
+                original_title,
+                new_name,
+                final_target_path,
+            )
         else:
-            remove_nonexistent_files_from_db()
-            insert_video(clean_id, original_title, new_name, final_target_path)
+            remove_nonexistent_files(VideoDataModel)
+            insert_media(
+                VideoDataModel,
+                clean_id,
+                original_title,
+                new_name,
+                final_target_path,
+            )
 
     except Exception as e:
         print(f"警告: DB更新中にエラーが発生しました: {str(e)}")

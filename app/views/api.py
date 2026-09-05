@@ -2,7 +2,7 @@ import locale
 import os
 import traceback
 from datetime import datetime, timedelta
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, jsonify, request, send_from_directory
 
 from app.models import Comment, MusicDataModel, VideoDataModel, db
 from app.modules.audio_manager import (
@@ -20,7 +20,6 @@ from app.modules.use_md_file import (
     export_english_vocabulary,
     export_single_vocabulary,
     register_tasks_by_date,
-    test_md,
 )
 from app.modules.video_manager import (
     remove_nonexistent_files_from_db,
@@ -28,16 +27,13 @@ from app.modules.video_manager import (
 )
 from app.modules.youtube_api import fetch_youtube_video_info, fetch_youtube_videos
 from app.utils import (
-    AUDIO_BASE_PATH,
-    VIDEO_BASE_PATH,
+    MEDIA_BASE_PATHS,
     download,
-    get_audio_directories,
-    get_video_directories,
+    get_media_directories,
 )
 
-from myutils.markdown.note_generator import (
-    create_weekly_note,
-)
+from myutils.markdown.vault import Vault
+from myutils.markdown.note_processor import NoteGenerator
 
 api_bp = Blueprint("api", __name__)
 
@@ -47,10 +43,30 @@ api_bp = Blueprint("api", __name__)
 # ==========================================
 
 def _format_media_item(item, media_type: str) -> dict:
-    """VideoDataModel / MusicDataModel からレスポンス用辞書を作成"""
+    directory = os.path.dirname(item.path)
+
+    dirpath = directory
+
+    for base_path in MEDIA_BASE_PATHS:
+        try:
+            relative_path = os.path.relpath(directory, base_path)
+
+            # base_path自身、またはその配下なら採用
+            if relative_path == ".":
+                dirpath = ""
+                break
+
+            if not relative_path.startswith("..") and not os.path.isabs(relative_path):
+                dirpath = relative_path
+                break
+
+        except ValueError:
+            # Windowsでドライブが異なる場合など
+            continue
+
     return {
         "id": os.path.splitext(item.new_name)[0],
-        "dirpath": os.path.dirname(item.path).split("static")[-1],
+        "dirpath": dirpath,
         "filename": item.new_name,
         "filetitle": item.original_name,
         "type": media_type,
@@ -102,6 +118,15 @@ def get_video(video_id):
 
     return jsonify(_format_media_item(video, "video"))
 
+@api_bp.route("/api/videos/<video_id>/stream", methods=["GET"])
+def stream_video(video_id):
+    video = VideoDataModel.query.get_or_404(video_id)
+
+    directory = os.path.dirname(video.path)
+    filename = video.new_name
+
+    return send_from_directory(directory, filename)
+
 
 # ==========================================
 # 2. 音声・音楽 (Music/Audio) 関連
@@ -123,6 +148,15 @@ def get_music(music_id):
         return jsonify({"error": "Music not found"}), 404
 
     return jsonify(_format_media_item(music, "audio"))
+
+@api_bp.route("/api/musics/<music_id>/stream", methods=["GET"])
+def stream_music(music_id):
+    music = MusicDataModel.query.get_or_404(music_id)
+
+    directory = os.path.dirname(music.path)
+    filename = music.new_name
+
+    return send_from_directory(directory, filename)
 
 
 # ==========================================
@@ -191,8 +225,7 @@ def export_comment():
 def download_video():
     if request.method == "GET":
         try:
-            dir_paths = get_video_directories() + get_audio_directories()
-            return jsonify(dir_paths), 200
+            return jsonify(get_media_directories()), 200
         except Exception as e:
             return jsonify({"error": str(e)}), 500
 
@@ -253,10 +286,13 @@ def get_youtube_info(video_id):
 
 @api_bp.route("/api/reset/media", methods=["GET"])
 def reset_medias_id():
-    rename_videos_and_save_metadata(VIDEO_BASE_PATH)
+    for base_path in MEDIA_BASE_PATHS:
+        rename_videos_and_save_metadata(base_path)
+        rename_musics_and_save_metadata(base_path)
+
     remove_nonexistent_files_from_db()
-    rename_musics_and_save_metadata(AUDIO_BASE_PATH)
     remove_nonexistent_audio_files_from_db()
+
     return jsonify({"message": "メディアメタデータをリセットしました"}), 200
 
 
@@ -306,12 +342,6 @@ def export_english():
 def export_vocablary():
     export_single_vocabulary()
     return jsonify({"message": "語彙を出力しました"}), 200
-
-
-@api_bp.route("/api/test", methods=["GET"])
-def test():
-    test_md()
-    return jsonify({"message": "テスト処理を実行しました"}), 200
 
 
 # ==========================================
@@ -397,11 +427,14 @@ def create_weekly_note_endpoint():
 
     if target_date_str:
         try:
-            target_date = datetime.strptime(target_date_str, "%Y-%m-%d")
+            target_date = datetime.strptime(
+                target_date_str,
+                "%Y-%m-%d",
+            )
         except ValueError:
             return jsonify({
                 "status": "error",
-                "message": "無効な日付フォーマットです。YYYY-MM-DD 形式で指定してください。"
+                "message": "無効な日付フォーマットです。YYYY-MM-DD 形式で指定してください。",
             }), 400
     else:
         target_date = datetime.now()
@@ -413,27 +446,31 @@ def create_weekly_note_endpoint():
     if not output_dir or not template_path:
         return jsonify({
             "status": "error",
-            "message": "環境変数 WEEKLY_NOTE_DIR または WEEKLY_NOTE_TEMPLATE が設定されていません。"
+            "message": "環境変数 WEEKLY_NOTE_DIR または WEEKLY_NOTE_TEMPLATE が設定されていません。",
         }), 500
 
     try:
-        create_weekly_note(
-            output_dir=output_dir,
+        vault = Vault(output_dir)
+        generator = NoteGenerator(vault)
+
+        generator.create_weekly_note(
+            output_dir="",
             target_date=target_date,
             template_path=template_path,
             plan_dir=plan_dir,
             start_of_week="monday",
         )
+
         return jsonify({
             "status": "success",
             "message": f"{target_date.strftime('%Y-%m-%d')} の属する週のウィークリーノートを作成しました",
-            "target_date": target_date.strftime('%Y-%m-%d')
+            "target_date": target_date.strftime("%Y-%m-%d"),
         }), 200
 
     except Exception as e:
         return jsonify({
             "status": "error",
-            "message": f"ウィークリーノートの作成中にエラーが発生しました: {str(e)}"
+            "message": f"ウィークリーノートの作成中にエラーが発生しました: {str(e)}",
         }), 500
 
 
