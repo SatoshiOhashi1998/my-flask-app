@@ -26,6 +26,7 @@ from app.modules.video_manager import (
     rename_videos_and_save_metadata,
 )
 from app.modules.youtube_api import fetch_youtube_video_info, fetch_youtube_videos
+from app.modules.use_clip_board import copy_code
 from app.utils import (
     MEDIA_BASE_PATHS,
     download,
@@ -514,4 +515,62 @@ def create_next_weekly_note_endpoint():
         return jsonify({
             "status": "error",
             "message": f"翌週のウィークリーノートの作成中にエラーが発生しました: {str(e)}"
+        }), 500
+
+@api_bp.route("/api/clipboard/copy-code", methods=["POST"])
+def copy_code_endpoint():
+    """
+    指定したファイル・ディレクトリのコードを
+    クリップボードへコピーするエンドポイント。
+
+    JSON:
+        {
+            "target": "app/modules"
+        }
+
+        または
+
+        {
+            "target": [
+                "app/routes/api.py",
+                "app/modules/getWeatherData.py"
+            ]
+        }
+
+    オプション:
+        {
+            "target": "app/modules",
+            "extensions": [".py"],
+            "exclude_dirs": ["__pycache__", ".git"]
+        }
+    """
+    data = request.json or {}
+
+    target = data.get("target")
+
+    if not target:
+        return jsonify({
+            "status": "error",
+            "message": "target は必須です。"
+        }), 400
+
+    try:
+        files = copy_code(
+            target=target,
+            extensions=set(data["extensions"]) if data.get("extensions") else None,
+            exclude_dirs=set(data["exclude_dirs"]) if data.get("exclude_dirs") else None,
+        )
+
+        return jsonify({
+            "status": "success",
+            "message": f"{len(files)} ファイルをクリップボードへコピーしました。",
+            "files": [str(path) for path in files],
+        }), 200
+
+    except Exception as e:
+        traceback.print_exc()
+
+        return jsonify({
+            "status": "error",
+            "message": f"コードのコピー中にエラーが発生しました: {str(e)}"
         }), 500
