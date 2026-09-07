@@ -28,6 +28,8 @@ Pythonコードをまとめてクリップボードへコピーする。
 
 from pathlib import Path
 import tkinter as tk
+import ctypes
+from ctypes import wintypes
 
 
 # コピー対象にする拡張子
@@ -154,25 +156,98 @@ def _build_text(files):
 
 
 def _copy_to_clipboard(text):
-    """
-    tkinterを使ってクリップボードへコピーする。
-    """
-    root = tk.Tk()
-    root.withdraw()
+    import ctypes
+    from ctypes import wintypes
+
+    user32 = ctypes.WinDLL("user32", use_last_error=True)
+    kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+
+    # Windows APIの型を明示
+    kernel32.GlobalAlloc.argtypes = [
+        wintypes.UINT,
+        ctypes.c_size_t,
+    ]
+    kernel32.GlobalAlloc.restype = wintypes.HGLOBAL
+
+    kernel32.GlobalLock.argtypes = [
+        wintypes.HGLOBAL,
+    ]
+    kernel32.GlobalLock.restype = ctypes.c_void_p
+
+    kernel32.GlobalUnlock.argtypes = [
+        wintypes.HGLOBAL,
+    ]
+    kernel32.GlobalUnlock.restype = wintypes.BOOL
+
+    kernel32.GlobalFree.argtypes = [
+        wintypes.HGLOBAL,
+    ]
+    kernel32.GlobalFree.restype = wintypes.HGLOBAL
+
+    user32.OpenClipboard.argtypes = [
+        wintypes.HWND,
+    ]
+    user32.OpenClipboard.restype = wintypes.BOOL
+
+    user32.EmptyClipboard.argtypes = []
+    user32.EmptyClipboard.restype = wintypes.BOOL
+
+    user32.SetClipboardData.argtypes = [
+        wintypes.UINT,
+        wintypes.HANDLE,
+    ]
+    user32.SetClipboardData.restype = wintypes.HANDLE
+
+    user32.CloseClipboard.argtypes = []
+    user32.CloseClipboard.restype = wintypes.BOOL
+
+    CF_UNICODETEXT = 13
+    GMEM_MOVEABLE = 0x0002
+
+    # UTF-16LE + 終端NULL
+    data = text.encode("utf-16-le") + b"\x00\x00"
+
+    h_global = kernel32.GlobalAlloc(
+        GMEM_MOVEABLE,
+        len(data)
+    )
+
+    if not h_global:
+        raise ctypes.WinError(ctypes.get_last_error())
 
     try:
-        root.clipboard_clear()
-        root.clipboard_append(text)
+        ptr = kernel32.GlobalLock(h_global)
 
-        # clipboard_appendだけだと、
-        # tkinter終了後にクリップボードの内容が消える環境があるため
-        # clipboard_updateを呼んでおく。
-        root.update()
+        if not ptr:
+            raise ctypes.WinError(ctypes.get_last_error())
 
-        print("コードをクリップボードへコピーしました。")
+        try:
+            ctypes.memmove(ptr, data, len(data))
+        finally:
+            kernel32.GlobalUnlock(h_global)
+
+        if not user32.OpenClipboard(None):
+            raise ctypes.WinError(ctypes.get_last_error())
+
+        try:
+            if not user32.EmptyClipboard():
+                raise ctypes.WinError(ctypes.get_last_error())
+
+            if not user32.SetClipboardData(
+                CF_UNICODETEXT,
+                h_global
+            ):
+                raise ctypes.WinError(ctypes.get_last_error())
+
+            # SetClipboardData成功後はWindowsがメモリを所有する
+            h_global = None
+
+        finally:
+            user32.CloseClipboard()
 
     finally:
-        root.destroy()
+        if h_global:
+            kernel32.GlobalFree(h_global)
 
 
 def copy_code(

@@ -517,48 +517,55 @@ def create_next_weekly_note_endpoint():
             "message": f"翌週のウィークリーノートの作成中にエラーが発生しました: {str(e)}"
         }), 500
 
-@api_bp.route("/api/clipboard/copy-code", methods=["POST"])
+@api_bp.route("/api/clipboard/copy-code", methods=["GET", "POST"])
 def copy_code_endpoint():
-    """
-    指定したファイル・ディレクトリのコードを
-    クリップボードへコピーするエンドポイント。
 
-    JSON:
-        {
-            "target": "app/modules"
-        }
+    if request.method == "GET":
+        target = request.args.get("target")
 
-        または
+        if not target:
+            return jsonify({
+                "status": "error",
+                "message": "target は必須です。"
+            }), 400
 
-        {
-            "target": [
-                "app/routes/api.py",
-                "app/modules/getWeatherData.py"
-            ]
-        }
+        extensions = request.args.getlist("extension")
+        if not extensions:
+            extensions = None
 
-    オプション:
-        {
-            "target": "app/modules",
-            "extensions": [".py"],
-            "exclude_dirs": ["__pycache__", ".git"]
-        }
-    """
-    data = request.json or {}
+        exclude_dirs = request.args.getlist("exclude_dir")
+        if not exclude_dirs:
+            exclude_dirs = None
 
-    target = data.get("target")
+    else:
+        # POSTの場合だけJSONを読む
+        data = request.get_json(silent=True) or {}
 
-    if not target:
-        return jsonify({
-            "status": "error",
-            "message": "target は必須です。"
-        }), 400
+        target = data.get("target")
+
+        if not target:
+            return jsonify({
+                "status": "error",
+                "message": "target は必須です。"
+            }), 400
+
+        extensions = (
+            set(data["extensions"])
+            if data.get("extensions")
+            else None
+        )
+
+        exclude_dirs = (
+            set(data["exclude_dirs"])
+            if data.get("exclude_dirs")
+            else None
+        )
 
     try:
         files = copy_code(
             target=target,
-            extensions=set(data["extensions"]) if data.get("extensions") else None,
-            exclude_dirs=set(data["exclude_dirs"]) if data.get("exclude_dirs") else None,
+            extensions=extensions,
+            exclude_dirs=exclude_dirs,
         )
 
         return jsonify({
