@@ -37,6 +37,7 @@ TAG_CALENDAR_MAP = {
     "将棋": "1 like",
     # その他
     "天気": "Daily Life",
+    "勉強": "Diary",
     "日記": "Diary",
 }
 
@@ -60,6 +61,7 @@ TAG_COLOR_MAP = {
     "雑談配信": "CYAN",
     "傾聴雑談": "RED",
     "倍速雑談": "RED",
+    "勉強": "RED",
     "読書": "RED",
     "将棋": "CYAN",
     # グレー: その他
