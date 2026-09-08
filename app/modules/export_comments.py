@@ -1,6 +1,7 @@
 import os
 from datetime import datetime, time
 from zoneinfo import ZoneInfo
+import unicodedata
 
 from app.models import db, Comment, VideoDataModel, MusicDataModel
 from app.modules.youtube_api import fetch_youtube_video_info
@@ -106,6 +107,8 @@ def export_today_comments_to_md(output_dir=None):
             f"> {line}"
             for line in c.content.splitlines()
         )
+
+        media_name = unicodedata.normalize("NFC", media_name)
 
         md_lines.append(f"## {media_name}")
         md_lines.append(
