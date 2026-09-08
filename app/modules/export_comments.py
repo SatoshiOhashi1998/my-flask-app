@@ -10,7 +10,7 @@ from app.modules.youtube_api import fetch_youtube_video_info
 JST = ZoneInfo("Asia/Tokyo")
 
 
-def export_today_comments_to_md(output_dir=None):
+def export_today_comments_to_md(output_dir=None, now=None):
     """
     本日のコメントを取得し、Markdownファイルとして出力します。
     呼び出し元で Flask アプリケーションコンテキスト内に入っている必要があります。
@@ -22,6 +22,11 @@ def export_today_comments_to_md(output_dir=None):
     """
     if not output_dir:
         output_dir = os.getenv("EXPORT_DIR", "./exports")
+
+    if now is None:
+        now = datetime.now(JST)
+
+    today = now.date()
 
     os.makedirs(output_dir, exist_ok=True)
 
