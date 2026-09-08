@@ -30,9 +30,6 @@ def export_today_comments_to_md(output_dir=None, now=None):
 
     os.makedirs(output_dir, exist_ok=True)
 
-    # 日本時間を基準に「今日」を取得
-    today = datetime.now(JST).date()
-
     start_dt = datetime.combine(
         today,
         time.min,
