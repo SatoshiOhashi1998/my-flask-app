@@ -1,7 +1,7 @@
 import os
-from datetime import datetime, time
-from zoneinfo import ZoneInfo
 import unicodedata
+from datetime import datetime, time, timedelta
+from zoneinfo import ZoneInfo
 
 from app.models import db, Comment, VideoDataModel, MusicDataModel
 from app.modules.youtube_api import fetch_youtube_video_info
@@ -18,9 +18,10 @@ def export_today_comments_to_md(output_dir=None):
     - 日付は日本時間（JST）を基準とする
     - 既存のMarkdownファイルがあれば完全に上書きする
     - コメント本文は複数行・空行を含めて引用ブロックとして出力する
+    - 見出しはUnicode NFC形式に正規化する
     """
     if not output_dir:
-        output_dir = os.getenv('EXPORT_DIR', './exports')
+        output_dir = os.getenv("EXPORT_DIR", "./exports")
 
     os.makedirs(output_dir, exist_ok=True)
 
@@ -32,16 +33,12 @@ def export_today_comments_to_md(output_dir=None):
         time.min,
         tzinfo=JST
     )
-    end_dt = datetime.combine(
-        today,
-        time.max,
-        tzinfo=JST
-    )
+    end_dt = start_dt + timedelta(days=1)
 
     # 本日のコメントを取得
     comments = Comment.query.filter(
         Comment.created_at >= start_dt,
-        Comment.created_at <= end_dt
+        Comment.created_at < end_dt
     ).order_by(Comment.created_at.asc()).all()
 
     if not comments:
@@ -63,21 +60,18 @@ def export_today_comments_to_md(output_dir=None):
     ]
 
     for c in comments:
-        time_str = c.created_at.strftime('%H:%M:%S')
+        time_str = c.created_at.strftime("%H:%M:%S")
         media_type = c.media_type or "video"
 
         if media_type == "video":
-            display_type = "動画"
             item = VideoDataModel.query.get(c.video_id)
             media_name = item.original_name if item else c.video_id
 
         elif media_type == "audio":
-            display_type = "音声"
             item = MusicDataModel.query.get(c.video_id)
             media_name = item.original_name if item else c.video_id
 
         else:
-            display_type = "YouTube"
             media_name = "YouTube動画"
 
             try:
@@ -85,7 +79,7 @@ def export_today_comments_to_md(output_dir=None):
 
                 if yt_info:
                     media_name = yt_info.get(
-                        'filetitle',
+                        "filetitle",
                         c.video_id
                     )
 
@@ -94,6 +88,9 @@ def export_today_comments_to_md(output_dir=None):
                     f"YouTube API fetch error for ID "
                     f"{c.video_id}: {e}"
                 )
+
+        # Obsidianの見出しリンクとのUnicode表現を統一
+        media_name = unicodedata.normalize("NFC", media_name)
 
         watch_url = (
             f"http://localhost:5173/watch"
@@ -107,8 +104,6 @@ def export_today_comments_to_md(output_dir=None):
             f"> {line}"
             for line in c.content.splitlines()
         )
-
-        media_name = unicodedata.normalize("NFC", media_name)
 
         md_lines.append(f"## {media_name}")
         md_lines.append(
