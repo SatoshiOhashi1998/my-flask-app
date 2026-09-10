@@ -24,7 +24,6 @@ Flaskアプリケーションモジュール
 """
 
 import os
-import logging
 from pathlib import Path
 from datetime import timedelta
 from flask import Flask

@@ -2,7 +2,6 @@ import os
 import glob
 import shutil
 import re
-import logging
 from typing import List, Optional
 
 import yt_dlp
