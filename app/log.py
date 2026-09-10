@@ -85,10 +85,6 @@ def setup_logging():
 
     werkzeug_logger.addHandler(access_handler)
 
-    # Werkzeugのログをroot loggerへ
-    # 流さない
-    werkzeug_logger.propagate = False
-
     # ========================================
     # SQLAlchemy
     # ========================================
