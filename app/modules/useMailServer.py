@@ -1,8 +1,25 @@
 """
 メール処理モジュール
 
-IMAPサーバーから未読メールを取得し、
-YouTubeやTwitchからの通知メールに含まれるURLを処理します。
+このモジュールは、IMAPを使用して未読のメールをチェックし、特定の送信者（YouTubeおよびTwitch）からのメールを処理します。
+メールのHTMLボディを取得し、必要に応じてリンクを抽出してデフォルトのウェブブラウザで開く機能を提供します。
+
+使用方法:
+1. 環境変数 'EMAIL_USERNAME', 'EMAIL_PASSWORD', 'IMAP_SERVER' にメールアカウントの情報を設定します。
+2. このスクリプトを実行すると、未読メールがチェックされ、特定の条件を満たすメールが処理されます。
+
+依存関係:
+- imaplib: IMAPプロトコルを使用するための標準ライブラリ。
+- email: メールメッセージの解析と処理のための標準ライブラリ。
+- email.header: メールヘッダーのデコードに使用される標準ライブラリ。
+- webbrowser: デフォルトのウェブブラウザを使用してURLを開くための標準ライブラリ。
+- bs4 (BeautifulSoup): HTML/XMLを解析するためのサードパーティライブラリ。
+- os: 環境変数の取得に使用される標準ライブラリ。
+- datetime: 日付と時刻を操作するための標準ライブラリ。
+- html: HTMLの特殊文字を処理するための標準ライブラリ。
+
+ログ:
+- Pythonのloggingを使用してログを出力します。
 """
 
 import imaplib
@@ -19,73 +36,54 @@ import logging
 logger = logging.getLogger(__name__)
 
 
+# 環境変数からメールアカウントの情報を取得
 username = os.getenv('EMAIL_USERNAME')
 password = os.getenv('EMAIL_PASSWORD')
 imap_server = os.getenv('IMAP_SERVER')
-
 
 if not all([username, password, imap_server]):
     raise ValueError("メールアカウントの情報が環境変数に設定されていません。")
 
 
 def fetch_html_body(msg):
-    """
-    メール本文からHTML部分を取得する。
-    """
-    html_body = None
-
-    if msg.is_multipart():
-        for part in msg.walk():
-            content_type = part.get_content_type()
-            content_disposition = str(part.get("Content-Disposition"))
-
-            if (
-                content_type == "text/html"
-                and "attachment" not in content_disposition
-            ):
-                try:
-                    html_body = part.get_payload(decode=True).decode(
-                        part.get_content_charset() or "utf-8",
-                        errors="replace"
-                    )
-                except Exception:
-                    logger.exception("HTMLメール本文のデコード中にエラーが発生しました")
-
-                break
-
-    elif msg.get_content_type() == "text/html":
-        try:
-            html_body = msg.get_payload(decode=True).decode(
-                msg.get_content_charset() or "utf-8",
-                errors="replace"
+    for part in msg.walk():
+        if part.get_content_type() == "text/html":
+            charset = part.get_content_charset()
+            return part.get_payload(decode=True).decode(
+                charset or 'utf-8'
             )
-        except Exception:
-            logger.exception("HTMLメール本文のデコード中にエラーが発生しました")
-
-    return html_body
+    return None
 
 
 def sanitize_html(html_content):
-    """
-    HTMLから不要な要素を削除する。
-    """
     soup = BeautifulSoup(html_content, "html.parser")
 
-    for element in soup(["script", "style"]):
-        element.decompose()
+    # 不要なタグを削除
+    for script in soup(
+        ["script", "style", "iframe", "embed", "object", "applet"]
+    ):
+        script.decompose()
 
-    for comment in soup.find_all(
-        string=lambda text: isinstance(text, Comment)
+    # コメントを削除
+    for comment in soup.findAll(
+        text=lambda text: isinstance(text, Comment)
     ):
         comment.extract()
+
+    # hrefやsrc属性の確認（XSS攻撃対策）
+    for tag in soup.findAll(True):
+        for attribute in ["href", "src"]:
+            if attribute in tag.attrs:
+                value = tag[attribute]
+                if not value.startswith(
+                    ('http://', 'https://', 'mailto:')
+                ):
+                    tag[attribute] = '#'
 
     return str(soup)
 
 
 def check_email():
-    """
-    IMAPサーバーに接続し、未読メールを処理する。
-    """
     try:
         logger.info("IMAPサーバに接続を試みます")
 
@@ -108,7 +106,7 @@ def check_email():
 
         result, email_ids = mail.search(
             None,
-            f"(UNSEEN SINCE {yesterday})"
+            '(UNSEEN SINCE {0})'.format(yesterday)
         )
 
         if result != "OK":
@@ -141,13 +139,12 @@ def check_email():
                     msg = email.message_from_bytes(
                         response_part[1]
                     )
-
                     sender = msg["From"]
 
-                    if sender and "noreply@youtube.com" in sender:
+                    if sender and 'noreply@youtube.com' in sender:
                         handle_youtube_email(msg)
 
-                    elif sender and "no-reply@twitch.tv" in sender:
+                    elif sender and 'no-reply@twitch.tv' in sender:
                         handle_twitch_email(msg)
 
         except Exception:
@@ -166,52 +163,74 @@ def check_email():
 
 
 def handle_youtube_email(msg):
-    """
-    YouTubeからのメールを処理する。
-    """
     try:
-        # 元のYouTubeメール処理
-        # ...
+        html_body = fetch_html_body(msg)
 
-        logger.info(f"YouTube URL: {url}")
+        if html_body:
+            sanitized_html = sanitize_html(html_body)
+            urls = extract_links(
+                sanitized_html,
+                'watch'
+            )
 
-        webbrowser.open(url)
+            for url in urls:
+                logger.info(f"YouTube URL: {url}")
+                webbrowser.open(url)
+                break
 
     except Exception:
-        logger.exception("YouTubeメール処理中のエラー")
+        logger.exception(
+            "YouTubeメール処理中のエラー"
+        )
 
 
 def handle_twitch_email(msg):
-    """
-    Twitchからのメールを処理する。
-    """
     try:
-        # 元のTwitchメール処理
-        # ...
+        html_body = fetch_html_body(msg)
 
-        logger.info(f"Twitch URL: {url}")
+        if html_body:
+            sanitized_html = sanitize_html(html_body)
+            urls = extract_links_with_text(
+                sanitized_html,
+                '今すぐ視聴'
+            )
 
-        webbrowser.open(url)
+            for url in urls:
+                logger.info(f"Twitch URL: {url}")
+                webbrowser.open(url)
+                break
 
     except Exception:
-        logger.exception("Twitchメール処理中のエラー")
+        logger.exception(
+            "Twitchメール処理中のエラー"
+        )
 
 
-def extract_links(html_content):
-    """
-    HTMLからリンクを抽出する。
-    """
-    # 元の処理をそのまま使用
-    ...
+def extract_links(html_body, keyword):
+    soup = BeautifulSoup(
+        html_body,
+        "html.parser"
+    )
+
+    return [
+        link["href"]
+        for link in soup.find_all("a", href=True)
+        if keyword in link.get("href", "")
+    ]
 
 
-def extract_links_with_text(html_content):
-    """
-    HTMLからリンクとテキストを抽出する。
-    """
-    # 元の処理をそのまま使用
-    ...
+def extract_links_with_text(html_body, text):
+    soup = BeautifulSoup(
+        html_body,
+        "html.parser"
+    )
+
+    return [
+        link["href"]
+        for link in soup.find_all("a", href=True)
+        if link.get_text(strip=True) == text
+    ]
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     check_email()
