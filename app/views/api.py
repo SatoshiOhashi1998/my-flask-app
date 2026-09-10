@@ -537,6 +537,12 @@ def copy_code_endpoint():
         if not exclude_dirs:
             exclude_dirs = None
 
+        # recursive
+        recursive = request.args.get(
+            "recursive",
+            default="true"
+        ).lower() == "true"
+
     else:
         # POSTの場合だけJSONを読む
         data = request.get_json(silent=True) or {}
@@ -561,11 +567,18 @@ def copy_code_endpoint():
             else None
         )
 
+        # recursive
+        recursive = data.get(
+            "recursive",
+            True
+        )
+
     try:
         files = copy_code(
             target=target,
             extensions=extensions,
             exclude_dirs=exclude_dirs,
+            recursive=recursive,
         )
 
         return jsonify({
