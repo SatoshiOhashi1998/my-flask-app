@@ -1,0 +1,15 @@
+venv/
+__pycache__/
+.pytest_cache/
+.git/
+.gitignore
+.env
+
+instance/
+logs/
+
+*.pyc
+*.pyo
+
+app/static/*
+app/modules/json/*
