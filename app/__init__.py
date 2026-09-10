@@ -2,6 +2,7 @@
 Flaskアプリケーションモジュール
 """
 
+import os
 from datetime import timedelta
 from flask import Flask
 from flask_cors import CORS
@@ -34,9 +35,12 @@ def create_app(test_config=None):
     setup_logging()
 
     # DB設定
-    if 'SQLALCHEMY_DATABASE_URI' not in app.config:
-        DB_PATH = app.instance_path / 'video_data.db'
-        app.config['SQLALCHEMY_DATABASE_URI'] = f"sqlite:///{DB_PATH}"
+    DB_PATH = os.getenv('DB_PATH')
+
+    if not DB_PATH:
+        raise ValueError('DB_PATHが環境変数に設定されていません。')
+
+    app.config['SQLALCHEMY_DATABASE_URI'] = f"sqlite:///{DB_PATH}"
 
     app.config.setdefault(
         'SQLALCHEMY_TRACK_MODIFICATIONS',
