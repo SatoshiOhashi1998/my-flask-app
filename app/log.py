@@ -1,56 +1,96 @@
-# log.py
-import os
 import logging
+import os
 from logging.handlers import RotatingFileHandler
 
+
 def setup_logging():
-    logger = logging.getLogger()
+    root_logger = logging.getLogger()
 
     # すでに設定済みなら何もしない
-    if logger.hasHandlers():
+    if root_logger.handlers:
         return
 
-    # ログディレクトリ作成
-    log_dir = os.path.dirname(os.getenv('ERROR_LOG', 'logs/error.log'))
-    if log_dir and not os.path.exists(log_dir):
-        os.makedirs(log_dir)
+    log_dir = "logs"
+    os.makedirs(log_dir, exist_ok=True)
 
-    # エラーログ
+    formatter = logging.Formatter(
+        '%(asctime)s %(levelname)s: %(message)s '
+        '[in %(pathname)s:%(lineno)d]'
+    )
+
+    # ========================================
+    # application.log
+    # ========================================
+
+    application_handler = RotatingFileHandler(
+        os.path.join(log_dir, "application.log"),
+        maxBytes=10 * 1024,
+        backupCount=10,
+        encoding="utf-8"
+    )
+    application_handler.setLevel(logging.INFO)
+    application_handler.setFormatter(formatter)
+
+    # ========================================
+    # error.log
+    # ========================================
+
     error_handler = RotatingFileHandler(
-        os.getenv('ERROR_LOG', 'logs/error.log'),
+        os.path.join(log_dir, "error.log"),
         maxBytes=10 * 1024,
         backupCount=10,
         encoding="utf-8"
     )
     error_handler.setLevel(logging.ERROR)
-    error_handler.setFormatter(logging.Formatter(
-        '%(asctime)s %(levelname)s: %(message)s [in %(pathname)s:%(lineno)d]'
-    ))
-    logger.addHandler(error_handler)
+    error_handler.setFormatter(formatter)
 
-    # アクセスログ
+    # ========================================
+    # console
+    # ========================================
+
+    console_handler = logging.StreamHandler()
+    console_handler.setLevel(logging.INFO)
+    console_handler.setFormatter(
+        logging.Formatter(
+            '%(asctime)s %(levelname)s: %(message)s'
+        )
+    )
+
+    # ========================================
+    # root logger
+    # ========================================
+
+    root_logger.setLevel(logging.INFO)
+
+    root_logger.addHandler(application_handler)
+    root_logger.addHandler(error_handler)
+    root_logger.addHandler(console_handler)
+
+    # ========================================
+    # HTTP access log
+    # ========================================
+
+    werkzeug_logger = logging.getLogger("werkzeug")
+
+    werkzeug_logger.setLevel(logging.INFO)
+
     access_handler = RotatingFileHandler(
-        os.getenv('ACCESS_LOG', 'logs/access.log'),
+        os.path.join(log_dir, "access.log"),
         maxBytes=10 * 1024,
         backupCount=10,
         encoding="utf-8"
     )
     access_handler.setLevel(logging.INFO)
-    access_handler.setFormatter(logging.Formatter(
-        '%(asctime)s %(levelname)s: %(message)s [in %(pathname)s:%(lineno)d]'
-    ))
-    logger.addHandler(access_handler)
+    access_handler.setFormatter(formatter)
 
-    # コンソール出力
-    console_handler = logging.StreamHandler()
-    console_handler.setLevel(logging.INFO)
-    console_handler.setFormatter(logging.Formatter(
-        '%(asctime)s %(levelname)s: %(message)s'
-    ))
-    logger.addHandler(console_handler)
+    werkzeug_logger.addHandler(access_handler)
 
-    # ルートロガーのレベル設定
-    logger.setLevel(logging.INFO)
+    # Werkzeugのログをroot loggerへ
+    # 流さない
+    werkzeug_logger.propagate = False
 
-    # SQLAlchemy のログレベル
-    logging.getLogger('sqlalchemy.engine').setLevel(logging.INFO)
+    # ========================================
+    # SQLAlchemy
+    # ========================================
+
+    logging.getLogger("sqlalchemy.engine").setLevel(logging.WARNING)
