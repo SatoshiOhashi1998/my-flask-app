@@ -1,8 +1,10 @@
+
 import os
 import glob
 import shutil
 import re
 from typing import List, Optional
+from urllib.parse import urlparse, parse_qs
 
 import yt_dlp
 import ffmpeg
@@ -25,21 +27,33 @@ MEDIA_BASE_PATHS = [
     if path.strip()
 ]
 
-FFMPEG_PATH = os.getenv('FFMPEG_PATH')
-FFMPEG_DIR = os.getenv('FFMPEG_DIR')
+FFMPEG_PATH = os.getenv("FFMPEG_PATH")
+FFMPEG_DIR = os.getenv("FFMPEG_DIR")
+
+YOUTUBE_COOKIE_FILE = os.getenv("YOUTUBE_COOKIE_FILE")
 
 
 def get_video_directories(base_path: str = VIDEO_BASE_PATH) -> List[str]:
     """動画ディレクトリ一覧を取得"""
-    return [d for d in glob.glob(os.path.join(base_path, '*')) if os.path.isdir(d)]
+    return [
+        d
+        for d in glob.glob(os.path.join(base_path, "*"))
+        if os.path.isdir(d)
+    ]
 
 
 def get_audio_directories(base_path: str = AUDIO_BASE_PATH) -> List[str]:
     """音声ディレクトリ一覧を取得"""
-    response = [AUDIO_BASE_PATH] + [d for d in glob.glob(os.path.join(base_path, '*')) if os.path.isdir(d)]
+    response = [AUDIO_BASE_PATH] + [
+        d
+        for d in glob.glob(os.path.join(base_path, "*"))
+        if os.path.isdir(d)
+    ]
     return response
 
+
 def get_media_directories() -> List[str]:
+    """動画・音声などのメディアディレクトリ一覧を取得"""
     directories = []
 
     for base_path in MEDIA_BASE_PATHS:
@@ -50,6 +64,38 @@ def get_media_directories() -> List[str]:
             directories.append(root)
 
     return directories
+
+
+def _extract_youtube_video_id(video_id: str) -> str:
+    """YouTube URLまたは動画IDから動画IDを取得する。"""
+
+    video_id = video_id.strip()
+
+    # すでに動画IDだけの場合
+    if not video_id.startswith(("http://", "https://")):
+        return video_id
+
+    parsed = urlparse(video_id)
+
+    # https://www.youtube.com/watch?v=XXXXXXXXXXX
+    if parsed.hostname in (
+        "www.youtube.com",
+        "youtube.com",
+        "m.youtube.com",
+    ):
+        query = parse_qs(parsed.query)
+
+        if "v" in query and query["v"]:
+            return query["v"][0]
+
+    # https://youtu.be/XXXXXXXXXXX
+    if parsed.hostname == "youtu.be":
+        return parsed.path.lstrip("/")
+
+    raise ValueError(
+        f"YouTube動画IDを取得できません: {video_id}"
+    )
+
 
 def _validate_download_params(
     video_id: str,
@@ -70,7 +116,9 @@ def _validate_download_params(
         raise ValueError("save_dirは空にできません。")
 
     if os.path.exists(save_dir) and not os.path.isdir(save_dir):
-        raise ValueError(f"save_dirがディレクトリではありません: {save_dir}")
+        raise ValueError(
+            f"save_dirがディレクトリではありません: {save_dir}"
+        )
 
     # download_type
     if download_type not in ("video", "audio"):
@@ -152,6 +200,7 @@ def _validate_download_params(
             "start_timeはend_timeより前に指定してください。"
         )
 
+
 def download(
     video_id: str,
     save_dir: str,
@@ -159,8 +208,9 @@ def download(
     start_time: Optional[str] = None,
     end_time: Optional[str] = None,
     trim_overwrite: bool = True,
-    download_type: str = "video"
+    download_type: str = "video",
 ) -> str:
+    print("Deno:", shutil.which("deno"))
 
     _validate_download_params(
         video_id,
@@ -171,34 +221,45 @@ def download(
         download_type,
     )
 
-    clean_id = video_id.split("&")[0] if "&" in video_id else video_id
+    # YouTube URLの場合は動画IDだけを取り出す
+    clean_id = _extract_youtube_video_id(video_id)
 
     os.makedirs(save_dir, exist_ok=True)
 
     # ファイル名自体は「ID.拡張子」にする（%(id)s.%(ext)s）
-    filename_template = '%(id)s.%(ext)s'
+    filename_template = "%(id)s.%(ext)s"
+
+    # yt-dlp 共通設定
+    common_ydl_opts = {
+        "ffmpeg_location": FFMPEG_DIR,
+        "outtmpl": os.path.join(save_dir, filename_template),
+        "noplaylist": True,
+    }
+
+    # Cookieファイルが存在する場合のみ使用
+    if YOUTUBE_COOKIE_FILE and os.path.isfile(YOUTUBE_COOKIE_FILE):
+        common_ydl_opts["cookiefile"] = YOUTUBE_COOKIE_FILE
 
     if download_type == "audio":
         bitrate = quality if quality in ["128", "192", "320"] else "192"
-        
+
         ydl_opts = {
-            'format': 'bestaudio/best',
-            'ffmpeg_location': FFMPEG_DIR,
-            'outtmpl': os.path.join(save_dir, filename_template),
-            'noplaylist': True,
-            'postprocessors': [{
-                'key': 'FFmpegExtractAudio',
-                'preferredcodec': 'mp3',
-                'preferredquality': bitrate,
-            }],
+            **common_ydl_opts,
+            "format": "bestaudio/best",
+            "postprocessors": [
+                {
+                    "key": "FFmpegExtractAudio",
+                    "preferredcodec": "mp3",
+                    "preferredquality": bitrate,
+                }
+            ],
         }
+
     else:
         ydl_opts = {
-            'format': f'bestvideo[height<={quality}]+bestaudio/best',
-            'ffmpeg_location': FFMPEG_DIR,
-            'outtmpl': os.path.join(save_dir, filename_template),
-            'noplaylist': True,
-            'merge_output_format': 'mp4',
+            **common_ydl_opts,
+            "format": f"bestvideo[height<={quality}]+bestaudio/best",
+            "merge_output_format": "mp4",
         }
 
     downloaded_filename = None
@@ -206,10 +267,10 @@ def download(
 
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
         info = ydl.extract_info(clean_id, download=True)
-        original_title = info.get('title', 'Unknown Title')
-        
+        original_title = info.get("title", "Unknown Title")
+
         downloaded_filename = ydl.prepare_filename(info)
-        
+
         if download_type == "audio":
             base, _ = os.path.splitext(downloaded_filename)
             downloaded_filename = base + ".mp3"
@@ -218,34 +279,65 @@ def download(
             downloaded_filename = base + ".mp4"
 
     if not downloaded_filename or not os.path.exists(downloaded_filename):
-        raise FileNotFoundError("ダウンロードされたファイルが見つかりません。")
+        raise FileNotFoundError(
+            "ダウンロードされたファイルが見つかりません。"
+        )
 
     target_filename = downloaded_filename
 
     if start_time or end_time:
         ext = ".tmp.mp3" if download_type == "audio" else ".tmp.mp4"
-        output_file = os.path.splitext(downloaded_filename)[0] + ext
-        
+        output_file = (
+            os.path.splitext(downloaded_filename)[0] + ext
+        )
+
         try:
-            stream = ffmpeg.input(downloaded_filename, ss=start_time, to=end_time)
+            stream = ffmpeg.input(
+                downloaded_filename,
+                ss=start_time,
+                to=end_time,
+            )
+
             if download_type == "audio":
-                stream = ffmpeg.output(stream, output_file, acodec='libmp3lame')
+                stream = ffmpeg.output(
+                    stream,
+                    output_file,
+                    acodec="libmp3lame",
+                )
             else:
-                stream = ffmpeg.output(stream, output_file, vcodec='libx264', acodec='aac')
-                
-            ffmpeg.run(stream, overwrite_output=True, cmd=FFMPEG_PATH)
+                stream = ffmpeg.output(
+                    stream,
+                    output_file,
+                    vcodec="libx264",
+                    acodec="aac",
+                )
+
+            ffmpeg.run(
+                stream,
+                overwrite_output=True,
+                cmd=FFMPEG_PATH,
+            )
 
             if trim_overwrite:
                 os.replace(output_file, downloaded_filename)
             else:
                 target_filename = output_file
+
         except Exception as e:
             if os.path.exists(output_file):
                 os.remove(output_file)
-            raise RuntimeError(f"トリミング処理に失敗しました: {str(e)}")
 
-    final_target_path = os.path.abspath(os.path.join(save_dir, os.path.basename(target_filename)))
-    
+            raise RuntimeError(
+                f"トリミング処理に失敗しました: {str(e)}"
+            )
+
+    final_target_path = os.path.abspath(
+        os.path.join(
+            save_dir,
+            os.path.basename(target_filename),
+        )
+    )
+
     if os.path.abspath(target_filename) != final_target_path:
         shutil.move(target_filename, final_target_path)
 
@@ -255,6 +347,7 @@ def download(
 
         if download_type == "audio":
             remove_nonexistent_files(MusicDataModel)
+
             insert_media(
                 MusicDataModel,
                 clean_id,
@@ -262,8 +355,10 @@ def download(
                 new_name,
                 final_target_path,
             )
+
         else:
             remove_nonexistent_files(VideoDataModel)
+
             insert_media(
                 VideoDataModel,
                 clean_id,
@@ -273,6 +368,8 @@ def download(
             )
 
     except Exception as e:
-        print(f"警告: DB更新中にエラーが発生しました: {str(e)}")
+        print(
+            f"警告: DB更新中にエラーが発生しました: {str(e)}"
+        )
 
     return final_target_path

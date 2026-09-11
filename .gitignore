@@ -222,3 +222,4 @@ FlaskApp.sublime-workspace
 logs/
 
 errorMsg.txt
+config/cookie.txt
