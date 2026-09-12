@@ -561,3 +561,499 @@ def test_download_with_trim_without_overwrite(
         # 後始末
         db.session.delete(video)
         db.session.commit()
+
+def test_get_video_directories(tmp_path):
+    video_dir = tmp_path / "video"
+    video_dir.mkdir()
+
+    dir_a = video_dir / "A"
+    dir_b = video_dir / "B"
+    dir_a.mkdir()
+    dir_b.mkdir()
+
+    # ファイルは結果に含まれないことも確認
+    (video_dir / "movie.mp4").write_bytes(b"dummy")
+
+    result = utils.get_video_directories(str(video_dir))
+
+    assert sorted(result) == sorted([
+        str(dir_a),
+        str(dir_b),
+    ])
+
+
+def test_get_audio_directories(tmp_path):
+    audio_dir = tmp_path / "audio"
+    audio_dir.mkdir()
+
+    dir_a = audio_dir / "asmr"
+    dir_b = audio_dir / "music"
+    dir_a.mkdir()
+    dir_b.mkdir()
+
+    # ファイルは結果に含まれないことも確認
+    (audio_dir / "sound.mp3").write_bytes(b"dummy")
+
+    result = utils.get_audio_directories(str(audio_dir))
+
+    # 現在の実装では AUDIO_BASE_PATH が必ず先頭に入る
+    assert result[0] == utils.AUDIO_BASE_PATH
+
+    assert sorted(result[1:]) == sorted([
+        str(dir_a),
+        str(dir_b),
+    ])
+
+
+def test_get_media_directories(tmp_path, monkeypatch):
+    media_a = tmp_path / "media_a"
+    media_b = tmp_path / "media_b"
+
+    media_a.mkdir()
+    media_b.mkdir()
+
+    video = media_a / "video"
+    audio = media_b / "audio"
+
+    video.mkdir()
+    audio.mkdir()
+
+    monkeypatch.setattr(
+        utils,
+        "MEDIA_BASE_PATHS",
+        [
+            str(media_a),
+            str(media_b),
+        ],
+    )
+
+    result = utils.get_media_directories()
+
+    assert sorted(result) == sorted([
+        str(media_a),
+        str(video),
+        str(media_b),
+        str(audio),
+    ])
+
+
+def test_get_media_directories_ignores_nonexistent_base_path(
+    tmp_path,
+    monkeypatch,
+):
+    existing = tmp_path / "media"
+    existing.mkdir()
+
+    missing = tmp_path / "missing"
+
+    monkeypatch.setattr(
+        utils,
+        "MEDIA_BASE_PATHS",
+        [
+            str(existing),
+            str(missing),
+        ],
+    )
+
+    result = utils.get_media_directories()
+
+    assert result == [str(existing)]
+
+def test_extract_youtube_video_id_from_id():
+    result = utils._extract_youtube_video_id(
+        "V0e8h3HiUOo"
+    )
+
+    assert result == "V0e8h3HiUOo"
+
+
+def test_extract_youtube_video_id_from_youtube_url():
+    result = utils._extract_youtube_video_id(
+        "https://www.youtube.com/watch?v=V0e8h3HiUOo"
+    )
+
+    assert result == "V0e8h3HiUOo"
+
+
+def test_extract_youtube_video_id_from_url_with_parameters():
+    result = utils._extract_youtube_video_id(
+        "https://www.youtube.com/watch?v=V0e8h3HiUOo&t=120"
+    )
+
+    assert result == "V0e8h3HiUOo"
+
+
+def test_extract_youtube_video_id_from_short_url():
+    result = utils._extract_youtube_video_id(
+        "https://youtu.be/V0e8h3HiUOo"
+    )
+
+    assert result == "V0e8h3HiUOo"
+
+
+def test_extract_youtube_video_id_from_mobile_url():
+    result = utils._extract_youtube_video_id(
+        "https://m.youtube.com/watch?v=V0e8h3HiUOo"
+    )
+
+    assert result == "V0e8h3HiUOo"
+
+
+def test_extract_youtube_video_id_strips_whitespace():
+    result = utils._extract_youtube_video_id(
+        "  V0e8h3HiUOo  "
+    )
+
+    assert result == "V0e8h3HiUOo"
+
+
+def test_extract_youtube_video_id_rejects_invalid_url():
+    with pytest.raises(
+        ValueError,
+        match="YouTube動画IDを取得できません",
+    ):
+        utils._extract_youtube_video_id(
+            "https://example.com/video"
+        )
+
+def test_download_rejects_empty_save_dir():
+    with pytest.raises(
+        ValueError,
+        match="save_dirは空にできません",
+    ):
+        utils.download(
+            "test_video",
+            "",
+        )
+
+def test_download_rejects_save_dir_that_is_file(tmp_path):
+    file_path = tmp_path / "not_directory.txt"
+    file_path.write_text("dummy")
+
+    with pytest.raises(
+        ValueError,
+        match="save_dirがディレクトリではありません",
+    ):
+        utils.download(
+            "test_video",
+            str(file_path),
+        )
+
+def test_validate_download_params_accepts_time_formats():
+    utils._validate_download_params(
+        video_id="test_video",
+        save_dir="dummy_dir",
+        quality="1080",
+        start_time="01:30",
+        end_time="02:30",
+        download_type="video",
+    )
+
+
+def test_validate_download_params_accepts_hhmmss():
+    utils._validate_download_params(
+        video_id="test_video",
+        save_dir="dummy_dir",
+        quality="1080",
+        start_time="01:02:30",
+        end_time="02:00:00",
+        download_type="video",
+    )
+
+def test_download_accepts_youtube_url(
+    client,
+    tmp_path,
+    monkeypatch,
+):
+    downloaded_file = tmp_path / "downloaded.mp4"
+    downloaded_file.write_bytes(b"dummy video")
+
+    class DummyYoutubeDL:
+        def __init__(self, options):
+            self.options = options
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc_value, traceback):
+            pass
+
+        def extract_info(self, video_id, download=True):
+            # URLではなく、動画IDに変換されていることを確認
+            assert video_id == "test_video"
+            assert download is True
+
+            return {
+                "id": video_id,
+                "title": "Test Video",
+            }
+
+        def prepare_filename(self, info):
+            return str(downloaded_file)
+
+    monkeypatch.setattr(
+        utils.yt_dlp,
+        "YoutubeDL",
+        DummyYoutubeDL,
+    )
+
+    with client.application.app_context():
+        result = utils.download(
+            "https://www.youtube.com/watch?v=test_video&t=30",
+            str(tmp_path),
+        )
+
+        assert result == str(downloaded_file.resolve())
+
+        video = db.session.get(
+            VideoDataModel,
+            "test_video",
+        )
+
+        assert video is not None
+
+        db.session.delete(video)
+        db.session.commit()
+
+def test_validate_download_params_accepts_audio_quality_128():
+    utils._validate_download_params(
+        video_id="test_video",
+        save_dir="dummy_dir",
+        quality="128",
+        start_time=None,
+        end_time=None,
+        download_type="audio",
+    )
+
+
+def test_validate_download_params_accepts_audio_quality_192():
+    utils._validate_download_params(
+        video_id="test_video",
+        save_dir="dummy_dir",
+        quality="192",
+        start_time=None,
+        end_time=None,
+        download_type="audio",
+    )
+
+
+def test_validate_download_params_accepts_audio_quality_320():
+    utils._validate_download_params(
+        video_id="test_video",
+        save_dir="dummy_dir",
+        quality="320",
+        start_time=None,
+        end_time=None,
+        download_type="audio",
+    )
+
+def test_validate_download_params_accepts_video_download():
+    utils._validate_download_params(
+        video_id="test_video",
+        save_dir="dummy_dir",
+        quality="1080",
+        start_time=None,
+        end_time=None,
+        download_type="video",
+    )
+
+
+def test_validate_download_params_accepts_audio_download():
+    utils._validate_download_params(
+        video_id="test_video",
+        save_dir="dummy_dir",
+        quality="192",
+        start_time=None,
+        end_time=None,
+        download_type="audio",
+    )
+
+def test_download_builds_video_ydl_options(
+    client,
+    tmp_path,
+    monkeypatch,
+):
+    downloaded_file = tmp_path / "test_video.mp4"
+    downloaded_file.write_bytes(b"dummy video")
+
+    captured_options = {}
+
+    class DummyYoutubeDL:
+        def __init__(self, options):
+            captured_options.update(options)
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc_value, traceback):
+            pass
+
+        def extract_info(self, video_id, download=True):
+            assert video_id == "test_video"
+            assert download is True
+
+            return {
+                "id": video_id,
+                "title": "Test Video",
+            }
+
+        def prepare_filename(self, info):
+            return str(downloaded_file)
+
+    monkeypatch.setattr(
+        utils.yt_dlp,
+        "YoutubeDL",
+        DummyYoutubeDL,
+    )
+
+    with client.application.app_context():
+        result = utils.download(
+            "test_video",
+            str(tmp_path),
+            quality="720",
+        )
+
+    assert result == str(downloaded_file.resolve())
+
+    assert captured_options["format"] == (
+        "bestvideo[height<=720]+bestaudio/best"
+    )
+
+    assert captured_options["merge_output_format"] == "mp4"
+    assert captured_options["noplaylist"] is True
+    assert captured_options["outtmpl"] == (
+        str(tmp_path / "%(id)s.%(ext)s")
+    )
+
+def test_download_builds_audio_ydl_options(
+    client,
+    tmp_path,
+    monkeypatch,
+):
+    downloaded_file = tmp_path / "test_video.mp3"
+    downloaded_file.write_bytes(b"dummy audio")
+
+    captured_options = {}
+
+    class DummyYoutubeDL:
+        def __init__(self, options):
+            captured_options.update(options)
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc_value, traceback):
+            pass
+
+        def extract_info(self, video_id, download=True):
+            assert video_id == "test_video"
+            assert download is True
+
+            return {
+                "id": video_id,
+                "title": "Test Audio",
+            }
+
+        def prepare_filename(self, info):
+            # yt-dlpのprepare_filename()は変換前の拡張子を返す想定
+            return str(tmp_path / "test_video.webm")
+
+    monkeypatch.setattr(
+        utils.yt_dlp,
+        "YoutubeDL",
+        DummyYoutubeDL,
+    )
+
+    with client.application.app_context():
+        result = utils.download(
+            "test_video",
+            str(tmp_path),
+            quality="192",
+            download_type="audio",
+        )
+
+    assert result == str(downloaded_file.resolve())
+
+    assert captured_options["format"] == "bestaudio/best"
+
+    assert captured_options["postprocessors"] == [
+        {
+            "key": "FFmpegExtractAudio",
+            "preferredcodec": "mp3",
+            "preferredquality": "192",
+        }
+    ]
+
+    assert captured_options["noplaylist"] is True
+    assert captured_options["outtmpl"] == (
+        str(tmp_path / "%(id)s.%(ext)s")
+    )
+
+def test_download_builds_audio_ydl_options(
+    client,
+    tmp_path,
+    monkeypatch,
+):
+    downloaded_file = tmp_path / "test_video.mp3"
+
+    captured_options = {}
+
+    class DummyYoutubeDL:
+        def __init__(self, options):
+            captured_options.update(options)
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc_value, traceback):
+            pass
+
+        def extract_info(self, video_id, download=True):
+            assert video_id == "test_video"
+            assert download is True
+
+            # FFmpegExtractAudio によって生成される
+            # mp3 ファイルをモックする
+            downloaded_file.write_bytes(b"dummy audio")
+
+            return {
+                "id": video_id,
+                "title": "Test Audio",
+            }
+
+        def prepare_filename(self, info):
+            # yt-dlp がダウンロード直後に返す
+            # 元ファイルの拡張子を想定
+            return str(tmp_path / "test_video.webm")
+
+    monkeypatch.setattr(
+        utils.yt_dlp,
+        "YoutubeDL",
+        DummyYoutubeDL,
+    )
+
+    with client.application.app_context():
+        result = utils.download(
+            "test_video",
+            str(tmp_path),
+            quality="192",
+            download_type="audio",
+        )
+
+    assert result == str(downloaded_file.resolve())
+
+    assert captured_options["format"] == "bestaudio/best"
+
+    assert captured_options["postprocessors"] == [
+        {
+            "key": "FFmpegExtractAudio",
+            "preferredcodec": "mp3",
+            "preferredquality": "192",
+        }
+    ]
+
+    assert captured_options["noplaylist"] is True
+
+    assert captured_options["outtmpl"] == (
+        str(tmp_path / "%(id)s.%(ext)s")
+    )
