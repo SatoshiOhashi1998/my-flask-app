@@ -8,6 +8,10 @@ from app.modules import useMailServer
 from app.modules.getWeatherData import register_tomorrow_weather_to_calendar
 from app.modules.getYouTubeLive import send_archived_streams_from_excel_channels
 from app.modules.export_comments import export_today_comments_to_md
+from app.modules.use_md_file import (
+    create_dailynote,
+    create_next_weekly_note,
+)
 
 logger = logging.getLogger(__name__)  # モジュール専用ロガー
 
@@ -65,6 +69,24 @@ class UrlScheduler:
             hour=22,
             minute=00,
             job_id="export_today_comments"
+        )
+        # 毎日18:00にデイリーノートを作成
+        self.add_job(
+            func=create_dailynote,
+            trigger="cron",
+            hour=18,
+            minute=0,
+            job_id="create_daily_notes"
+        )
+
+        # 毎週土曜日23:00に翌週のウィークリーノートを作成
+        self.add_job(
+            func=create_next_weekly_note,
+            trigger="cron",
+            day_of_week="sat",
+            hour=23,
+            minute=0,
+            job_id="create_next_weekly_note"
         )
 
     def schedule_url_jobs(self):

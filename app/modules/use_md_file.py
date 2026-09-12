@@ -384,7 +384,7 @@ def register_tasks_from_markdown_to_calendar(
 def register_tasks_by_date(
     target_date: str,
     start_hour_min: str = "15:00",
-    target_heading: str = "Tasks",
+    target_heading: str = "Today's Tasks",
     sunday_first: bool = False,
 ) -> None:
     """日付指定でMarkdownからタスクを読み込み、GASへ登録するラッパー関数"""
