@@ -1,16 +1,11 @@
 import unicodedata
 from datetime import datetime
 from pathlib import Path
-from unittest.mock import patch
 
-import pytest
-
-from app.models import db, Comment, VideoDataModel, MusicDataModel
+from app.models import db, Comment, VideoDataModel
 from app.modules.export_comments import export_today_comments_to_md
 
-
 class TestExportTodayCommentsToMd:
-
     def test_export_no_comments(self, app):
         """本日のコメントがない場合、ファイルを作成せずNoneを返す。"""
         with app.app_context():
@@ -31,15 +26,17 @@ class TestExportTodayCommentsToMd:
             db.session.commit()
 
             video = VideoDataModel(
-                # 実際のモデルに必要なフィールドを追加してください
                 id="test-video",
+                new_name="test-video.mp4",
+                path=str(tmp_path / "test-video.mp4"),
                 original_name="テスト動画",
             )
             db.session.add(video)
             db.session.commit()
 
             result = export_today_comments_to_md(
-                output_dir=tmp_path
+                output_dir=tmp_path,
+                now=datetime(2026, 9, 8, 23, 0, 0),
             )
 
             assert result is not None
@@ -71,13 +68,16 @@ class TestExportTodayCommentsToMd:
 
             video = VideoDataModel(
                 id="test-video",
+                new_name="test-video.mp4",
+                path=str(tmp_path / "test-video.mp4"),
                 original_name=media_name,
             )
             db.session.add(video)
             db.session.commit()
 
             result = export_today_comments_to_md(
-                output_dir=tmp_path
+                output_dir=tmp_path,
+                now=datetime(2026, 9, 8, 23, 0, 0),
             )
 
             content = Path(result).read_text(encoding="utf-8")
@@ -125,13 +125,16 @@ class TestExportTodayCommentsToMd:
 
             video = VideoDataModel(
                 id="test-video",
+                new_name="test-video.mp4",
+                path=str(tmp_path / "test-video.mp4"),
                 original_name="テスト動画",
             )
             db.session.add(video)
             db.session.commit()
 
             result = export_today_comments_to_md(
-                output_dir=tmp_path
+                output_dir=tmp_path,
+                now=datetime(2026, 9, 8, 23, 0, 0),
             )
 
             content = Path(result).read_text(
@@ -156,6 +159,8 @@ class TestExportTodayCommentsToMd:
 
             video = VideoDataModel(
                 id="test-video",
+                new_name="test-video.mp4",
+                path=str(tmp_path / "test-video.mp4"),
                 original_name="テスト動画",
             )
             db.session.add(video)

@@ -1,8 +1,9 @@
 from unittest.mock import patch
-
+import locale
 import pytest
 
 from app.models import Comment, VideoDataModel, MusicDataModel, db
+from app.utils import MEDIA_BASE_PATHS
 
 
 # ==========================================
@@ -713,3 +714,803 @@ def test_stream_music_range_request(
         if music:
             db.session.delete(music)
             db.session.commit()
+
+# ==========================================
+# 9. 動画・音楽一覧 / info API
+# ==========================================
+
+@patch("app.views.api.locale.setlocale")
+def test_get_videos(mock_setlocale, client, tmp_path):
+    with client.application.app_context():
+        video1 = VideoDataModel(
+            id="video_01",
+            new_name="video_01.mp4",
+            path=str(tmp_path / "video" / "video_01.mp4"),
+            original_name="動画1",
+        )
+
+        video2 = VideoDataModel(
+            id="video_02",
+            new_name="video_02.mp4",
+            path=str(tmp_path / "video" / "video_02.mp4"),
+            original_name="動画2",
+        )
+
+        db.session.add_all([video1, video2])
+        db.session.commit()
+
+    response = client.get("/api/videos")
+
+    assert response.status_code == 200
+
+    data = response.get_json()
+
+    assert "items" in data
+    assert len(data["items"]) == 2
+
+    assert data["items"][0]["type"] == "video"
+    assert data["items"][0]["filename"] == "video_01.mp4"
+
+    mock_setlocale.assert_called_once_with(
+        locale.LC_COLLATE,
+        "ja_JP.UTF-8",
+    )
+
+
+def test_get_video_info(client, tmp_path):
+    video_id = "video_info_01"
+
+    with client.application.app_context():
+        video = VideoDataModel(
+            id=video_id,
+            new_name="sample.mp4",
+            path=str(tmp_path / "video" / "sample.mp4"),
+            original_name="サンプル動画",
+        )
+
+        db.session.add(video)
+        db.session.commit()
+
+    response = client.get(
+        f"/api/videos/{video_id}/info"
+    )
+
+    assert response.status_code == 200
+
+    data = response.get_json()
+
+    assert data["id"] == "sample"
+    assert data["filename"] == "sample.mp4"
+    assert data["filetitle"] == "サンプル動画"
+    assert data["type"] == "video"
+
+
+def test_get_video_info_not_found(client):
+    response = client.get(
+        "/api/videos/nonexistent_video/info"
+    )
+
+    assert response.status_code == 404
+
+    data = response.get_json()
+
+    assert data["error"] == "Video not found"
+
+
+@patch("app.views.api.locale.setlocale")
+def test_get_musics(mock_setlocale, client, tmp_path):
+    with client.application.app_context():
+        music1 = MusicDataModel(
+            id="music_01",
+            new_name="music_01.mp3",
+            path=str(tmp_path / "audio" / "music_01.mp3"),
+            original_name="音楽1",
+        )
+
+        music2 = MusicDataModel(
+            id="music_02",
+            new_name="music_02.mp3",
+            path=str(tmp_path / "audio" / "music_02.mp3"),
+            original_name="音楽2",
+        )
+
+        db.session.add_all([music1, music2])
+        db.session.commit()
+
+    response = client.get("/api/musics")
+
+    assert response.status_code == 200
+
+    data = response.get_json()
+
+    assert "items" in data
+    assert len(data["items"]) == 2
+
+    assert data["items"][0]["type"] == "audio"
+    assert data["items"][0]["filename"] == "music_01.mp3"
+
+    mock_setlocale.assert_called_once_with(
+        locale.LC_COLLATE,
+        "ja_JP.UTF-8",
+    )
+
+
+def test_get_music_info(client, tmp_path):
+    music_id = "music_info_01"
+
+    with client.application.app_context():
+        music = MusicDataModel(
+            id=music_id,
+            new_name="sample.mp3",
+            path=str(tmp_path / "audio" / "sample.mp3"),
+            original_name="サンプル音声",
+        )
+
+        db.session.add(music)
+        db.session.commit()
+
+    response = client.get(
+        f"/api/musics/{music_id}/info"
+    )
+
+    assert response.status_code == 200
+
+    data = response.get_json()
+
+    assert data["id"] == "sample"
+    assert data["filename"] == "sample.mp3"
+    assert data["filetitle"] == "サンプル音声"
+    assert data["type"] == "audio"
+
+
+def test_get_music_info_not_found(client):
+    response = client.get(
+        "/api/musics/nonexistent_music/info"
+    )
+
+    assert response.status_code == 404
+
+    data = response.get_json()
+
+    assert data["error"] == "Music not found"
+
+# ==========================================
+# 10. コメントその他
+# ==========================================
+
+def test_get_other_comments(client):
+    with client.application.app_context():
+        comments = [
+            Comment(
+                video_id="test_other_01",
+                media_type="youtube",
+                content="YouTubeコメント",
+            ),
+            Comment(
+                video_id="test_other_01",
+                media_type="video",
+                content="動画コメント",
+            ),
+            Comment(
+                video_id="test_other_01",
+                media_type="audio",
+                content="音声コメント",
+            ),
+        ]
+
+        db.session.add_all(comments)
+        db.session.commit()
+
+    response = client.get(
+        "/api/comments/test_other_01/others"
+    )
+
+    assert response.status_code == 200
+
+    data = response.get_json()
+
+    assert len(data) == 2
+
+    media_types = {
+        comment["media_type"]
+        for comment in data
+    }
+
+    assert "youtube" not in media_types
+    assert "video" in media_types
+    assert "audio" in media_types
+
+
+def test_get_other_comments_custom_exclude_type(client):
+    with client.application.app_context():
+        comments = [
+            Comment(
+                video_id="test_other_02",
+                media_type="youtube",
+                content="YouTubeコメント",
+            ),
+            Comment(
+                video_id="test_other_02",
+                media_type="video",
+                content="動画コメント",
+            ),
+        ]
+
+        db.session.add_all(comments)
+        db.session.commit()
+
+    response = client.get(
+        "/api/comments/test_other_02/others"
+        "?exclude_type=video"
+    )
+
+    assert response.status_code == 200
+
+    data = response.get_json()
+
+    assert len(data) == 1
+    assert data[0]["media_type"] == "youtube"
+
+
+def test_update_comment_not_found(client):
+    response = client.put(
+        "/api/comments/999999",
+        json={
+            "content": "更新",
+        },
+    )
+
+    assert response.status_code == 404
+
+
+def test_delete_comment_not_found(client):
+    response = client.delete(
+        "/api/comments/999999"
+    )
+
+    assert response.status_code == 404
+
+# ==========================================
+# 11. YouTube ダウンロード API
+# ==========================================
+
+@patch("app.views.api.get_media_directories")
+def test_youtube_download_get(
+    mock_get_directories,
+    client,
+):
+    mock_get_directories.return_value = [
+        "D:/media/video",
+        "D:/media/audio",
+    ]
+
+    response = client.get(
+        "/api/youtube/download"
+    )
+
+    assert response.status_code == 200
+
+    data = response.get_json()
+
+    assert data == [
+        "D:/media/video",
+        "D:/media/audio",
+    ]
+
+    mock_get_directories.assert_called_once()
+
+
+@patch(
+    "app.views.api.get_media_directories",
+    side_effect=Exception("directory error"),
+)
+def test_youtube_download_get_error(
+    mock_get_directories,
+    client,
+):
+    response = client.get(
+        "/api/youtube/download"
+    )
+
+    assert response.status_code == 500
+
+    data = response.get_json()
+
+    assert "directory error" in data["error"]
+
+
+def test_youtube_download_missing_video_id(client):
+    response = client.post(
+        "/api/youtube/download",
+        json={
+            "save_dir": "D:/media/video",
+        },
+    )
+
+    assert response.status_code == 400
+
+    data = response.get_json()
+
+    assert data["error"] == (
+        "video_id and save_dir are required"
+    )
+
+
+def test_youtube_download_missing_save_dir(client):
+    response = client.post(
+        "/api/youtube/download",
+        json={
+            "video_id": "abc123",
+        },
+    )
+
+    assert response.status_code == 400
+
+    data = response.get_json()
+
+    assert data["error"] == (
+        "video_id and save_dir are required"
+    )
+
+
+@patch("app.views.api.download")
+def test_youtube_download_success(
+    mock_download,
+    client,
+):
+    mock_download.return_value = (
+        "D:/media/video/sample.mp4"
+    )
+
+    response = client.post(
+        "/api/youtube/download",
+        json={
+            "video_id": "abc123",
+            "save_dir": "D:/media/video",
+            "save_quality": "720",
+            "start_time": "00:01:00",
+            "end_time": "00:05:00",
+            "download_type": "video",
+        },
+    )
+
+    assert response.status_code == 200
+
+    data = response.get_json()
+
+    assert data["path"] == (
+        "D:/media/video/sample.mp4"
+    )
+
+    assert "abc123" in data["message"]
+
+    mock_download.assert_called_once_with(
+        video_id="abc123",
+        save_dir="D:/media/video",
+        quality="720",
+        start_time="00:01:00",
+        end_time="00:05:00",
+        download_type="video",
+    )
+
+
+@patch("app.views.api.download")
+def test_youtube_download_default_options(
+    mock_download,
+    client,
+):
+    mock_download.return_value = "D:/media/video/sample.mp4"
+
+    response = client.post(
+        "/api/youtube/download",
+        json={
+            "video_id": "abc123",
+            "save_dir": "D:/media/video",
+        },
+    )
+
+    assert response.status_code == 200
+
+    mock_download.assert_called_once_with(
+        video_id="abc123",
+        save_dir="D:/media/video",
+        quality="1080",
+        start_time=None,
+        end_time=None,
+        download_type="video",
+    )
+
+
+@patch(
+    "app.views.api.download",
+    side_effect=Exception("download error"),
+)
+def test_youtube_download_error(
+    mock_download,
+    client,
+):
+    response = client.post(
+        "/api/youtube/download",
+        json={
+            "video_id": "abc123",
+            "save_dir": "D:/media/video",
+        },
+    )
+
+    assert response.status_code == 500
+
+    data = response.get_json()
+
+    assert "download error" in data["error"]
+
+# ==========================================
+# 12. YouTube 検索・情報 API
+# ==========================================
+
+def test_youtube_search_empty_query(client):
+    response = client.get(
+        "/api/youtube/search"
+    )
+
+    assert response.status_code == 200
+
+    data = response.get_json()
+
+    assert data["items"] == []
+
+
+def test_youtube_search_empty_query_explicit(client):
+    response = client.get(
+        "/api/youtube/search?q="
+    )
+
+    assert response.status_code == 200
+
+    data = response.get_json()
+
+    assert data["items"] == []
+
+
+@patch("app.views.api.fetch_youtube_videos")
+def test_youtube_search_success(
+    mock_fetch,
+    client,
+):
+    mock_fetch.return_value = [
+        {
+            "id": "abc123",
+            "title": "テスト動画",
+        },
+        {
+            "id": "def456",
+            "title": "テスト動画2",
+        },
+    ]
+
+    response = client.get(
+        "/api/youtube/search?q=Python"
+    )
+
+    assert response.status_code == 200
+
+    data = response.get_json()
+
+    assert len(data["items"]) == 2
+    assert data["items"][0]["id"] == "abc123"
+
+    mock_fetch.assert_called_once_with(
+        "Python"
+    )
+
+
+@patch(
+    "app.views.api.fetch_youtube_videos",
+    side_effect=Exception("YouTube API error"),
+)
+def test_youtube_search_error(
+    mock_fetch,
+    client,
+):
+    response = client.get(
+        "/api/youtube/search?q=Python"
+    )
+
+    assert response.status_code == 500
+
+    data = response.get_json()
+
+    assert data["error"] == "YouTube API error"
+
+
+@patch("app.views.api.fetch_youtube_video_info")
+def test_youtube_info_success(
+    mock_fetch,
+    client,
+):
+    mock_fetch.return_value = {
+        "id": "abc123",
+        "title": "テスト動画",
+        "duration": 120,
+    }
+
+    response = client.get(
+        "/api/youtube/abc123/info"
+    )
+
+    assert response.status_code == 200
+
+    data = response.get_json()
+
+    assert data["id"] == "abc123"
+    assert data["title"] == "テスト動画"
+    assert data["duration"] == 120
+
+    mock_fetch.assert_called_once_with(
+        "abc123"
+    )
+
+
+@patch(
+    "app.views.api.fetch_youtube_video_info",
+    return_value=None,
+)
+def test_youtube_info_not_found(
+    mock_fetch,
+    client,
+):
+    response = client.get(
+        "/api/youtube/nonexistent/info"
+    )
+
+    assert response.status_code == 404
+
+    data = response.get_json()
+
+    assert data["error"] == "Video not found"
+
+
+@patch(
+    "app.views.api.fetch_youtube_video_info",
+    side_effect=Exception("YouTube info error"),
+)
+def test_youtube_info_error(
+    mock_fetch,
+    client,
+):
+    response = client.get(
+        "/api/youtube/abc123/info"
+    )
+
+    assert response.status_code == 500
+
+    data = response.get_json()
+
+    assert data["error"] == "YouTube info error"
+
+# ==========================================
+# 13. メディアメタデータリセット
+# ==========================================
+
+@patch("app.views.api.remove_nonexistent_audio_files_from_db")
+@patch("app.views.api.remove_nonexistent_files_from_db")
+@patch("app.views.api.rename_musics_and_save_metadata")
+@patch("app.views.api.rename_videos_and_save_metadata")
+def test_reset_media(
+    mock_rename_videos,
+    mock_rename_musics,
+    mock_remove_videos,
+    mock_remove_musics,
+    client,
+):
+    response = client.get(
+        "/api/reset/media"
+    )
+
+    assert response.status_code == 200
+
+    data = response.get_json()
+
+    assert data["message"] == (
+        "メディアメタデータをリセットしました"
+    )
+
+    assert mock_rename_videos.call_count == len(MEDIA_BASE_PATHS)
+    assert mock_rename_musics.call_count == len(MEDIA_BASE_PATHS)
+
+    mock_remove_videos.assert_called_once()
+    mock_remove_musics.assert_called_once()
+
+
+# ==========================================
+# 14. Vocabulary API
+# ==========================================
+
+@patch("app.views.api.export_english_vocabulary")
+def test_export_english(
+    mock_export,
+    client,
+):
+    response = client.get(
+        "/api/markdown/export_english"
+    )
+
+    assert response.status_code == 200
+
+    data = response.get_json()
+
+    assert data["message"] == (
+        "英単語を出力しました"
+    )
+
+    mock_export.assert_called_once()
+
+
+@patch("app.views.api.export_single_vocabulary")
+def test_export_vocablary(
+    mock_export,
+    client,
+):
+    response = client.get(
+        "/api/markdown/export_vocablary"
+    )
+
+    assert response.status_code == 200
+
+    data = response.get_json()
+
+    assert data["message"] == (
+        "語彙を出力しました"
+    )
+
+    mock_export.assert_called_once()
+
+@patch("app.views.api.copy_code")
+def test_copy_code_get(
+    mock_copy,
+    client,
+):
+    mock_copy.return_value = [
+        "file1.py",
+        "file2.py",
+    ]
+
+    response = client.get(
+        "/api/clipboard/copy-code"
+        "?target=test.py"
+        "&extension=.py"
+        "&extension=.js"
+        "&exclude_dir=.git"
+        "&recursive=false"
+    )
+
+    assert response.status_code == 200
+
+    data = response.get_json()
+
+    assert data["status"] == "success"
+    assert data["files"] == [
+        "file1.py",
+        "file2.py",
+    ]
+    assert "2 ファイル" in data["message"]
+
+    mock_copy.assert_called_once_with(
+        target="test.py",
+        extensions=[".py", ".js"],
+        exclude_dirs=[".git"],
+        recursive=False,
+    )
+
+@patch("app.views.api.copy_code")
+def test_copy_code_get(
+    mock_copy,
+    client,
+):
+    mock_copy.return_value = [
+        "file1.py",
+        "file2.py",
+    ]
+
+    response = client.get(
+        "/api/clipboard/copy-code"
+        "?target=test.py"
+        "&extension=.py"
+        "&extension=.js"
+        "&exclude_dir=.git"
+        "&recursive=false"
+    )
+
+    assert response.status_code == 200
+
+    data = response.get_json()
+
+    assert data["status"] == "success"
+    assert data["files"] == [
+        "file1.py",
+        "file2.py",
+    ]
+    assert "2 ファイル" in data["message"]
+
+    mock_copy.assert_called_once_with(
+        target="test.py",
+        extensions=[".py", ".js"],
+        exclude_dirs=[".git"],
+        recursive=False,
+    )
+
+# ==========================================
+# 16. Markdown / Weather エラー系
+# ==========================================
+
+@patch(
+    "app.views.api.create_dailynote",
+    side_effect=Exception("daily note error"),
+)
+def test_create_dailynotes_error(
+    mock_create,
+    client,
+):
+    response = client.get(
+        "/api/markdown/create_dailynote"
+    )
+
+    assert response.status_code == 500
+
+    data = response.get_json()
+
+    assert data["status"] == "error"
+    assert "daily note error" in data["message"]
+
+
+@patch(
+    "app.views.api.create_next_weekly_note",
+    side_effect=Exception("weekly note error"),
+)
+def test_create_next_weekly_note_error(
+    mock_create,
+    client,
+):
+    response = client.get(
+        "/api/markdown/create_next_weekly_note"
+    )
+
+    assert response.status_code == 500
+
+    data = response.get_json()
+
+    assert data["status"] == "error"
+    assert "weekly note error" in data["message"]
+
+
+@patch(
+    "app.views.api.register_today_weather_to_calendar",
+    side_effect=Exception("weather error"),
+)
+def test_register_today_weather_error(
+    mock_register,
+    client,
+):
+    response = client.get(
+        "/api/weather/get/today"
+    )
+
+    # 現在のAPI実装にはtry/exceptがないため、
+    # Flaskの500になることを確認する。
+    assert response.status_code == 500
+
+
+@patch(
+    "app.views.api.register_tomorrow_weather_to_calendar",
+    side_effect=Exception("weather error"),
+)
+def test_register_tomorrow_weather_error(
+    mock_register,
+    client,
+):
+    response = client.get(
+        "/api/weather/get/tomorrow"
+    )
+
+    # 現在のAPI実装にはtry/exceptがないため、
+    # Flaskの500になることを確認する。
+    assert response.status_code == 500
