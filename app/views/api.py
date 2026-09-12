@@ -74,7 +74,7 @@ def _format_media_item(item, media_type: str) -> dict:
     }
 
 
-def _execute_task_sync(date_str: str, start_time: str, target_heading: str = "Tasks"):
+def _execute_task_sync(date_str: str, start_time: str, target_heading: str = "Today's Tasks"):
     """タスク同期処理の共通実行関数"""
     try:
         register_tasks_by_date(
