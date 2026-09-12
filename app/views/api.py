@@ -375,14 +375,32 @@ def export_vocablary():
 
 @api_bp.route("/api/weather/get/today", methods=["GET"])
 def register_today_weather():
-    register_today_weather_to_calendar()
-    return jsonify({"message": "本日の天気情報をカレンダーに登録しました"}), 200
+    try:
+        register_today_weather_to_calendar()
+        return jsonify({
+            "message": "本日の天気情報をカレンダーに登録しました"
+        }), 200
+    except Exception as e:
+        traceback.print_exc()
+        return jsonify({
+            "status": "error",
+            "message": f"天気情報の登録中にエラーが発生しました: {str(e)}"
+        }), 500
 
 
 @api_bp.route("/api/weather/get/tomorrow", methods=["GET"])
 def register_tomorrow_weather():
-    register_tomorrow_weather_to_calendar()
-    return jsonify({"message": "翌日の天気情報をカレンダーに登録しました"}), 200
+    try:
+        register_tomorrow_weather_to_calendar()
+        return jsonify({
+            "message": "翌日の天気情報をカレンダーに登録しました"
+        }), 200
+    except Exception as e:
+        traceback.print_exc()
+        return jsonify({
+            "status": "error",
+            "message": f"天気情報の登録中にエラーが発生しました: {str(e)}"
+        }), 500
 
 
 @api_bp.route("/api/calendar/sync-tasks/today", methods=["GET"])
