@@ -1,6 +1,4 @@
-
 import os
-import glob
 import shutil
 import re
 from typing import List, Optional
@@ -15,55 +13,14 @@ from app.modules.media_manager import (
     remove_nonexistent_files,
 )
 
-# 環境変数・ディレクトリ定義
-APP_BASE_PATH = os.getenv("APP_BASE_PATH", "")
-VIDEO_BASE_PATH = os.path.join(APP_BASE_PATH, "static", "video")
-AUDIO_BASE_PATH = os.path.join(APP_BASE_PATH, "static", "audio")
-SOUND_FILE_PATH = os.path.join(APP_BASE_PATH, "static", "sound")
-
-MEDIA_BASE_PATHS = [
-    path.strip()
-    for path in os.getenv("MEDIA_BASE_PATHS", "").split("|")
-    if path.strip()
-]
+from app.modules.media_paths import (
+    MEDIA_BASE_PATHS,
+)
 
 FFMPEG_PATH = os.getenv("FFMPEG_PATH")
 FFMPEG_DIR = os.getenv("FFMPEG_DIR")
 
 YOUTUBE_COOKIE_FILE = os.getenv("YOUTUBE_COOKIE_FILE")
-
-
-def get_video_directories(base_path: str = VIDEO_BASE_PATH) -> List[str]:
-    """動画ディレクトリ一覧を取得"""
-    return [
-        d
-        for d in glob.glob(os.path.join(base_path, "*"))
-        if os.path.isdir(d)
-    ]
-
-
-def get_audio_directories(base_path: str = AUDIO_BASE_PATH) -> List[str]:
-    """音声ディレクトリ一覧を取得"""
-    response = [AUDIO_BASE_PATH] + [
-        d
-        for d in glob.glob(os.path.join(base_path, "*"))
-        if os.path.isdir(d)
-    ]
-    return response
-
-
-def get_media_directories() -> List[str]:
-    """動画・音声などのメディアディレクトリ一覧を取得"""
-    directories = []
-
-    for base_path in MEDIA_BASE_PATHS:
-        if not os.path.isdir(base_path):
-            continue
-
-        for root, dirs, _ in os.walk(base_path):
-            directories.append(root)
-
-    return directories
 
 
 def _extract_youtube_video_id(video_id: str) -> str:
