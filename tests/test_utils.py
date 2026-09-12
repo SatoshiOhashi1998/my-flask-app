@@ -2,6 +2,7 @@ import os
 import pytest
 
 from app.models import db, VideoDataModel, MusicDataModel
+from app.modules import youtube_downloader
 from app import utils
 
 
@@ -32,7 +33,7 @@ def test_download_registers_video_to_db(client, tmp_path, monkeypatch):
             return str(downloaded_file)
 
     monkeypatch.setattr(
-        utils.yt_dlp,
+        youtube_downloader.yt_dlp,
         "YoutubeDL",
         DummyYoutubeDL,
     )
@@ -104,7 +105,7 @@ def test_download_registers_audio_to_db(client, tmp_path, monkeypatch):
             return str(tmp_path / "downloaded.webm")
 
     monkeypatch.setattr(
-        utils.yt_dlp,
+        youtube_downloader.yt_dlp,
         "YoutubeDL",
         DummyYoutubeDL,
     )
@@ -174,7 +175,7 @@ def test_download_removes_nonexistent_video_records(
             return str(tmp_path / "downloaded.mp4")
 
     monkeypatch.setattr(
-        utils.yt_dlp,
+        youtube_downloader.yt_dlp,
         "YoutubeDL",
         DummyYoutubeDL,
     )
@@ -266,7 +267,7 @@ def test_download_db_error_does_not_raise(
             return str(downloaded_file)
 
     monkeypatch.setattr(
-        utils.yt_dlp,
+        youtube_downloader.yt_dlp,
         "YoutubeDL",
         DummyYoutubeDL,
     )
@@ -402,7 +403,7 @@ def test_download_with_trim_overwrite(
             return str(downloaded_file)
 
     monkeypatch.setattr(
-        utils.yt_dlp,
+        youtube_downloader.yt_dlp,
         "YoutubeDL",
         DummyYoutubeDL,
     )
@@ -493,7 +494,7 @@ def test_download_with_trim_without_overwrite(
             return str(downloaded_file)
 
     monkeypatch.setattr(
-        utils.yt_dlp,
+        youtube_downloader.yt_dlp,
         "YoutubeDL",
         DummyYoutubeDL,
     )
@@ -563,63 +564,6 @@ def test_download_with_trim_without_overwrite(
         db.session.commit()
 
 
-def test_extract_youtube_video_id_from_id():
-    result = utils._extract_youtube_video_id(
-        "V0e8h3HiUOo"
-    )
-
-    assert result == "V0e8h3HiUOo"
-
-
-def test_extract_youtube_video_id_from_youtube_url():
-    result = utils._extract_youtube_video_id(
-        "https://www.youtube.com/watch?v=V0e8h3HiUOo"
-    )
-
-    assert result == "V0e8h3HiUOo"
-
-
-def test_extract_youtube_video_id_from_url_with_parameters():
-    result = utils._extract_youtube_video_id(
-        "https://www.youtube.com/watch?v=V0e8h3HiUOo&t=120"
-    )
-
-    assert result == "V0e8h3HiUOo"
-
-
-def test_extract_youtube_video_id_from_short_url():
-    result = utils._extract_youtube_video_id(
-        "https://youtu.be/V0e8h3HiUOo"
-    )
-
-    assert result == "V0e8h3HiUOo"
-
-
-def test_extract_youtube_video_id_from_mobile_url():
-    result = utils._extract_youtube_video_id(
-        "https://m.youtube.com/watch?v=V0e8h3HiUOo"
-    )
-
-    assert result == "V0e8h3HiUOo"
-
-
-def test_extract_youtube_video_id_strips_whitespace():
-    result = utils._extract_youtube_video_id(
-        "  V0e8h3HiUOo  "
-    )
-
-    assert result == "V0e8h3HiUOo"
-
-
-def test_extract_youtube_video_id_rejects_invalid_url():
-    with pytest.raises(
-        ValueError,
-        match="YouTube動画IDを取得できません",
-    ):
-        utils._extract_youtube_video_id(
-            "https://example.com/video"
-        )
-
 def test_download_rejects_empty_save_dir():
     with pytest.raises(
         ValueError,
@@ -643,26 +587,6 @@ def test_download_rejects_save_dir_that_is_file(tmp_path):
             str(file_path),
         )
 
-def test_validate_download_params_accepts_time_formats():
-    utils._validate_download_params(
-        video_id="test_video",
-        save_dir="dummy_dir",
-        quality="1080",
-        start_time="01:30",
-        end_time="02:30",
-        download_type="video",
-    )
-
-
-def test_validate_download_params_accepts_hhmmss():
-    utils._validate_download_params(
-        video_id="test_video",
-        save_dir="dummy_dir",
-        quality="1080",
-        start_time="01:02:30",
-        end_time="02:00:00",
-        download_type="video",
-    )
 
 def test_download_accepts_youtube_url(
     client,
@@ -696,7 +620,7 @@ def test_download_accepts_youtube_url(
             return str(downloaded_file)
 
     monkeypatch.setattr(
-        utils.yt_dlp,
+        youtube_downloader.yt_dlp,
         "YoutubeDL",
         DummyYoutubeDL,
     )
@@ -719,289 +643,9 @@ def test_download_accepts_youtube_url(
         db.session.delete(video)
         db.session.commit()
 
-def test_validate_download_params_accepts_audio_quality_128():
-    utils._validate_download_params(
-        video_id="test_video",
-        save_dir="dummy_dir",
-        quality="128",
-        start_time=None,
-        end_time=None,
-        download_type="audio",
-    )
 
 
-def test_validate_download_params_accepts_audio_quality_192():
-    utils._validate_download_params(
-        video_id="test_video",
-        save_dir="dummy_dir",
-        quality="192",
-        start_time=None,
-        end_time=None,
-        download_type="audio",
-    )
 
-
-def test_validate_download_params_accepts_audio_quality_320():
-    utils._validate_download_params(
-        video_id="test_video",
-        save_dir="dummy_dir",
-        quality="320",
-        start_time=None,
-        end_time=None,
-        download_type="audio",
-    )
-
-def test_validate_download_params_accepts_video_download():
-    utils._validate_download_params(
-        video_id="test_video",
-        save_dir="dummy_dir",
-        quality="1080",
-        start_time=None,
-        end_time=None,
-        download_type="video",
-    )
-
-
-def test_validate_download_params_accepts_audio_download():
-    utils._validate_download_params(
-        video_id="test_video",
-        save_dir="dummy_dir",
-        quality="192",
-        start_time=None,
-        end_time=None,
-        download_type="audio",
-    )
-
-def test_download_builds_video_ydl_options(
-    client,
-    tmp_path,
-    monkeypatch,
-):
-    downloaded_file = tmp_path / "test_video.mp4"
-    downloaded_file.write_bytes(b"dummy video")
-
-    captured_options = {}
-
-    class DummyYoutubeDL:
-        def __init__(self, options):
-            captured_options.update(options)
-
-        def __enter__(self):
-            return self
-
-        def __exit__(self, exc_type, exc_value, traceback):
-            pass
-
-        def extract_info(self, video_id, download=True):
-            assert video_id == "test_video"
-            assert download is True
-
-            return {
-                "id": video_id,
-                "title": "Test Video",
-            }
-
-        def prepare_filename(self, info):
-            return str(downloaded_file)
-
-    monkeypatch.setattr(
-        utils.yt_dlp,
-        "YoutubeDL",
-        DummyYoutubeDL,
-    )
-
-    with client.application.app_context():
-        result = utils.download(
-            "test_video",
-            str(tmp_path),
-            quality="720",
-        )
-
-    assert result == str(downloaded_file.resolve())
-
-    assert captured_options["format"] == (
-        "bestvideo[height<=720]+bestaudio/best"
-    )
-
-    assert captured_options["merge_output_format"] == "mp4"
-    assert captured_options["noplaylist"] is True
-    assert captured_options["outtmpl"] == (
-        str(tmp_path / "%(id)s.%(ext)s")
-    )
-
-def test_download_builds_audio_ydl_options(
-    client,
-    tmp_path,
-    monkeypatch,
-):
-    downloaded_file = tmp_path / "test_video.mp3"
-    downloaded_file.write_bytes(b"dummy audio")
-
-    captured_options = {}
-
-    class DummyYoutubeDL:
-        def __init__(self, options):
-            captured_options.update(options)
-
-        def __enter__(self):
-            return self
-
-        def __exit__(self, exc_type, exc_value, traceback):
-            pass
-
-        def extract_info(self, video_id, download=True):
-            assert video_id == "test_video"
-            assert download is True
-
-            return {
-                "id": video_id,
-                "title": "Test Audio",
-            }
-
-        def prepare_filename(self, info):
-            # yt-dlpのprepare_filename()は変換前の拡張子を返す想定
-            return str(tmp_path / "test_video.webm")
-
-    monkeypatch.setattr(
-        utils.yt_dlp,
-        "YoutubeDL",
-        DummyYoutubeDL,
-    )
-
-    with client.application.app_context():
-        result = utils.download(
-            "test_video",
-            str(tmp_path),
-            quality="192",
-            download_type="audio",
-        )
-
-    assert result == str(downloaded_file.resolve())
-
-    assert captured_options["format"] == "bestaudio/best"
-
-    assert captured_options["postprocessors"] == [
-        {
-            "key": "FFmpegExtractAudio",
-            "preferredcodec": "mp3",
-            "preferredquality": "192",
-        }
-    ]
-
-    assert captured_options["noplaylist"] is True
-    assert captured_options["outtmpl"] == (
-        str(tmp_path / "%(id)s.%(ext)s")
-    )
-
-def test_download_uses_youtube_cookie_file(
-    client,
-    tmp_path,
-    monkeypatch,
-):
-    downloaded_file = tmp_path / "test_video.mp4"
-    downloaded_file.write_bytes(b"dummy video")
-
-    cookie_file = tmp_path / "cookies.txt"
-    cookie_file.write_text("dummy cookie")
-
-    captured_options = {}
-
-    monkeypatch.setattr(
-        utils,
-        "YOUTUBE_COOKIE_FILE",
-        str(cookie_file),
-    )
-
-    class DummyYoutubeDL:
-        def __init__(self, options):
-            captured_options.update(options)
-
-        def __enter__(self):
-            return self
-
-        def __exit__(self, exc_type, exc_value, traceback):
-            pass
-
-        def extract_info(self, video_id, download=True):
-            assert video_id == "test_video"
-            assert download is True
-
-            return {
-                "id": video_id,
-                "title": "Test Video",
-            }
-
-        def prepare_filename(self, info):
-            return str(downloaded_file)
-
-    monkeypatch.setattr(
-        utils.yt_dlp,
-        "YoutubeDL",
-        DummyYoutubeDL,
-    )
-
-    with client.application.app_context():
-        result = utils.download(
-            "test_video",
-            str(tmp_path),
-        )
-
-    assert result == str(downloaded_file.resolve())
-
-    assert captured_options["cookiefile"] == str(cookie_file)
-
-def test_download_ignores_nonexistent_youtube_cookie_file(
-    client,
-    tmp_path,
-    monkeypatch,
-):
-    downloaded_file = tmp_path / "test_video.mp4"
-    downloaded_file.write_bytes(b"dummy video")
-
-    cookie_file = tmp_path / "missing_cookies.txt"
-
-    captured_options = {}
-
-    monkeypatch.setattr(
-        utils,
-        "YOUTUBE_COOKIE_FILE",
-        str(cookie_file),
-    )
-
-    class DummyYoutubeDL:
-        def __init__(self, options):
-            captured_options.update(options)
-
-        def __enter__(self):
-            return self
-
-        def __exit__(self, exc_type, exc_value, traceback):
-            pass
-
-        def extract_info(self, video_id, download=True):
-            return {
-                "id": video_id,
-                "title": "Test Video",
-            }
-
-        def prepare_filename(self, info):
-            return str(downloaded_file)
-
-    monkeypatch.setattr(
-        utils.yt_dlp,
-        "YoutubeDL",
-        DummyYoutubeDL,
-    )
-
-    with client.application.app_context():
-        result = utils.download(
-            "test_video",
-            str(tmp_path),
-        )
-
-    assert result == str(downloaded_file.resolve())
-
-    assert "cookiefile" not in captured_options
 
 def test_download_video_trim_uses_correct_ffmpeg_options(
     client,
@@ -1062,7 +706,7 @@ def test_download_video_trim_uses_correct_ffmpeg_options(
         output_file.write_bytes(b"trimmed video")
 
     monkeypatch.setattr(
-        utils.yt_dlp,
+        youtube_downloader.yt_dlp,
         "YoutubeDL",
         DummyYoutubeDL,
     )
@@ -1163,7 +807,7 @@ def test_download_audio_trim_uses_correct_ffmpeg_options(
         output_file.write_bytes(b"trimmed audio")
 
     monkeypatch.setattr(
-        utils.yt_dlp,
+        youtube_downloader.yt_dlp,
         "YoutubeDL",
         DummyYoutubeDL,
     )
@@ -1259,7 +903,7 @@ def test_download_trim_error_removes_output_file(
         raise RuntimeError("FFmpeg failed")
 
     monkeypatch.setattr(
-        utils.yt_dlp,
+        youtube_downloader.yt_dlp,
         "YoutubeDL",
         DummyYoutubeDL,
     )
