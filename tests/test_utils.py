@@ -1057,3 +1057,406 @@ def test_download_builds_audio_ydl_options(
     assert captured_options["outtmpl"] == (
         str(tmp_path / "%(id)s.%(ext)s")
     )
+
+def test_download_uses_youtube_cookie_file(
+    client,
+    tmp_path,
+    monkeypatch,
+):
+    downloaded_file = tmp_path / "test_video.mp4"
+    downloaded_file.write_bytes(b"dummy video")
+
+    cookie_file = tmp_path / "cookies.txt"
+    cookie_file.write_text("dummy cookie")
+
+    captured_options = {}
+
+    monkeypatch.setattr(
+        utils,
+        "YOUTUBE_COOKIE_FILE",
+        str(cookie_file),
+    )
+
+    class DummyYoutubeDL:
+        def __init__(self, options):
+            captured_options.update(options)
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc_value, traceback):
+            pass
+
+        def extract_info(self, video_id, download=True):
+            assert video_id == "test_video"
+            assert download is True
+
+            return {
+                "id": video_id,
+                "title": "Test Video",
+            }
+
+        def prepare_filename(self, info):
+            return str(downloaded_file)
+
+    monkeypatch.setattr(
+        utils.yt_dlp,
+        "YoutubeDL",
+        DummyYoutubeDL,
+    )
+
+    with client.application.app_context():
+        result = utils.download(
+            "test_video",
+            str(tmp_path),
+        )
+
+    assert result == str(downloaded_file.resolve())
+
+    assert captured_options["cookiefile"] == str(cookie_file)
+
+def test_download_ignores_nonexistent_youtube_cookie_file(
+    client,
+    tmp_path,
+    monkeypatch,
+):
+    downloaded_file = tmp_path / "test_video.mp4"
+    downloaded_file.write_bytes(b"dummy video")
+
+    cookie_file = tmp_path / "missing_cookies.txt"
+
+    captured_options = {}
+
+    monkeypatch.setattr(
+        utils,
+        "YOUTUBE_COOKIE_FILE",
+        str(cookie_file),
+    )
+
+    class DummyYoutubeDL:
+        def __init__(self, options):
+            captured_options.update(options)
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc_value, traceback):
+            pass
+
+        def extract_info(self, video_id, download=True):
+            return {
+                "id": video_id,
+                "title": "Test Video",
+            }
+
+        def prepare_filename(self, info):
+            return str(downloaded_file)
+
+    monkeypatch.setattr(
+        utils.yt_dlp,
+        "YoutubeDL",
+        DummyYoutubeDL,
+    )
+
+    with client.application.app_context():
+        result = utils.download(
+            "test_video",
+            str(tmp_path),
+        )
+
+    assert result == str(downloaded_file.resolve())
+
+    assert "cookiefile" not in captured_options
+
+def test_download_video_trim_uses_correct_ffmpeg_options(
+    client,
+    tmp_path,
+    monkeypatch,
+):
+    downloaded_file = tmp_path / "test_video.mp4"
+    downloaded_file.write_bytes(b"dummy video")
+
+    output_file = tmp_path / "test_video.tmp.mp4"
+
+    captured_input = {}
+    captured_output = {}
+    captured_run = {}
+
+    class DummyYoutubeDL:
+        def __init__(self, options):
+            pass
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc_value, traceback):
+            pass
+
+        def extract_info(self, video_id, download=True):
+            return {
+                "id": video_id,
+                "title": "Test Video",
+            }
+
+        def prepare_filename(self, info):
+            return str(downloaded_file)
+
+    def dummy_input(filename, ss=None, to=None):
+        captured_input["filename"] = filename
+        captured_input["ss"] = ss
+        captured_input["to"] = to
+        return "input_stream"
+
+    def dummy_output(stream, filename, vcodec=None, acodec=None):
+        captured_output["stream"] = stream
+        captured_output["filename"] = filename
+        captured_output["vcodec"] = vcodec
+        captured_output["acodec"] = acodec
+        return "output_stream"
+
+    def dummy_run(
+        stream,
+        overwrite_output=False,
+        cmd=None,
+    ):
+        captured_run["stream"] = stream
+        captured_run["overwrite_output"] = overwrite_output
+        captured_run["cmd"] = cmd
+
+        # ffmpegが生成したファイルを再現
+        output_file.write_bytes(b"trimmed video")
+
+    monkeypatch.setattr(
+        utils.yt_dlp,
+        "YoutubeDL",
+        DummyYoutubeDL,
+    )
+
+    monkeypatch.setattr(
+        utils.ffmpeg,
+        "input",
+        dummy_input,
+    )
+
+    monkeypatch.setattr(
+        utils.ffmpeg,
+        "output",
+        dummy_output,
+    )
+
+    monkeypatch.setattr(
+        utils.ffmpeg,
+        "run",
+        dummy_run,
+    )
+
+    with client.application.app_context():
+        result = utils.download(
+            "test_video",
+            str(tmp_path),
+            start_time="01:00",
+            end_time="02:00",
+        )
+
+    assert result == str(downloaded_file.resolve())
+
+    assert captured_input == {
+        "filename": str(downloaded_file),
+        "ss": "01:00",
+        "to": "02:00",
+    }
+
+    assert captured_output == {
+        "stream": "input_stream",
+        "filename": str(output_file),
+        "vcodec": "libx264",
+        "acodec": "aac",
+    }
+
+    assert captured_run["stream"] == "output_stream"
+    assert captured_run["overwrite_output"] is True
+
+def test_download_audio_trim_uses_correct_ffmpeg_options(
+    client,
+    tmp_path,
+    monkeypatch,
+):
+    downloaded_file = tmp_path / "test_audio.mp3"
+    downloaded_file.write_bytes(b"dummy audio")
+
+    output_file = tmp_path / "test_audio.tmp.mp3"
+
+    captured_input = {}
+    captured_output = {}
+
+    class DummyYoutubeDL:
+        def __init__(self, options):
+            pass
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc_value, traceback):
+            pass
+
+        def extract_info(self, video_id, download=True):
+            return {
+                "id": video_id,
+                "title": "Test Audio",
+            }
+
+        def prepare_filename(self, info):
+            return str(tmp_path / "test_audio.webm")
+
+    def dummy_input(filename, ss=None, to=None):
+        captured_input["filename"] = filename
+        captured_input["ss"] = ss
+        captured_input["to"] = to
+        return "input_stream"
+
+    def dummy_output(stream, filename, acodec=None):
+        captured_output["stream"] = stream
+        captured_output["filename"] = filename
+        captured_output["acodec"] = acodec
+        return "output_stream"
+
+    def dummy_run(
+        stream,
+        overwrite_output=False,
+        cmd=None,
+    ):
+        output_file.write_bytes(b"trimmed audio")
+
+    monkeypatch.setattr(
+        utils.yt_dlp,
+        "YoutubeDL",
+        DummyYoutubeDL,
+    )
+
+    monkeypatch.setattr(
+        utils.ffmpeg,
+        "input",
+        dummy_input,
+    )
+
+    monkeypatch.setattr(
+        utils.ffmpeg,
+        "output",
+        dummy_output,
+    )
+
+    monkeypatch.setattr(
+        utils.ffmpeg,
+        "run",
+        dummy_run,
+    )
+
+    # download() は .webm → .mp3 と変換した
+    # ファイルを探すため、実際のmp3を用意する
+    downloaded_file.write_bytes(b"dummy audio")
+
+    with client.application.app_context():
+        result = utils.download(
+            "test_audio",
+            str(tmp_path),
+            quality="192",
+            start_time="01:00",
+            end_time="02:00",
+            download_type="audio",
+        )
+
+    assert result == str(downloaded_file.resolve())
+
+    assert captured_input == {
+        "filename": str(downloaded_file),
+        "ss": "01:00",
+        "to": "02:00",
+    }
+
+    assert captured_output == {
+        "stream": "input_stream",
+        "filename": str(output_file),
+        "acodec": "libmp3lame",
+    }
+
+def test_download_trim_error_removes_output_file(
+    client,
+    tmp_path,
+    monkeypatch,
+):
+    downloaded_file = tmp_path / "test_video.mp4"
+    downloaded_file.write_bytes(b"dummy video")
+
+    output_file = tmp_path / "test_video.tmp.mp4"
+
+    class DummyYoutubeDL:
+        def __init__(self, options):
+            pass
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc_value, traceback):
+            pass
+
+        def extract_info(self, video_id, download=True):
+            return {
+                "id": video_id,
+                "title": "Test Video",
+            }
+
+        def prepare_filename(self, info):
+            return str(downloaded_file)
+
+    def dummy_input(filename, ss=None, to=None):
+        return "input_stream"
+
+    def dummy_output(stream, filename, vcodec=None, acodec=None):
+        # FFmpegが出力ファイルを作った状態を再現
+        output_file.write_bytes(b"partial output")
+        return "output_stream"
+
+    def dummy_run(
+        stream,
+        overwrite_output=False,
+        cmd=None,
+    ):
+        raise RuntimeError("FFmpeg failed")
+
+    monkeypatch.setattr(
+        utils.yt_dlp,
+        "YoutubeDL",
+        DummyYoutubeDL,
+    )
+
+    monkeypatch.setattr(
+        utils.ffmpeg,
+        "input",
+        dummy_input,
+    )
+
+    monkeypatch.setattr(
+        utils.ffmpeg,
+        "output",
+        dummy_output,
+    )
+
+    monkeypatch.setattr(
+        utils.ffmpeg,
+        "run",
+        dummy_run,
+    )
+
+    with client.application.app_context():
+        with pytest.raises(
+            RuntimeError,
+            match="トリミング処理に失敗しました: FFmpeg failed",
+        ):
+            utils.download(
+                "test_video",
+                str(tmp_path),
+                start_time="01:00",
+                end_time="02:00",
+            )
+
+    assert not output_file.exists()
