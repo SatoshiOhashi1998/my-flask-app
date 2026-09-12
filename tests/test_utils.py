@@ -301,7 +301,7 @@ def test_download_db_error_does_not_raise(
 def test_download_rejects_empty_video_id():
     with pytest.raises(ValueError, match="video_idは空にできません"):
         utils.download(
-            "",
+            "   ",
             "dummy_dir",
         )
 
