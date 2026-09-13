@@ -3,7 +3,6 @@ import shutil
 import re
 from typing import List, Optional
 
-import ffmpeg
 
 from app.models import VideoDataModel, MusicDataModel
 from app.modules.media_manager import (
@@ -19,6 +18,7 @@ from app.modules.youtube_downloader import (
 from app.modules.media_paths import (
     MEDIA_BASE_PATHS,
 )
+from app.modules.media_processor import trim_media
 
 FFMPEG_PATH = os.getenv("FFMPEG_PATH")
 FFMPEG_DIR = os.getenv("FFMPEG_DIR")
@@ -59,49 +59,20 @@ def download(
 
     if start_time or end_time:
         ext = ".tmp.mp3" if download_type == "audio" else ".tmp.mp4"
-        output_file = (
-            os.path.splitext(downloaded_filename)[0] + ext
+        output_file = os.path.splitext(downloaded_filename)[0] + ext
+
+        trim_media(
+            downloaded_filename,
+            output_file,
+            start_time,
+            end_time,
+            download_type,
         )
 
-        try:
-            stream = ffmpeg.input(
-                downloaded_filename,
-                ss=start_time,
-                to=end_time,
-            )
-
-            if download_type == "audio":
-                stream = ffmpeg.output(
-                    stream,
-                    output_file,
-                    acodec="libmp3lame",
-                )
-            else:
-                stream = ffmpeg.output(
-                    stream,
-                    output_file,
-                    vcodec="libx264",
-                    acodec="aac",
-                )
-
-            ffmpeg.run(
-                stream,
-                overwrite_output=True,
-                cmd=FFMPEG_PATH,
-            )
-
-            if trim_overwrite:
-                os.replace(output_file, downloaded_filename)
-            else:
-                target_filename = output_file
-
-        except Exception as e:
-            if os.path.exists(output_file):
-                os.remove(output_file)
-
-            raise RuntimeError(
-                f"トリミング処理に失敗しました: {str(e)}"
-            )
+        if trim_overwrite:
+            os.replace(output_file, downloaded_filename)
+        else:
+            target_filename = output_file
 
     final_target_path = os.path.abspath(
         os.path.join(

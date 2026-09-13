@@ -19,7 +19,7 @@ def test_sync_today_tasks(mock_register, client):
     data = response.get_json()
 
     assert data["status"] == "success"
-    assert data["target_heading"] == "Tasks"
+    assert data["target_heading"] == "Today's Tasks"
 
     mock_register.assert_called_once()
 

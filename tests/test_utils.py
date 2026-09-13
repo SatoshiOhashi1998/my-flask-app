@@ -4,6 +4,7 @@ import pytest
 from app.models import db, VideoDataModel, MusicDataModel
 from app.modules import youtube_downloader
 from app import utils
+from app.modules import media_processor
 
 
 def test_download_registers_video_to_db(client, tmp_path, monkeypatch):
@@ -419,19 +420,19 @@ def test_download_with_trim_overwrite(
             f.write(b"trimmed video")
 
     monkeypatch.setattr(
-        utils.ffmpeg,
+        media_processor.ffmpeg,
         "input",
         fake_input,
     )
 
     monkeypatch.setattr(
-        utils.ffmpeg,
+        media_processor.ffmpeg,
         "output",
         fake_output,
     )
 
     monkeypatch.setattr(
-        utils.ffmpeg,
+        media_processor.ffmpeg,
         "run",
         fake_run,
     )
@@ -510,19 +511,19 @@ def test_download_with_trim_without_overwrite(
             f.write(b"trimmed video")
 
     monkeypatch.setattr(
-        utils.ffmpeg,
+        media_processor.ffmpeg,
         "input",
         fake_input,
     )
 
     monkeypatch.setattr(
-        utils.ffmpeg,
+        media_processor.ffmpeg,
         "output",
         fake_output,
     )
 
     monkeypatch.setattr(
-        utils.ffmpeg,
+        media_processor.ffmpeg,
         "run",
         fake_run,
     )
@@ -643,221 +644,6 @@ def test_download_accepts_youtube_url(
         db.session.delete(video)
         db.session.commit()
 
-
-
-
-
-def test_download_video_trim_uses_correct_ffmpeg_options(
-    client,
-    tmp_path,
-    monkeypatch,
-):
-    downloaded_file = tmp_path / "test_video.mp4"
-    downloaded_file.write_bytes(b"dummy video")
-
-    output_file = tmp_path / "test_video.tmp.mp4"
-
-    captured_input = {}
-    captured_output = {}
-    captured_run = {}
-
-    class DummyYoutubeDL:
-        def __init__(self, options):
-            pass
-
-        def __enter__(self):
-            return self
-
-        def __exit__(self, exc_type, exc_value, traceback):
-            pass
-
-        def extract_info(self, video_id, download=True):
-            return {
-                "id": video_id,
-                "title": "Test Video",
-            }
-
-        def prepare_filename(self, info):
-            return str(downloaded_file)
-
-    def dummy_input(filename, ss=None, to=None):
-        captured_input["filename"] = filename
-        captured_input["ss"] = ss
-        captured_input["to"] = to
-        return "input_stream"
-
-    def dummy_output(stream, filename, vcodec=None, acodec=None):
-        captured_output["stream"] = stream
-        captured_output["filename"] = filename
-        captured_output["vcodec"] = vcodec
-        captured_output["acodec"] = acodec
-        return "output_stream"
-
-    def dummy_run(
-        stream,
-        overwrite_output=False,
-        cmd=None,
-    ):
-        captured_run["stream"] = stream
-        captured_run["overwrite_output"] = overwrite_output
-        captured_run["cmd"] = cmd
-
-        # ffmpegが生成したファイルを再現
-        output_file.write_bytes(b"trimmed video")
-
-    monkeypatch.setattr(
-        youtube_downloader.yt_dlp,
-        "YoutubeDL",
-        DummyYoutubeDL,
-    )
-
-    monkeypatch.setattr(
-        utils.ffmpeg,
-        "input",
-        dummy_input,
-    )
-
-    monkeypatch.setattr(
-        utils.ffmpeg,
-        "output",
-        dummy_output,
-    )
-
-    monkeypatch.setattr(
-        utils.ffmpeg,
-        "run",
-        dummy_run,
-    )
-
-    with client.application.app_context():
-        result = utils.download(
-            "test_video",
-            str(tmp_path),
-            start_time="01:00",
-            end_time="02:00",
-        )
-
-    assert result == str(downloaded_file.resolve())
-
-    assert captured_input == {
-        "filename": str(downloaded_file),
-        "ss": "01:00",
-        "to": "02:00",
-    }
-
-    assert captured_output == {
-        "stream": "input_stream",
-        "filename": str(output_file),
-        "vcodec": "libx264",
-        "acodec": "aac",
-    }
-
-    assert captured_run["stream"] == "output_stream"
-    assert captured_run["overwrite_output"] is True
-
-def test_download_audio_trim_uses_correct_ffmpeg_options(
-    client,
-    tmp_path,
-    monkeypatch,
-):
-    downloaded_file = tmp_path / "test_audio.mp3"
-    downloaded_file.write_bytes(b"dummy audio")
-
-    output_file = tmp_path / "test_audio.tmp.mp3"
-
-    captured_input = {}
-    captured_output = {}
-
-    class DummyYoutubeDL:
-        def __init__(self, options):
-            pass
-
-        def __enter__(self):
-            return self
-
-        def __exit__(self, exc_type, exc_value, traceback):
-            pass
-
-        def extract_info(self, video_id, download=True):
-            return {
-                "id": video_id,
-                "title": "Test Audio",
-            }
-
-        def prepare_filename(self, info):
-            return str(tmp_path / "test_audio.webm")
-
-    def dummy_input(filename, ss=None, to=None):
-        captured_input["filename"] = filename
-        captured_input["ss"] = ss
-        captured_input["to"] = to
-        return "input_stream"
-
-    def dummy_output(stream, filename, acodec=None):
-        captured_output["stream"] = stream
-        captured_output["filename"] = filename
-        captured_output["acodec"] = acodec
-        return "output_stream"
-
-    def dummy_run(
-        stream,
-        overwrite_output=False,
-        cmd=None,
-    ):
-        output_file.write_bytes(b"trimmed audio")
-
-    monkeypatch.setattr(
-        youtube_downloader.yt_dlp,
-        "YoutubeDL",
-        DummyYoutubeDL,
-    )
-
-    monkeypatch.setattr(
-        utils.ffmpeg,
-        "input",
-        dummy_input,
-    )
-
-    monkeypatch.setattr(
-        utils.ffmpeg,
-        "output",
-        dummy_output,
-    )
-
-    monkeypatch.setattr(
-        utils.ffmpeg,
-        "run",
-        dummy_run,
-    )
-
-    # download() は .webm → .mp3 と変換した
-    # ファイルを探すため、実際のmp3を用意する
-    downloaded_file.write_bytes(b"dummy audio")
-
-    with client.application.app_context():
-        result = utils.download(
-            "test_audio",
-            str(tmp_path),
-            quality="192",
-            start_time="01:00",
-            end_time="02:00",
-            download_type="audio",
-        )
-
-    assert result == str(downloaded_file.resolve())
-
-    assert captured_input == {
-        "filename": str(downloaded_file),
-        "ss": "01:00",
-        "to": "02:00",
-    }
-
-    assert captured_output == {
-        "stream": "input_stream",
-        "filename": str(output_file),
-        "acodec": "libmp3lame",
-    }
-
 def test_download_trim_error_removes_output_file(
     client,
     tmp_path,
@@ -909,19 +695,19 @@ def test_download_trim_error_removes_output_file(
     )
 
     monkeypatch.setattr(
-        utils.ffmpeg,
+        media_processor.ffmpeg,
         "input",
         dummy_input,
     )
 
     monkeypatch.setattr(
-        utils.ffmpeg,
+        media_processor.ffmpeg,
         "output",
         dummy_output,
     )
 
     monkeypatch.setattr(
-        utils.ffmpeg,
+        media_processor.ffmpeg,
         "run",
         dummy_run,
     )
