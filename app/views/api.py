@@ -29,9 +29,9 @@ from app.modules.youtube_api import fetch_youtube_video_info, fetch_youtube_vide
 from app.modules.use_clip_board import copy_code
 from app.modules.media_paths import get_media_directories
 from app.utils import (
-    MEDIA_BASE_PATHS,
     download,
 )
+from app.modules.media_paths import MEDIA_BASE_PATHS
 
 from myutils.markdown.vault import Vault
 from myutils.markdown.note_processor import NoteGenerator
