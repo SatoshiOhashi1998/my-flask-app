@@ -1,8 +1,6 @@
 import os
 import shutil
-import re
-from typing import List, Optional
-
+from typing import Optional
 
 from app.models import VideoDataModel, MusicDataModel
 from app.modules.media_manager import (
@@ -14,16 +12,7 @@ from app.modules.youtube_downloader import (
     validate_download_params,
     download_from_youtube,
 )
-
-from app.modules.media_paths import (
-    MEDIA_BASE_PATHS,
-)
 from app.modules.media_processor import trim_media
-
-FFMPEG_PATH = os.getenv("FFMPEG_PATH")
-FFMPEG_DIR = os.getenv("FFMPEG_DIR")
-
-YOUTUBE_COOKIE_FILE = os.getenv("YOUTUBE_COOKIE_FILE")
 
 
 def download(
@@ -84,7 +73,6 @@ def download(
     if os.path.abspath(target_filename) != final_target_path:
         shutil.move(target_filename, final_target_path)
 
-    # DBへの登録処理
     try:
         new_name = os.path.basename(final_target_path)
 
