@@ -3,7 +3,7 @@ import locale
 import pytest
 
 from app.models import Comment, VideoDataModel, MusicDataModel, db
-from app.utils import MEDIA_BASE_PATHS
+from app.modules.media_paths import MEDIA_BASE_PATHS
 
 
 # ==========================================

@@ -28,7 +28,7 @@ from app.modules.video_manager import (
 from app.modules.youtube_api import fetch_youtube_video_info, fetch_youtube_videos
 from app.modules.use_clip_board import copy_code
 from app.modules.media_paths import get_media_directories
-from app.utils import (
+from app.modules.media_downloader import (
     download,
 )
 from app.modules.media_paths import MEDIA_BASE_PATHS

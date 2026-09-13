@@ -3,7 +3,7 @@ import pytest
 
 from app.models import db, VideoDataModel, MusicDataModel
 from app.modules import youtube_downloader
-from app import utils
+from app.modules import media_downloader
 from app.modules import media_processor
 
 
@@ -50,7 +50,7 @@ def test_download_registers_video_to_db(client, tmp_path, monkeypatch):
             db.session.delete(existing)
             db.session.commit()
 
-        result = utils.download(
+        result = media_downloader.download(
             video_id,
             str(tmp_path),
             quality="1080",
@@ -122,7 +122,7 @@ def test_download_registers_audio_to_db(client, tmp_path, monkeypatch):
             db.session.delete(existing)
             db.session.commit()
 
-        result = utils.download(
+        result = media_downloader.download(
             music_id,
             str(tmp_path),
             quality="192",
@@ -208,7 +208,7 @@ def test_download_removes_nonexistent_video_records(
         downloaded_file = tmp_path / "downloaded.mp4"
         downloaded_file.write_bytes(b"dummy video")
 
-        result = utils.download(
+        result = media_downloader.download(
             video_id,
             str(tmp_path),
             download_type="video",
@@ -277,13 +277,13 @@ def test_download_db_error_does_not_raise(
         raise Exception("DB error")
 
     monkeypatch.setattr(
-        utils,
+        media_downloader,
         "insert_media",
         raise_db_error,
     )
 
     with client.application.app_context():
-        result = utils.download(
+        result = media_downloader.download(
             video_id,
             str(tmp_path),
             download_type="video",
@@ -302,7 +302,7 @@ def test_download_db_error_does_not_raise(
 
 def test_download_rejects_empty_video_id():
     with pytest.raises(ValueError, match="video_idは空にできません"):
-        utils.download(
+        media_downloader.download(
             "   ",
             "dummy_dir",
         )
@@ -310,7 +310,7 @@ def test_download_rejects_empty_video_id():
 
 def test_download_rejects_invalid_download_type():
     with pytest.raises(ValueError, match="download_typeが不正です"):
-        utils.download(
+        media_downloader.download(
             "test_video",
             "dummy_dir",
             download_type="invalid",
@@ -319,7 +319,7 @@ def test_download_rejects_invalid_download_type():
 
 def test_download_rejects_invalid_audio_quality():
     with pytest.raises(ValueError, match="音声のqualityが不正です"):
-        utils.download(
+        media_downloader.download(
             "test_video",
             "dummy_dir",
             quality="256",
@@ -329,7 +329,7 @@ def test_download_rejects_invalid_audio_quality():
 
 def test_download_rejects_invalid_video_quality():
     with pytest.raises(ValueError, match="動画のqualityが不正です"):
-        utils.download(
+        media_downloader.download(
             "test_video",
             "dummy_dir",
             quality="abc",
@@ -339,7 +339,7 @@ def test_download_rejects_invalid_video_quality():
 
 def test_download_rejects_negative_video_quality():
     with pytest.raises(ValueError, match="正の整数"):
-        utils.download(
+        media_downloader.download(
             "test_video",
             "dummy_dir",
             quality="-1",
@@ -349,7 +349,7 @@ def test_download_rejects_negative_video_quality():
 
 def test_download_rejects_invalid_start_time():
     with pytest.raises(ValueError, match="時間指定の形式が不正です"):
-        utils.download(
+        media_downloader.download(
             "test_video",
             "dummy_dir",
             start_time="abc",
@@ -358,7 +358,7 @@ def test_download_rejects_invalid_start_time():
 
 def test_download_rejects_invalid_end_time():
     with pytest.raises(ValueError, match="時間指定の形式が不正です"):
-        utils.download(
+        media_downloader.download(
             "test_video",
             "dummy_dir",
             end_time="abc",
@@ -367,7 +367,7 @@ def test_download_rejects_invalid_end_time():
 
 def test_download_rejects_invalid_time_range():
     with pytest.raises(ValueError, match="start_timeはend_timeより前"):
-        utils.download(
+        media_downloader.download(
             "test_video",
             "dummy_dir",
             start_time="02:00",
@@ -438,7 +438,7 @@ def test_download_with_trim_overwrite(
     )
 
     with client.application.app_context():
-        result = utils.download(
+        result = media_downloader.download(
             video_id,
             str(tmp_path),
             start_time="00:10",
@@ -529,7 +529,7 @@ def test_download_with_trim_without_overwrite(
     )
 
     with client.application.app_context():
-        result = utils.download(
+        result = media_downloader.download(
             video_id,
             str(tmp_path),
             start_time="00:10",
@@ -570,7 +570,7 @@ def test_download_rejects_empty_save_dir():
         ValueError,
         match="save_dirは空にできません",
     ):
-        utils.download(
+        media_downloader.download(
             "test_video",
             "",
         )
@@ -583,7 +583,7 @@ def test_download_rejects_save_dir_that_is_file(tmp_path):
         ValueError,
         match="save_dirがディレクトリではありません",
     ):
-        utils.download(
+        media_downloader.download(
             "test_video",
             str(file_path),
         )
@@ -627,7 +627,7 @@ def test_download_accepts_youtube_url(
     )
 
     with client.application.app_context():
-        result = utils.download(
+        result = media_downloader.download(
             "https://www.youtube.com/watch?v=test_video&t=30",
             str(tmp_path),
         )
@@ -717,7 +717,7 @@ def test_download_trim_error_removes_output_file(
             RuntimeError,
             match="トリミング処理に失敗しました: FFmpeg failed",
         ):
-            utils.download(
+            media_downloader.download(
                 "test_video",
                 str(tmp_path),
                 start_time="01:00",
