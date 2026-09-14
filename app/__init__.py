@@ -11,7 +11,7 @@ from flask_cors import CORS
 from app.log import setup_logging
 from app.views.web import web
 from app.views.api import api_bp
-from app.modules.scheduler import UrlScheduler
+from app.scheduler import UrlScheduler
 from app.models import db
 
 

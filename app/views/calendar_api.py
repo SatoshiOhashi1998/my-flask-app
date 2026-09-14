@@ -3,7 +3,7 @@ from datetime import datetime, timedelta
 
 from flask import jsonify, request
 
-from app.modules.getWeatherData import (
+from app.weather import (
     register_today_weather_to_calendar,
     register_tomorrow_weather_to_calendar,
 )
