@@ -263,7 +263,7 @@ def test_delete_comment(client):
         assert deleted is None
 
 
-@patch("app.views.api.export_today_comments_to_md")
+@patch("app.views.comment_api.export_today_comments_to_md")
 def test_export_comments(mock_export, client):
     response = client.get(
         "/api/comments/export"
@@ -974,7 +974,7 @@ def test_delete_comment_not_found(client):
 # 11. YouTube ダウンロード API
 # ==========================================
 
-@patch("app.views.api.get_media_directories")
+@patch("app.views.youtube_api_view.get_media_directories")
 def test_youtube_download_get(
     mock_get_directories,
     client,
@@ -1001,7 +1001,7 @@ def test_youtube_download_get(
 
 
 @patch(
-    "app.views.api.get_media_directories",
+    "app.views.youtube_api_view.get_media_directories",
     side_effect=Exception("directory error"),
 )
 def test_youtube_download_get_error(
@@ -1053,7 +1053,7 @@ def test_youtube_download_missing_save_dir(client):
     )
 
 
-@patch("app.views.api.download")
+@patch("app.views.youtube_api_view.download")
 def test_youtube_download_success(
     mock_download,
     client,
@@ -1094,7 +1094,7 @@ def test_youtube_download_success(
     )
 
 
-@patch("app.views.api.download")
+@patch("app.views.youtube_api_view.download")
 def test_youtube_download_default_options(
     mock_download,
     client,
@@ -1122,7 +1122,7 @@ def test_youtube_download_default_options(
 
 
 @patch(
-    "app.views.api.download",
+    "app.views.youtube_api_view.download",
     side_effect=Exception("download error"),
 )
 def test_youtube_download_error(
@@ -1171,7 +1171,7 @@ def test_youtube_search_empty_query_explicit(client):
     assert data["items"] == []
 
 
-@patch("app.views.api.fetch_youtube_videos")
+@patch("app.views.youtube_api_view.fetch_youtube_videos")
 def test_youtube_search_success(
     mock_fetch,
     client,
@@ -1204,7 +1204,7 @@ def test_youtube_search_success(
 
 
 @patch(
-    "app.views.api.fetch_youtube_videos",
+    "app.views.youtube_api_view.fetch_youtube_videos",
     side_effect=Exception("YouTube API error"),
 )
 def test_youtube_search_error(
@@ -1222,7 +1222,7 @@ def test_youtube_search_error(
     assert data["error"] == "YouTube API error"
 
 
-@patch("app.views.api.fetch_youtube_video_info")
+@patch("app.views.youtube_api_view.fetch_youtube_video_info")
 def test_youtube_info_success(
     mock_fetch,
     client,
@@ -1251,7 +1251,7 @@ def test_youtube_info_success(
 
 
 @patch(
-    "app.views.api.fetch_youtube_video_info",
+    "app.views.youtube_api_view.fetch_youtube_video_info",
     return_value=None,
 )
 def test_youtube_info_not_found(
@@ -1270,7 +1270,7 @@ def test_youtube_info_not_found(
 
 
 @patch(
-    "app.views.api.fetch_youtube_video_info",
+    "app.views.youtube_api_view.fetch_youtube_video_info",
     side_effect=Exception("YouTube info error"),
 )
 def test_youtube_info_error(

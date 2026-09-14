@@ -33,12 +33,16 @@ from app.modules.media_downloader import (
     download,
 )
 from app.views.media_api import register_media_routes
+from app.views.comment_api import register_comment_routes
+from app.views.youtube_api_view import register_youtube_routes
 
 from myutils.markdown.vault import Vault
 from myutils.markdown.note_processor import NoteGenerator
 
 api_bp = Blueprint("api", __name__)
 register_media_routes(api_bp)
+register_comment_routes(api_bp)
+register_youtube_routes(api_bp)
 
 
 def _execute_task_sync(date_str: str, start_time: str, target_heading: str = "Today's Tasks"):
@@ -63,151 +67,6 @@ def _execute_task_sync(date_str: str, start_time: str, target_heading: str = "To
             "status": "error",
             "message": f"タスクの同期処理中にエラーが発生しました: {str(e)}"
         }), 500
-
-# ==========================================
-# 3. コメント関連
-# ==========================================
-
-@api_bp.route("/api/comments/<item_id>", methods=["GET"])
-def get_comments(item_id):
-    media_type = request.args.get("type", "video")
-    comments = (
-        Comment.query.filter_by(video_id=item_id, media_type=media_type)
-        .order_by(Comment.created_at.desc())
-        .all()
-    )
-    return jsonify([
-        {
-            "id": c.id,
-            "content": c.content,
-            "media_type": c.media_type,
-            "created_at": c.created_at.strftime("%Y-%m-%d %H:%M:%S"),
-        }
-        for c in comments
-    ])
-
-@api_bp.route("/api/comments/<item_id>/others", methods=["GET"])
-def get_other_comments(item_id):
-    exclude_type = request.args.get("exclude_type", "youtube")
-
-    comments = (
-        Comment.query
-        .filter(
-            Comment.video_id == item_id,
-            Comment.media_type != exclude_type
-        )
-        .order_by(Comment.created_at.desc())
-        .all()
-    )
-
-    return jsonify([
-        {
-            "id": c.id,
-            "content": c.content,
-            "media_type": c.media_type,
-            "created_at": c.created_at.strftime("%Y-%m-%d %H:%M:%S"),
-        }
-        for c in comments
-    ])
-
-
-@api_bp.route("/api/comments/<item_id>", methods=["POST"])
-def post_comment(item_id):
-    data = request.json or {}
-    new_comment = Comment(
-        video_id=item_id,
-        media_type=data.get("media_type", "video"),
-        content=data.get("content"),
-    )
-    db.session.add(new_comment)
-    db.session.commit()
-    return jsonify({"message": "コメントを投稿しました"}), 201
-
-
-@api_bp.route("/api/comments/<comment_id>", methods=["PUT"])
-def update_comment(comment_id):
-    comment = Comment.query.get_or_404(comment_id)
-    comment.content = (request.json or {}).get("content")
-    db.session.commit()
-    return jsonify({"message": "コメントを更新しました"}), 200
-
-
-@api_bp.route("/api/comments/<comment_id>", methods=["DELETE"])
-def delete_comment(comment_id):
-    comment = Comment.query.get_or_404(comment_id)
-    db.session.delete(comment)
-    db.session.commit()
-    return jsonify({"message": "コメントを削除しました"}), 200
-
-
-@api_bp.route("/api/comments/export", methods=["GET"])
-def export_comment():
-    export_today_comments_to_md()
-    return jsonify({"message": "本日のコメントを出力しました"}), 200
-
-
-# ==========================================
-# 4. YouTube API 連携・ダウンロード関連
-# ==========================================
-
-@api_bp.route("/api/youtube/download", methods=["GET", "POST"])
-def download_video():
-    if request.method == "GET":
-        try:
-            return jsonify(get_media_directories()), 200
-        except Exception as e:
-            return jsonify({"error": str(e)}), 500
-
-    if request.method == "POST":
-        data = request.json or {}
-        video_id = data.get("video_id")
-        save_dir = data.get("save_dir")
-
-        if not video_id or not save_dir:
-            return jsonify({"error": "video_id and save_dir are required"}), 400
-
-        try:
-            target_path = download(
-                video_id=video_id,
-                save_dir=save_dir,
-                quality=data.get("save_quality", "1080"),
-                start_time=data.get("start_time"),
-                end_time=data.get("end_time"),
-                download_type=data.get("download_type", "video"),
-            )
-            return jsonify({
-                "message": f"{video_id} のダウンロードが完了しました",
-                "path": target_path,
-            }), 200
-        except Exception as e:
-            return jsonify({"error": f"ダウンロードに失敗しました: {str(e)}"}), 500
-
-
-@api_bp.route("/api/youtube/search", methods=["GET"])
-def search_youtube():
-    query = request.args.get("q", "")
-    if not query:
-        return jsonify({"items": []}), 200
-
-    try:
-        items = fetch_youtube_videos(query)
-        return jsonify({"items": items}), 200
-    except Exception as e:
-        traceback.print_exc()
-        return jsonify({"error": str(e)}), 500
-
-
-@api_bp.route("/api/youtube/<video_id>/info", methods=["GET"])
-def get_youtube_info(video_id):
-    try:
-        video_info = fetch_youtube_video_info(video_id)
-        if not video_info:
-            return jsonify({"error": "Video not found"}), 404
-        return jsonify(video_info), 200
-    except Exception as e:
-        traceback.print_exc()
-        return jsonify({"error": str(e)}), 500
-
 
 # ==========================================
 # 5. Markdown・ユーティリティ関連
