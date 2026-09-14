@@ -14,7 +14,7 @@ from app.modules.getWeatherData import (
     register_today_weather_to_calendar,
     register_tomorrow_weather_to_calendar,
 )
-from app.modules.use_md_file import (
+from app.modules.vocabulary_manager import (
     export_english_vocabulary,
     export_single_vocabulary,
 )
