@@ -48,7 +48,7 @@ DEFAULT_EXTENSIONS = {
     ".css",
     ".js",
     ".jsx",
-    ".json",
+    # ".json",
     ".sql",
     ".md",
     ".txt",

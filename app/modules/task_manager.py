@@ -5,12 +5,12 @@ from typing import Any, Dict, List, Optional, Union
 
 from myutils.markdown.note_processor import Note, NoteParser
 
-from app.modules.send_gas import send_to_gas
+from myutils.gas_api.use_gas import send_to_gas
 
 
 tz = timezone(timedelta(hours=9))
 
-GAS_URL = os.getenv("GAS_URL")
+GAS_URL = os.getenv("GAS_UTIL_URL")
 
 DAILY_DIR = os.getenv("DAILY_NOTE_DIR")
 WEEKLY_DIR = os.getenv("WEEKLY_NOTE_DIR")
