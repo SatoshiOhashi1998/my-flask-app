@@ -1,20 +1,21 @@
-import csv
-import re
-from typing import List, Optional, Union, Dict, Any
-from datetime import datetime, timedelta, timezone
 import os
+import re
+from datetime import datetime, timedelta, timezone
+from typing import Any, Dict, List, Optional, Union
+
+from myutils.markdown.note_processor import Note, NoteParser
 
 from myutils.gas_api.use_gas import send_to_gas
-from myutils.markdown.vault import Note, Vault
-from myutils.markdown.note_processor import NoteGenerator, NoteParser
-from myutils.markdown.utils import MarkdownUtils
 
-# タイムゾーン・環境変数の設定
-tz = timezone(timedelta(hours=+9), "JST")
+
+tz = timezone(timedelta(hours=9))
+
 GAS_URL = os.getenv("GAS_UTIL_URL")
+
 DAILY_DIR = os.getenv("DAILY_NOTE_DIR")
 WEEKLY_DIR = os.getenv("WEEKLY_NOTE_DIR")
 DAILY_TASK = os.getenv("DAILY_TASK")
+
 
 # タグに応じた送信先カレンダーのマップ
 TAG_CALENDAR_MAP = {
@@ -37,6 +38,7 @@ TAG_CALENDAR_MAP = {
     "将棋": "1 like",
     # その他
     "天気": "Daily Life",
+    "勉強": "Diary",
     "日記": "Diary",
 }
 
@@ -60,6 +62,7 @@ TAG_COLOR_MAP = {
     "雑談配信": "CYAN",
     "傾聴雑談": "RED",
     "倍速雑談": "RED",
+    "勉強": "RED",
     "読書": "RED",
     "将棋": "CYAN",
     # グレー: その他
@@ -68,154 +71,6 @@ TAG_COLOR_MAP = {
     "天気": "GREEN",
 }
 
-
-# ==========================================
-# 共通内部ヘルパー関数
-# ==========================================
-
-def _parse_lines_to_wordholic(lines: List[str], comment: str) -> List[Dict[str, str]]:
-    """箇条書きリストの各行を解析し、Wordholic形式の辞書リストに変換する"""
-    rows = []
-    for line in lines:
-        parsed = MarkdownUtils.parse_vocabulary_line(line)
-        if parsed:
-            rows.append({
-                "FrontText": parsed["word"],
-                "BackText": parsed["meaning"],
-                "Comment": comment,
-                "FrontTextLanguage": "",
-                "BackTextLanguage": "",
-            })
-    return rows
-
-
-# ==========================================
-# Wordholic / CSV 関連関数
-# ==========================================
-
-def convert_single_result_to_wordholic(single_result: Dict[str, Any]) -> List[Dict[str, str]]:
-    """単一見出しの解析結果をWordholic形式に変換"""
-    comment = single_result.get("file_name", "")
-    bullets = single_result.get("lists", {}).get("bullets", [])
-    return _parse_lines_to_wordholic(bullets, comment)
-
-
-def convert_all_sub_headings_to_wordholic(all_results: List[Dict[str, Any]]) -> List[Dict[str, str]]:
-    """全サブ見出しの解析結果をWordholic形式に変換"""
-    all_rows = []
-    for res in all_results:
-        comment = res.get("heading", "")
-        bullets = res.get("lists", {}).get("bullets", [])
-        all_rows.extend(_parse_lines_to_wordholic(bullets, comment))
-    return all_rows
-
-
-def export_rows_to_csv(wordholic_rows: List[Dict[str, str]], output_csv_path: str) -> None:
-    """Wordholic形式の辞書リストをCSVファイルへ出力"""
-    if not wordholic_rows:
-        print("⚠️ 出力するデータが見つかりませんでした。")
-        return
-
-    fieldnames = ["FrontText", "BackText", "Comment", "FrontTextLanguage", "BackTextLanguage"]
-
-    try:
-        with open(output_csv_path, mode="w", encoding="utf-8", newline="") as f:
-            writer = csv.DictWriter(f, fieldnames=fieldnames)
-            writer.writeheader()
-            writer.writerows(wordholic_rows)
-        print(f"✅ CSV出力完了: {output_csv_path}")
-    except Exception as e:
-        print(f"❌ CSV出力エラー: {e}")
-
-
-def export_english_vocabulary() -> None:
-    """英単語のMarkdownからWordholic CSVを出力"""
-    file_path = os.getenv("PATH_ENG")
-    target_heading = os.getenv("TARGET_HEAD_ENG")
-    if not file_path or not target_heading:
-        print("❌ エラー: PATH_ENG または TARGET_HEAD_ENG が設定されていません。")
-        return
-
-    parser = NoteParser(Note(file_path))
-    all_results = parser.extract_lists_from_all_sub_headings(target_heading)
-    all_rows = convert_all_sub_headings_to_wordholic(all_results)
-    export_rows_to_csv(all_rows, "output_all.csv")
-
-
-def export_single_vocabulary() -> None:
-    """単一語彙のMarkdownからWordholic CSVを出力"""
-    file_path = os.getenv("PATH_VOCAB")
-    target_heading = os.getenv("TARGET_HEAD_VOCAB")
-    if not file_path or not target_heading:
-        print("❌ エラー: PATH_VOCAB または TARGET_HEAD_VOCAB が設定されていません。")
-        return
-
-    parser = NoteParser(Note(file_path))
-    single_result = parser.extract_lists_from_heading(target_heading)
-    single_rows = convert_single_result_to_wordholic(single_result)
-    export_rows_to_csv(single_rows, "output_single.csv")
-
-
-# ==========================================
-# ノート自動生成関数
-# ==========================================
-
-def get_daily_template_spec() -> dict:
-    """環境変数から曜日別テンプレートのマップを構築する"""
-    default_template = os.getenv("DAILY_NOTE_TEMPLATE")
-    return {
-        "MONDAY": os.getenv("DAILY_NOTE_TEMPLATE_MONDAY", default_template),
-        "TUESDAY": os.getenv("DAILY_NOTE_TEMPLATE_TUESDAY", default_template),
-        "WEDNESDAY": os.getenv("DAILY_NOTE_TEMPLATE_WEDNESDAY", default_template),
-        "THURSDAY": os.getenv("DAILY_NOTE_TEMPLATE_THURSDAY", default_template),
-        "FRIDAY": os.getenv("DAILY_NOTE_TEMPLATE_FRIDAY", default_template),
-        "SATURDAY": os.getenv("DAILY_NOTE_TEMPLATE_SATURDAY", default_template),
-        "SUNDAY": os.getenv("DAILY_NOTE_TEMPLATE_SUNDAY", default_template),
-        "DEFAULT": default_template,
-    }
-
-
-def create_dailynote(start_date: Optional[datetime] = None) -> None:
-    """デイリーノートを生成（指定日、または本日から向こう7日間分）"""
-    target_path = os.getenv("DAILY_NOTE_DIR")
-    template_spec = get_daily_template_spec()
-    
-    # 引数が渡されなかった場合は現在日時を使用
-    if start_date is None:
-        start_date = datetime.now()
-    
-    vault = Vault(target_path)
-    generator = NoteGenerator(vault)
-    generator.batch_create_dailies(
-        output_dir="",
-        start_date=start_date,
-        days_count=7,
-        template_spec=template_spec,
-    )
-
-
-def create_next_weekly_note() -> None:
-    """翌週分のウィークリーノートを生成"""
-    output_dir = os.getenv("WEEKLY_NOTE_DIR")
-    template_path = os.getenv("WEEKLY_NOTE_TEMPLATE")
-    plan_dir = os.getenv("PLAN_NOTE_DIR")
-
-    next_week_date = datetime.now() + timedelta(days=7)
-
-    vault = Vault(output_dir)
-    generator = NoteGenerator(vault)
-    generator.create_weekly_note(
-        output_dir="",
-        target_date=next_week_date,
-        template_path=template_path,
-        plan_dir=plan_dir,
-        start_of_week="monday",
-    )
-
-
-# ==========================================
-# Google Calendar / GAS 連携関数
-# ==========================================
 
 def get_focus_tags_from_weekly_note(
     weekly_dir: str, target_date: datetime, sunday_first: bool = False
@@ -382,7 +237,7 @@ def register_tasks_from_markdown_to_calendar(
 def register_tasks_by_date(
     target_date: str,
     start_hour_min: str = "15:00",
-    target_heading: str = "Tasks",
+    target_heading: str = "Today's Tasks",
     sunday_first: bool = False,
 ) -> None:
     """日付指定でMarkdownからタスクを読み込み、GASへ登録するラッパー関数"""

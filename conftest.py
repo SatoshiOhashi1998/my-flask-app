@@ -1,6 +1,6 @@
 import os
 
-# --- 1. アプリインポート前に必要な環境変数を一括設定 ---
+# --- アプリインポート前に必要な環境変数を一括設定 ---
 os.environ["EMAIL_USERNAME"] = "dummy_user@example.com"
 os.environ["EMAIL_PASSWORD"] = "dummy_pass"
 os.environ["IMAP_SERVER"] = "imap.example.com"
@@ -17,10 +17,13 @@ os.environ["WEEKLY_NOTE_DIR"] = "dummy_weekly_dir"
 os.environ["WEEKLY_NOTE_TEMPLATE"] = "dummy_template.md"
 
 import pytest
+
 from app import create_app
 
+
 @pytest.fixture
-def client(tmp_path):
+def app(tmp_path):
+    """テスト用Flaskアプリと一時SQLite DBを用意する。"""
     test_db = tmp_path / "test.db"
 
     app = create_app({
@@ -29,5 +32,11 @@ def client(tmp_path):
         "SQLALCHEMY_TRACK_MODIFICATIONS": False,
     })
 
+    return app
+
+
+@pytest.fixture
+def client(app):
+    """テスト用Flaskクライアントを用意する。"""
     with app.test_client() as client:
         yield client

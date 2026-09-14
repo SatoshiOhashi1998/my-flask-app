@@ -4,7 +4,7 @@ from flask import Blueprint, render_template, request, make_response, Response, 
 import pandas as pd
 
 from app.models import db, VideoDataModel
-from app.utils import get_video_directories, get_audio_directories
+from app.modules.media_paths import get_video_directories, get_audio_directories
 
 web = Blueprint("web", __name__)
 

@@ -16,12 +16,10 @@
 - bs4 (BeautifulSoup): HTML/XMLを解析するためのサードパーティライブラリ。
 - os: 環境変数の取得に使用される標準ライブラリ。
 - datetime: 日付と時刻を操作するための標準ライブラリ。
-- traceback: エラーのトレースバックを取得するための標準ライブラリ。
 - html: HTMLの特殊文字を処理するための標準ライブラリ。
 
-エラーログ:
-- エラーや情報メッセージは、それぞれ "errorMsg.txt" および "infoMsg.txt" にログとして出力されます。
-
+ログ:
+- Pythonのloggingを使用してログを出力します。
 """
 
 import imaplib
@@ -31,42 +29,45 @@ import webbrowser
 from bs4 import BeautifulSoup, Comment
 import os
 from datetime import datetime, timedelta
-import traceback
 import html
+import logging
+
+
+logger = logging.getLogger(__name__)
+
 
 # 環境変数からメールアカウントの情報を取得
 username = os.getenv('EMAIL_USERNAME')
 password = os.getenv('EMAIL_PASSWORD')
 imap_server = os.getenv('IMAP_SERVER')
-INFO_LOG = os.getenv('INFO_LOG')
 
 if not all([username, password, imap_server]):
     raise ValueError("メールアカウントの情報が環境変数に設定されていません。")
 
-def log_error(message):
-    with open("errorMsg.txt", "a") as error_file:
-        error_file.write(f"{datetime.now()} - ERROR: {message}\n")
-
-def log_info(message):
-    with open(INFO_LOG, "a") as info_file:
-        info_file.write(f"{datetime.now()} - INFO: {message}\n")
 
 def fetch_html_body(msg):
     for part in msg.walk():
         if part.get_content_type() == "text/html":
             charset = part.get_content_charset()
-            return part.get_payload(decode=True).decode(charset or 'utf-8')
+            return part.get_payload(decode=True).decode(
+                charset or 'utf-8'
+            )
     return None
+
 
 def sanitize_html(html_content):
     soup = BeautifulSoup(html_content, "html.parser")
 
     # 不要なタグを削除
-    for script in soup(["script", "style", "iframe", "embed", "object", "applet"]):
+    for script in soup(
+        ["script", "style", "iframe", "embed", "object", "applet"]
+    ):
         script.decompose()
 
     # コメントを削除
-    for comment in soup.findAll(text=lambda text: isinstance(text, Comment)):
+    for comment in soup.findAll(
+        text=lambda text: isinstance(text, Comment)
+    ):
         comment.extract()
 
     # hrefやsrc属性の確認（XSS攻撃対策）
@@ -74,94 +75,162 @@ def sanitize_html(html_content):
         for attribute in ["href", "src"]:
             if attribute in tag.attrs:
                 value = tag[attribute]
-                if not value.startswith(('http://', 'https://', 'mailto:')):
+                if not value.startswith(
+                    ('http://', 'https://', 'mailto:')
+                ):
                     tag[attribute] = '#'
 
     return str(soup)
 
+
 def check_email():
     try:
-        log_info("IMAPサーバに接続を試みます")
+        logger.info("IMAPサーバに接続を試みます")
+
         mail = imaplib.IMAP4_SSL(imap_server)
         mail.login(username, password)
         mail.select("inbox")
-        log_info("IMAPサーバに接続しました")
-    except Exception as e:
-        log_error(f"IMAP接続エラー: {traceback.format_exc()}")
+
+        logger.info("IMAPサーバに接続しました")
+
+    except Exception:
+        logger.exception("IMAP接続エラー")
         return
 
     try:
-        log_info("メールを検索します")
-        yesterday = (datetime.now() - timedelta(1)).strftime("%d-%b-%Y")
-        result, email_ids = mail.search(None, '(UNSEEN SINCE {0})'.format(yesterday))
+        logger.info("メールを検索します")
+
+        yesterday = (
+            datetime.now() - timedelta(1)
+        ).strftime("%d-%b-%Y")
+
+        result, email_ids = mail.search(
+            None,
+            '(UNSEEN SINCE {0})'.format(yesterday)
+        )
+
         if result != "OK":
-            log_error(f"メール検索エラー: {result}")
+            logger.error(f"メール検索エラー: {result}")
             return
+
         email_ids = email_ids[0].split()
-        log_info(f"未読メール数: {len(email_ids)}")
-    except Exception as e:
-        log_error(f"メール検索中のエラー: {traceback.format_exc()}")
+
+        logger.info(f"未読メール数: {len(email_ids)}")
+
+    except Exception:
+        logger.exception("メール検索中のエラー")
         return
 
     for email_id in email_ids:
         try:
-            status, msg_data = mail.fetch(email_id, "(RFC822)")
+            status, msg_data = mail.fetch(
+                email_id,
+                "(RFC822)"
+            )
+
             if status != "OK":
-                log_error(f"メールフェッチエラー: {status}")
+                logger.error(
+                    f"メールフェッチエラー: {status}"
+                )
                 continue
 
             for response_part in msg_data:
                 if isinstance(response_part, tuple):
-                    msg = email.message_from_bytes(response_part[1])
+                    msg = email.message_from_bytes(
+                        response_part[1]
+                    )
                     sender = msg["From"]
 
                     if sender and 'noreply@youtube.com' in sender:
                         handle_youtube_email(msg)
+
                     elif sender and 'no-reply@twitch.tv' in sender:
                         handle_twitch_email(msg)
-        except Exception as e:
-            log_error(f"メール処理中のエラー (ID: {email_id}): {traceback.format_exc()}")
 
-    log_info("メール処理が完了しました")
+        except Exception:
+            logger.exception(
+                f"メール処理中のエラー (ID: {email_id})"
+            )
+
+    logger.info("メール処理が完了しました")
+
     try:
         mail.close()
         mail.logout()
-    except Exception as e:
-        log_error(f"IMAP切断エラー: {traceback.format_exc()}")
+
+    except Exception:
+        logger.exception("IMAP切断エラー")
+
 
 def handle_youtube_email(msg):
     try:
         html_body = fetch_html_body(msg)
+
         if html_body:
             sanitized_html = sanitize_html(html_body)
-            urls = extract_links(sanitized_html, 'watch')
+            urls = extract_links(
+                sanitized_html,
+                'watch'
+            )
+
             for url in urls:
-                log_info(f"YouTube URL: {url}")
+                logger.info(f"YouTube URL: {url}")
                 webbrowser.open(url)
                 break
-    except Exception as e:
-        log_error(f"YouTubeメール処理中のエラー: {traceback.format_exc()}")
+
+    except Exception:
+        logger.exception(
+            "YouTubeメール処理中のエラー"
+        )
+
 
 def handle_twitch_email(msg):
     try:
         html_body = fetch_html_body(msg)
+
         if html_body:
             sanitized_html = sanitize_html(html_body)
-            urls = extract_links_with_text(sanitized_html, '今すぐ視聴')
+            urls = extract_links_with_text(
+                sanitized_html,
+                '今すぐ視聴'
+            )
+
             for url in urls:
-                log_info(f"Twitch URL: {url}")
+                logger.info(f"Twitch URL: {url}")
                 webbrowser.open(url)
                 break
-    except Exception as e:
-        log_error(f"Twitchメール処理中のエラー: {traceback.format_exc()}")
+
+    except Exception:
+        logger.exception(
+            "Twitchメール処理中のエラー"
+        )
+
 
 def extract_links(html_body, keyword):
-    soup = BeautifulSoup(html_body, "html.parser")
-    return [link["href"] for link in soup.find_all("a", href=True) if keyword in link.get("href", "")]
+    soup = BeautifulSoup(
+        html_body,
+        "html.parser"
+    )
+
+    return [
+        link["href"]
+        for link in soup.find_all("a", href=True)
+        if keyword in link.get("href", "")
+    ]
+
 
 def extract_links_with_text(html_body, text):
-    soup = BeautifulSoup(html_body, "html.parser")
-    return [link["href"] for link in soup.find_all("a", href=True) if link.get_text(strip=True) == text]
+    soup = BeautifulSoup(
+        html_body,
+        "html.parser"
+    )
+
+    return [
+        link["href"]
+        for link in soup.find_all("a", href=True)
+        if link.get_text(strip=True) == text
+    ]
+
 
 if __name__ == '__main__':
     check_email()

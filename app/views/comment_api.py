@@ -1,0 +1,122 @@
+from flask import jsonify, request
+
+from app.models import Comment, db
+from app.modules.export_comments import export_today_comments_to_md
+
+
+def register_comment_routes(api_bp):
+    """コメント関連のAPIルートを登録する。"""
+
+    @api_bp.route("/api/comments/<video_id>", methods=["GET"])
+    def get_comments(video_id):
+        media_type = request.args.get("type", "video")
+
+        comments = (
+            Comment.query
+            .filter_by(
+                video_id=video_id,
+                media_type=media_type,
+            )
+            .order_by(Comment.created_at.desc())
+            .all()
+        )
+
+        return jsonify([
+            {
+                "id": comment.id,
+                "video_id": comment.video_id,
+                "media_type": comment.media_type,
+                "content": comment.content,
+                "created_at": comment.created_at.isoformat(),
+            }
+            for comment in comments
+        ])
+
+    @api_bp.route("/api/comments/<video_id>", methods=["POST"])
+    def create_comment(video_id):
+        data = request.get_json()
+
+        comment = Comment(
+            video_id=video_id,
+            media_type=data["media_type"],
+            content=data["content"],
+        )
+
+        db.session.add(comment)
+        db.session.commit()
+
+        return jsonify({
+            "message": "コメントを投稿しました",
+        }), 201
+
+    @api_bp.route("/api/comments/<int:comment_id>", methods=["PUT"])
+    def update_comment(comment_id):
+        comment = Comment.query.get(comment_id)
+
+        if not comment:
+            return jsonify({"error": "Comment not found"}), 404
+
+        data = request.get_json()
+
+        comment.content = data["content"]
+
+        db.session.commit()
+
+        return jsonify({
+            "id": comment.id,
+            "video_id": comment.video_id,
+            "media_type": comment.media_type,
+            "content": comment.content,
+            "created_at": comment.created_at.isoformat(),
+        })
+
+    @api_bp.route("/api/comments/<int:comment_id>", methods=["DELETE"])
+    def delete_comment(comment_id):
+        comment = Comment.query.get(comment_id)
+
+        if not comment:
+            return jsonify({"error": "Comment not found"}), 404
+
+        db.session.delete(comment)
+        db.session.commit()
+
+        return jsonify({
+            "message": "コメントを削除しました"
+        })
+
+    @api_bp.route("/api/comments/<video_id>/others", methods=["GET"])
+    def get_other_comments(video_id):
+        exclude_type = request.args.get(
+            "exclude_type",
+            "youtube",
+        )
+
+        comments = (
+            Comment.query
+            .filter(
+                Comment.video_id == video_id,
+                Comment.media_type != exclude_type,
+            )
+            .order_by(Comment.created_at.desc())
+            .all()
+        )
+
+        return jsonify([
+            {
+                "id": comment.id,
+                "video_id": comment.video_id,
+                "media_type": comment.media_type,
+                "content": comment.content,
+                "created_at": comment.created_at.isoformat(),
+            }
+            for comment in comments
+        ])
+
+    @api_bp.route("/api/comments/export", methods=["GET"])
+    def export_comments():
+        export_today_comments_to_md()
+
+        return jsonify({
+            "message": "本日のコメントを出力しました"
+        })
+        
