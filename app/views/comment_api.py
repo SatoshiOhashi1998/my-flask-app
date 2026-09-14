@@ -1,7 +1,7 @@
 from flask import jsonify, request
 
 from app.models import Comment, db
-from app.modules.export_comments import export_today_comments_to_md
+from app.notes.export_comments import export_today_comments_to_md
 
 
 def register_comment_routes(api_bp):

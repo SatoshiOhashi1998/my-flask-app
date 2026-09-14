@@ -7,7 +7,7 @@ from app.modules.getWeatherData import (
     register_today_weather_to_calendar,
     register_tomorrow_weather_to_calendar,
 )
-from app.modules.task_manager import register_tasks_by_date
+from app.notes.task_manager import register_tasks_by_date
 
 
 def register_calendar_routes(api_bp):
