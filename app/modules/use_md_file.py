@@ -159,63 +159,6 @@ def export_single_vocabulary() -> None:
 
 
 # ==========================================
-# ノート自動生成関数
-# ==========================================
-
-def get_daily_template_spec() -> dict:
-    """環境変数から曜日別テンプレートのマップを構築する"""
-    default_template = os.getenv("DAILY_NOTE_TEMPLATE")
-    return {
-        "MONDAY": os.getenv("DAILY_NOTE_TEMPLATE_MONDAY", default_template),
-        "TUESDAY": os.getenv("DAILY_NOTE_TEMPLATE_TUESDAY", default_template),
-        "WEDNESDAY": os.getenv("DAILY_NOTE_TEMPLATE_WEDNESDAY", default_template),
-        "THURSDAY": os.getenv("DAILY_NOTE_TEMPLATE_THURSDAY", default_template),
-        "FRIDAY": os.getenv("DAILY_NOTE_TEMPLATE_FRIDAY", default_template),
-        "SATURDAY": os.getenv("DAILY_NOTE_TEMPLATE_SATURDAY", default_template),
-        "SUNDAY": os.getenv("DAILY_NOTE_TEMPLATE_SUNDAY", default_template),
-        "DEFAULT": default_template,
-    }
-
-
-def create_dailynote(start_date: Optional[datetime] = None) -> None:
-    """デイリーノートを生成（指定日、または本日から向こう7日間分）"""
-    target_path = os.getenv("DAILY_NOTE_DIR")
-    template_spec = get_daily_template_spec()
-    
-    # 引数が渡されなかった場合は現在日時を使用
-    if start_date is None:
-        start_date = datetime.now()
-    
-    vault = Vault(target_path)
-    generator = NoteGenerator(vault)
-    generator.batch_create_dailies(
-        output_dir="",
-        start_date=start_date,
-        days_count=7,
-        template_spec=template_spec,
-    )
-
-
-def create_next_weekly_note() -> None:
-    """翌週分のウィークリーノートを生成"""
-    output_dir = os.getenv("WEEKLY_NOTE_DIR")
-    template_path = os.getenv("WEEKLY_NOTE_TEMPLATE")
-    plan_dir = os.getenv("PLAN_NOTE_DIR")
-
-    next_week_date = datetime.now() + timedelta(days=7)
-
-    vault = Vault(output_dir)
-    generator = NoteGenerator(vault)
-    generator.create_weekly_note(
-        output_dir="",
-        target_date=next_week_date,
-        template_path=template_path,
-        plan_dir=plan_dir,
-        start_of_week="monday",
-    )
-
-
-# ==========================================
 # Google Calendar / GAS 連携関数
 # ==========================================
 

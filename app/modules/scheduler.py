@@ -8,7 +8,7 @@ from app.modules import useMailServer
 from app.modules.getWeatherData import register_tomorrow_weather_to_calendar
 from app.modules.getYouTubeLive import send_archived_streams_from_excel_channels
 from app.modules.export_comments import export_today_comments_to_md
-from app.modules.use_md_file import (
+from app.modules.note_manager import (
     create_dailynote,
     create_next_weekly_note,
 )

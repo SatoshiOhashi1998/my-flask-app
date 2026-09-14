@@ -15,11 +15,14 @@ from app.modules.getWeatherData import (
     register_tomorrow_weather_to_calendar,
 )
 from app.modules.use_md_file import (
-    create_dailynote,
-    create_next_weekly_note,
     export_english_vocabulary,
     export_single_vocabulary,
     register_tasks_by_date,
+)
+
+from app.modules.note_manager import (
+    create_dailynote,
+    create_next_weekly_note,
 )
 from app.modules.video_manager import (
     remove_nonexistent_files_from_db,
