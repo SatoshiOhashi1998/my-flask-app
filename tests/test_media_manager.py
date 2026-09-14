@@ -1,6 +1,6 @@
 from app.models import db, VideoDataModel, MusicDataModel
 
-from app.modules.media_manager import (
+from app.media.media_manager import (
     insert_media,
     find_by_id,
     delete_by_id,

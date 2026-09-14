@@ -4,12 +4,12 @@ import os
 from flask import jsonify, send_from_directory
 
 from app.models import MusicDataModel, VideoDataModel, db
-from app.modules.media_paths import MEDIA_BASE_PATHS
-from app.modules.audio_manager import (
+from app.media.media_paths import MEDIA_BASE_PATHS
+from app.media.audio_manager import (
     remove_nonexistent_audio_files_from_db,
     rename_musics_and_save_metadata,
 )
-from app.modules.video_manager import (
+from app.media.video_manager import (
     remove_nonexistent_files_from_db,
     rename_videos_and_save_metadata,
 )

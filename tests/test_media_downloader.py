@@ -2,9 +2,9 @@ import os
 import pytest
 
 from app.models import db, VideoDataModel, MusicDataModel
-from app.modules import youtube_downloader
-from app.modules import media_downloader
-from app.modules import media_processor
+from app.youtube import youtube_downloader
+from app.media import media_downloader
+from app.media import media_processor
 
 
 def test_download_registers_video_to_db(client, tmp_path, monkeypatch):
