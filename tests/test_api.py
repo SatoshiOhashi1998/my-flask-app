@@ -719,7 +719,7 @@ def test_stream_music_range_request(
 # 9. 動画・音楽一覧 / info API
 # ==========================================
 
-@patch("app.views.api.locale.setlocale")
+@patch("app.views.media_api.locale.setlocale")
 def test_get_videos(mock_setlocale, client, tmp_path):
     with client.application.app_context():
         video1 = VideoDataModel(
@@ -797,7 +797,7 @@ def test_get_video_info_not_found(client):
     assert data["error"] == "Video not found"
 
 
-@patch("app.views.api.locale.setlocale")
+@patch("app.views.media_api.locale.setlocale")
 def test_get_musics(mock_setlocale, client, tmp_path):
     with client.application.app_context():
         music1 = MusicDataModel(

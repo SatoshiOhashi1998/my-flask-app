@@ -1,4 +1,3 @@
-import locale
 import os
 import traceback
 from datetime import datetime, timedelta
@@ -29,51 +28,17 @@ from app.modules.video_manager import (
 )
 from app.modules.youtube_api import fetch_youtube_video_info, fetch_youtube_videos
 from app.modules.use_clip_board import copy_code
-from app.modules.media_paths import get_media_directories
+from app.modules.media_paths import get_media_directories, MEDIA_BASE_PATHS
 from app.modules.media_downloader import (
     download,
 )
-from app.modules.media_paths import MEDIA_BASE_PATHS
+from app.views.media_api import register_media_routes
 
 from myutils.markdown.vault import Vault
 from myutils.markdown.note_processor import NoteGenerator
 
 api_bp = Blueprint("api", __name__)
-
-
-# ==========================================
-# 共通ヘルパー関数
-# ==========================================
-
-def _format_media_item(item, media_type: str) -> dict:
-    directory = os.path.dirname(item.path)
-
-    dirpath = directory
-
-    for base_path in MEDIA_BASE_PATHS:
-        try:
-            relative_path = os.path.relpath(directory, base_path)
-
-            # base_path自身、またはその配下なら採用
-            if relative_path == ".":
-                dirpath = ""
-                break
-
-            if not relative_path.startswith("..") and not os.path.isabs(relative_path):
-                dirpath = relative_path
-                break
-
-        except ValueError:
-            # Windowsでドライブが異なる場合など
-            continue
-
-    return {
-        "id": os.path.splitext(item.new_name)[0],
-        "dirpath": dirpath,
-        "filename": item.new_name,
-        "filetitle": item.original_name,
-        "type": media_type,
-    }
+register_media_routes(api_bp)
 
 
 def _execute_task_sync(date_str: str, start_time: str, target_heading: str = "Today's Tasks"):
@@ -98,69 +63,6 @@ def _execute_task_sync(date_str: str, start_time: str, target_heading: str = "To
             "status": "error",
             "message": f"タスクの同期処理中にエラーが発生しました: {str(e)}"
         }), 500
-
-
-# ==========================================
-# 1. 動画 (Video) 関連
-# ==========================================
-
-@api_bp.route("/api/videos", methods=["GET"])
-def get_videos():
-    locale.setlocale(locale.LC_COLLATE, "ja_JP.UTF-8")
-    videos = db.session.query(VideoDataModel).order_by(VideoDataModel.path).all()
-    videos.sort(key=lambda v: (os.path.normpath(os.path.dirname(v.path)), locale.strxfrm(v.original_name)))
-
-    return jsonify({"items": [_format_media_item(v, "video") for v in videos]})
-
-
-@api_bp.route("/api/videos/<video_id>/info", methods=["GET"])
-def get_video(video_id):
-    video = VideoDataModel.query.get(video_id)
-    if not video:
-        return jsonify({"error": "Video not found"}), 404
-
-    return jsonify(_format_media_item(video, "video"))
-
-@api_bp.route("/api/videos/<video_id>/stream", methods=["GET"])
-def stream_video(video_id):
-    video = VideoDataModel.query.get_or_404(video_id)
-
-    directory = os.path.dirname(video.path)
-    filename = video.new_name
-
-    return send_from_directory(directory, filename)
-
-
-# ==========================================
-# 2. 音声・音楽 (Music/Audio) 関連
-# ==========================================
-
-@api_bp.route("/api/musics", methods=["GET"])
-def get_musics():
-    locale.setlocale(locale.LC_COLLATE, "ja_JP.UTF-8")
-    musics = db.session.query(MusicDataModel).order_by(MusicDataModel.path).all()
-    musics.sort(key=lambda m: (os.path.normpath(os.path.dirname(m.path)), locale.strxfrm(m.original_name)))
-
-    return jsonify({"items": [_format_media_item(m, "audio") for m in musics]})
-
-
-@api_bp.route("/api/musics/<music_id>/info", methods=["GET"])
-def get_music(music_id):
-    music = MusicDataModel.query.get(music_id)
-    if not music:
-        return jsonify({"error": "Music not found"}), 404
-
-    return jsonify(_format_media_item(music, "audio"))
-
-@api_bp.route("/api/musics/<music_id>/stream", methods=["GET"])
-def stream_music(music_id):
-    music = MusicDataModel.query.get_or_404(music_id)
-
-    directory = os.path.dirname(music.path)
-    filename = music.new_name
-
-    return send_from_directory(directory, filename)
-
 
 # ==========================================
 # 3. コメント関連
