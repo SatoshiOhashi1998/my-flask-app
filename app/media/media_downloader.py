@@ -3,16 +3,16 @@ import shutil
 from typing import Optional
 
 from app.models import VideoDataModel, MusicDataModel
-from app.modules.media_manager import (
+from app.media.media_manager import (
     insert_media,
     remove_nonexistent_files,
 )
-from app.modules.youtube_downloader import (
+from app.youtube.youtube_downloader import (
     extract_youtube_video_id,
     validate_download_params,
     download_from_youtube,
 )
-from app.modules.media_processor import trim_media
+from app.media.media_processor import trim_media
 
 
 def download(

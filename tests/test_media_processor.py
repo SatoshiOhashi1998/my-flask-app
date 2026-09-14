@@ -1,6 +1,6 @@
 import pytest
 
-from app.modules import media_processor
+from app.media import media_processor
 
 
 def test_trim_media_video_uses_correct_ffmpeg_options(

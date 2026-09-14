@@ -1,23 +1,23 @@
 """
-app/modules/audio_manager.py
-音楽ファイルの管理・リネームおよびデータベース同期モジュール
+app/modules/video_manager.py
+動画ファイルの管理・リネームおよびデータベース同期モジュール
 """
 
 """
-app/modules/audio_manager.py
-音楽ファイルの管理・リネームおよびデータベース同期モジュール
+app/modules/video_manager.py
+動画ファイルの管理・リネームおよびデータベース同期モジュール
 """
 
 import os
 import shutil
 from typing import Optional, Tuple, List
 
-from app.models import MusicDataModel
-from app.modules.media_base import (
+from app.models import VideoDataModel
+from app.media.media_base import (
     is_already_renamed,
     generate_unique_id,
 )
-from app.modules.media_manager import (
+from app.media.media_manager import (
     insert_media,
     find_by_id as find_media_by_id,
     delete_by_id as delete_media_by_id,
@@ -25,31 +25,32 @@ from app.modules.media_manager import (
 )
 
 
-MUSIC_EXTENSIONS = {
-    '.mp3',
-    '.wav',
-    '.m4a',
-    '.flac',
-    '.aac',
+VIDEO_EXTENSIONS = {
+    '.mp4',
+    '.mov',
+    '.avi',
+    '.mkv',
+    '.webm',
+    '.flv',
 }
 
 
-def is_music_file(file_path: str) -> bool:
+def is_video_file(file_path: str) -> bool:
     return (
         os.path.splitext(file_path)[1].lower()
-        in MUSIC_EXTENSIONS
+        in VIDEO_EXTENSIONS
     )
 
 
-def insert_music(
-    music_id: str,
+def insert_video(
+    video_id: str,
     original_name: str,
     new_name: str,
     path: str,
 ):
     insert_media(
-        MusicDataModel,
-        music_id,
+        VideoDataModel,
+        video_id,
         original_name,
         new_name,
         path,
@@ -57,29 +58,49 @@ def insert_music(
 
 
 def find_by_id(
-    music_id: str,
-) -> Optional[MusicDataModel]:
+    video_id: str,
+) -> Optional[VideoDataModel]:
     return find_media_by_id(
-        MusicDataModel,
-        music_id,
+        VideoDataModel,
+        video_id,
     )
 
 
 def delete_by_id(
-    music_id: str,
+    video_id: str,
 ) -> bool:
     return delete_media_by_id(
-        MusicDataModel,
-        music_id,
+        VideoDataModel,
+        video_id,
     )
 
 
-def rename_single_music_and_save_metadata(
+def update_video(
+    video_id: str,
+    new_name: str,
+    new_path: str,
+) -> bool:
+    video = find_by_id(video_id)
+
+    if not video:
+        return False
+
+    video.new_name = new_name
+    video.path = new_path
+
+    from app.models import db
+
+    db.session.commit()
+
+    return True
+
+
+def rename_single_video_and_save_metadata(
     file_path: str,
 ) -> Optional[Tuple[str, str]]:
     if (
         not os.path.isfile(file_path)
-        or not is_music_file(file_path)
+        or not is_video_file(file_path)
         or is_already_renamed(
             os.path.basename(file_path)
         )
@@ -102,7 +123,7 @@ def rename_single_music_and_save_metadata(
         new_path,
     )
 
-    insert_music(
+    insert_video(
         new_id,
         original_name,
         new_name,
@@ -112,7 +133,7 @@ def rename_single_music_and_save_metadata(
     return new_name, new_path
 
 
-def rename_musics_and_save_metadata(
+def rename_videos_and_save_metadata(
     directory: str,
 ) -> List[str]:
     renamed_files = []
@@ -127,9 +148,9 @@ def rename_musics_and_save_metadata(
                 file,
             )
 
-            if is_music_file(file_path):
+            if is_video_file(file_path):
                 result = (
-                    rename_single_music_and_save_metadata(
+                    rename_single_video_and_save_metadata(
                         file_path
                     )
                 )
@@ -142,7 +163,26 @@ def rename_musics_and_save_metadata(
     return renamed_files
 
 
-def remove_nonexistent_audio_files_from_db() -> List[str]:
+def remove_nonexistent_files_from_db() -> List[str]:
     return remove_nonexistent_files(
-        MusicDataModel
+        VideoDataModel
     )
+
+
+def get_video_list_as_string() -> List[str]:
+    videos = (
+        VideoDataModel.query
+        .order_by(VideoDataModel.path)
+        .all()
+    )
+
+    base_url = os.getenv(
+        "USE_URL",
+        "",
+    )
+
+    return [
+        f"[{video.original_name}]"
+        f"({base_url}?v={video.new_name})"
+        for video in videos
+    ]

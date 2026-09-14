@@ -2,9 +2,9 @@ import traceback
 
 from flask import jsonify, request
 
-from app.modules.media_downloader import download
-from app.modules.media_paths import get_media_directories
-from app.modules.youtube_api import (
+from app.media.media_downloader import download
+from app.media.media_paths import get_media_directories
+from app.youtube.youtube_api import (
     fetch_youtube_video_info,
     fetch_youtube_videos,
 )

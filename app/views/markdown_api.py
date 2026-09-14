@@ -3,11 +3,11 @@ from datetime import datetime
 
 from flask import jsonify, request
 
-from app.modules.vocabulary_manager import (
+from app.notes.vocabulary_manager import (
     export_english_vocabulary,
     export_single_vocabulary,
 )
-from app.modules.note_manager import (
+from app.notes.note_manager import (
     create_dailynote,
     create_next_weekly_note,
 )

@@ -1,7 +1,7 @@
 from datetime import datetime
 from unittest.mock import patch, MagicMock
 
-from app.modules.task_manager import (
+from app.notes.task_manager import (
     get_focus_tags_from_weekly_note,
     register_tasks_from_markdown_to_calendar,
 )
@@ -33,9 +33,9 @@ def test_get_focus_tags_success(tmp_path):
 #    （複数ファイル結合 ＆ 子タスク結合）
 # ==========================================
 
-@patch("app.modules.task_manager.send_to_gas")
-@patch("app.modules.task_manager.NoteParser")
-@patch("app.modules.task_manager.get_focus_tags_from_weekly_note")
+@patch("app.notes.task_manager.send_to_gas")
+@patch("app.notes.task_manager.NoteParser")
+@patch("app.notes.task_manager.get_focus_tags_from_weekly_note")
 def test_register_tasks_multiple_files_and_children(
     mock_get_focus,
     mock_note_parser,

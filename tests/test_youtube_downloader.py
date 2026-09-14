@@ -1,6 +1,6 @@
 import pytest
 
-from app.modules import youtube_downloader
+from app.youtube import youtube_downloader
 
 
 def test_extract_youtube_video_id_from_id():

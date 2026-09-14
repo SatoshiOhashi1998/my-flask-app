@@ -2,7 +2,7 @@ import traceback
 
 from flask import jsonify, request
 
-from app.modules.use_clip_board import copy_code
+from devtools.use_clip_board import copy_code
 
 
 def register_clipboard_routes(api_bp):

@@ -1,7 +1,7 @@
 from datetime import datetime
 from unittest.mock import patch
 
-from app.modules.note_manager import (
+from app.notes.note_manager import (
     get_daily_template_spec,
     create_dailynote,
     create_next_weekly_note,
@@ -27,10 +27,10 @@ def test_create_dailynote(monkeypatch):
     }
 
     with patch(
-        "app.modules.note_manager.get_daily_template_spec",
+        "app.notes.note_manager.get_daily_template_spec",
         return_value=template_spec,
     ), patch(
-        "app.modules.note_manager.NoteGenerator.batch_create_dailies"
+        "app.notes.note_manager.NoteGenerator.batch_create_dailies"
     ) as mock_batch:
 
         create_dailynote(start_date=start_date)
@@ -49,7 +49,7 @@ def test_create_next_weekly_note(monkeypatch):
     monkeypatch.setenv("PLAN_NOTE_DIR", "dummy_plan_dir")
 
     with patch(
-        "app.modules.note_manager.NoteGenerator.create_weekly_note"
+        "app.notes.note_manager.NoteGenerator.create_weekly_note"
     ) as mock_create:
 
         create_next_weekly_note()

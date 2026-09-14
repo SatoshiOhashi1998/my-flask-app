@@ -1,7 +1,7 @@
 import os
 
 from app.models import db, MusicDataModel
-from app.modules.audio_manager import (
+from app.media.audio_manager import (
     insert_music,
     find_by_id,
     delete_by_id,

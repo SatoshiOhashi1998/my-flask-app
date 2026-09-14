@@ -3,7 +3,7 @@ from datetime import datetime
 from pathlib import Path
 
 from app.models import db, Comment, VideoDataModel
-from app.modules.export_comments import export_today_comments_to_md
+from app.notes.export_comments import export_today_comments_to_md
 
 class TestExportTodayCommentsToMd:
     def test_export_no_comments(self, app):

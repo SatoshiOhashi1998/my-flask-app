@@ -2,7 +2,7 @@ from unittest.mock import patch
 import locale
 
 from app.models import VideoDataModel, MusicDataModel, db
-from app.modules.media_paths import MEDIA_BASE_PATHS
+from app.media.media_paths import MEDIA_BASE_PATHS
 
 
 # ==========================================

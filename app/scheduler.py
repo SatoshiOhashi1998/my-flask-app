@@ -4,11 +4,11 @@ import webbrowser
 import subprocess
 from dataclasses import dataclass
 from apscheduler.schedulers.background import BackgroundScheduler
-from app.modules import useMailServer
-from app.modules.getWeatherData import register_tomorrow_weather_to_calendar
-from app.modules.getYouTubeLive import send_archived_streams_from_excel_channels
-from app.modules.export_comments import export_today_comments_to_md
-from app.modules.note_manager import (
+from app import mail
+from app.weather import register_tomorrow_weather_to_calendar
+from app.youtube.youtube_live import send_archived_streams_from_excel_channels
+from app.notes.export_comments import export_today_comments_to_md
+from app.notes.note_manager import (
     create_dailynote,
     create_next_weekly_note,
 )
@@ -40,7 +40,7 @@ class UrlScheduler:
         self.schedule_url_jobs()
 
         self.add_job(
-            func=useMailServer.check_email,
+            func=mail.check_email,
             trigger="interval",
             minutes=5,
             job_id="check_email"

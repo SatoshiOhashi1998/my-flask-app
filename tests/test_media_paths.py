@@ -1,6 +1,6 @@
 import os
 
-from app.modules import media_paths
+from app.media import media_paths
 
 
 def test_get_video_directories(tmp_path):

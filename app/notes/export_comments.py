@@ -4,7 +4,7 @@ from datetime import datetime, time, timedelta
 from zoneinfo import ZoneInfo
 
 from app.models import db, Comment, VideoDataModel, MusicDataModel
-from app.modules.youtube_api import fetch_youtube_video_info
+from app.youtube.youtube_api import fetch_youtube_video_info
 
 
 JST = ZoneInfo("Asia/Tokyo")

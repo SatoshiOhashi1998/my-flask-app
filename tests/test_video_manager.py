@@ -1,7 +1,7 @@
 import os
 
 from app.models import db, VideoDataModel
-from app.modules.video_manager import (
+from app.media.video_manager import (
     insert_video,
     find_by_id,
     delete_by_id,
