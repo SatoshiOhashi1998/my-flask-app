@@ -5,6 +5,14 @@ from flask import jsonify, send_from_directory
 
 from app.models import MusicDataModel, VideoDataModel, db
 from app.modules.media_paths import MEDIA_BASE_PATHS
+from app.modules.audio_manager import (
+    remove_nonexistent_audio_files_from_db,
+    rename_musics_and_save_metadata,
+)
+from app.modules.video_manager import (
+    remove_nonexistent_files_from_db,
+    rename_videos_and_save_metadata,
+)
 
 
 def _format_media_item(item, media_type: str) -> dict:
@@ -171,3 +179,14 @@ def register_media_routes(api_bp):
             directory,
             filename,
         )
+
+    @api_bp.route("/api/reset/media", methods=["GET"])
+    def reset_medias_id():
+        for base_path in MEDIA_BASE_PATHS:
+            rename_videos_and_save_metadata(base_path)
+            rename_musics_and_save_metadata(base_path)
+
+        remove_nonexistent_files_from_db()
+        remove_nonexistent_audio_files_from_db()
+
+        return jsonify({"message": "メディアメタデータをリセットしました"}), 200

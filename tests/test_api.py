@@ -10,7 +10,7 @@ from app.modules.media_paths import MEDIA_BASE_PATHS
 # 1. 正常系テスト（各種エンドポイントの呼び出し）
 # ==========================================
 
-@patch("app.views.api.register_tasks_by_date")
+@patch("app.views.calendar_api.register_tasks_by_date")
 def test_sync_today_tasks(mock_register, client):
     response = client.get("/api/calendar/sync-tasks/today")
 
@@ -24,7 +24,7 @@ def test_sync_today_tasks(mock_register, client):
     mock_register.assert_called_once()
 
 
-@patch("app.views.api.register_tasks_by_date")
+@patch("app.views.calendar_api.register_tasks_by_date")
 def test_sync_tomorrow_tasks(mock_register, client):
     response = client.get("/api/calendar/sync-tasks/tomorrow")
 
@@ -37,7 +37,7 @@ def test_sync_tomorrow_tasks(mock_register, client):
     mock_register.assert_called_once()
 
 
-@patch("app.views.api.register_tasks_by_date")
+@patch("app.views.calendar_api.register_tasks_by_date")
 def test_sync_tasks_by_date_success(mock_register, client):
     response = client.get(
         "/api/calendar/sync-tasks/date"
@@ -75,7 +75,7 @@ def test_sync_tasks_by_date_success(mock_register, client):
         ),
     ],
 )
-@patch("app.views.api.register_tasks_by_date")
+@patch("app.views.calendar_api.register_tasks_by_date")
 def test_sync_time_range_tasks(
     mock_register,
     client,
@@ -132,7 +132,7 @@ def test_sync_tasks_by_date_invalid_format(client):
 # ==========================================
 
 @patch(
-    "app.views.api.register_tasks_by_date",
+    "app.views.calendar_api.register_tasks_by_date",
     side_effect=Exception("DBまたはファイルエラー"),
 )
 def test_sync_tasks_internal_error(
@@ -286,7 +286,7 @@ def test_export_comments(mock_export, client):
 # ==========================================
 
 @patch(
-    "app.views.api.register_today_weather_to_calendar"
+    "app.views.calendar_api.register_today_weather_to_calendar"
 )
 def test_register_today_weather(
     mock_register,
@@ -309,7 +309,7 @@ def test_register_today_weather(
 
 
 @patch(
-    "app.views.api.register_tomorrow_weather_to_calendar"
+    "app.views.calendar_api.register_tomorrow_weather_to_calendar"
 )
 def test_register_tomorrow_weather(
     mock_register,
@@ -386,7 +386,7 @@ def test_create_dailynotes_invalid_date(client):
     assert data["status"] == "error"
 
 
-@patch("app.views.api.NoteGenerator.create_weekly_note")
+@patch("app.views.markdown_api.NoteGenerator.create_weekly_note")
 def test_create_weekly_note_success(
     mock_create,
     client,
@@ -1291,10 +1291,10 @@ def test_youtube_info_error(
 # 13. メディアメタデータリセット
 # ==========================================
 
-@patch("app.views.api.remove_nonexistent_audio_files_from_db")
-@patch("app.views.api.remove_nonexistent_files_from_db")
-@patch("app.views.api.rename_musics_and_save_metadata")
-@patch("app.views.api.rename_videos_and_save_metadata")
+@patch("app.views.media_api.remove_nonexistent_audio_files_from_db")
+@patch("app.views.media_api.remove_nonexistent_files_from_db")
+@patch("app.views.media_api.rename_musics_and_save_metadata")
+@patch("app.views.media_api.rename_videos_and_save_metadata")
 def test_reset_media(
     mock_rename_videos,
     mock_rename_musics,
@@ -1364,44 +1364,7 @@ def test_export_vocablary(
 
     mock_export.assert_called_once()
 
-@patch("app.views.api.copy_code")
-def test_copy_code_get(
-    mock_copy,
-    client,
-):
-    mock_copy.return_value = [
-        "file1.py",
-        "file2.py",
-    ]
-
-    response = client.get(
-        "/api/clipboard/copy-code"
-        "?target=test.py"
-        "&extension=.py"
-        "&extension=.js"
-        "&exclude_dir=.git"
-        "&recursive=false"
-    )
-
-    assert response.status_code == 200
-
-    data = response.get_json()
-
-    assert data["status"] == "success"
-    assert data["files"] == [
-        "file1.py",
-        "file2.py",
-    ]
-    assert "2 ファイル" in data["message"]
-
-    mock_copy.assert_called_once_with(
-        target="test.py",
-        extensions=[".py", ".js"],
-        exclude_dirs=[".git"],
-        recursive=False,
-    )
-
-@patch("app.views.api.copy_code")
+@patch("app.views.clipboard_api.copy_code")
 def test_copy_code_get(
     mock_copy,
     client,
@@ -1483,7 +1446,7 @@ def test_create_next_weekly_note_error(
 
 
 @patch(
-    "app.views.api.register_today_weather_to_calendar",
+    "app.views.calendar_api.register_today_weather_to_calendar",
     side_effect=Exception("weather error"),
 )
 def test_register_today_weather_error(
@@ -1500,7 +1463,7 @@ def test_register_today_weather_error(
 
 
 @patch(
-    "app.views.api.register_tomorrow_weather_to_calendar",
+    "app.views.calendar_api.register_tomorrow_weather_to_calendar",
     side_effect=Exception("weather error"),
 )
 def test_register_tomorrow_weather_error(
