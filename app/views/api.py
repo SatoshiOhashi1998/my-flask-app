@@ -17,9 +17,8 @@ from app.modules.getWeatherData import (
 from app.modules.use_md_file import (
     export_english_vocabulary,
     export_single_vocabulary,
-    register_tasks_by_date,
 )
-
+from app.modules.task_manager import register_tasks_by_date
 from app.modules.note_manager import (
     create_dailynote,
     create_next_weekly_note,
