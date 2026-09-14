@@ -335,7 +335,7 @@ def test_register_tomorrow_weather(
 # 6. Markdown作成関連のテスト
 # ==========================================
 
-@patch("app.views.api.create_dailynote")
+@patch("app.views.markdown_api.create_dailynote")
 def test_create_dailynotes_default(
     mock_create,
     client,
@@ -353,7 +353,7 @@ def test_create_dailynotes_default(
     mock_create.assert_called_once()
 
 
-@patch("app.views.api.create_dailynote")
+@patch("app.views.markdown_api.create_dailynote")
 def test_create_dailynotes_with_date(
     mock_create,
     client,
@@ -465,7 +465,7 @@ def test_create_weekly_note_invalid_date(
     assert data["status"] == "error"
 
 
-@patch("app.views.api.create_next_weekly_note")
+@patch("app.views.markdown_api.create_next_weekly_note")
 def test_create_next_weekly_note_success(
     mock_create,
     client,
@@ -1325,7 +1325,7 @@ def test_reset_media(
 # 14. Vocabulary API
 # ==========================================
 
-@patch("app.views.api.export_english_vocabulary")
+@patch("app.views.markdown_api.export_english_vocabulary")
 def test_export_english(
     mock_export,
     client,
@@ -1345,7 +1345,7 @@ def test_export_english(
     mock_export.assert_called_once()
 
 
-@patch("app.views.api.export_single_vocabulary")
+@patch("app.views.markdown_api.export_single_vocabulary")
 def test_export_vocablary(
     mock_export,
     client,
@@ -1443,7 +1443,7 @@ def test_copy_code_get(
 # ==========================================
 
 @patch(
-    "app.views.api.create_dailynote",
+    "app.views.markdown_api.create_dailynote",
     side_effect=Exception("daily note error"),
 )
 def test_create_dailynotes_error(
@@ -1463,7 +1463,7 @@ def test_create_dailynotes_error(
 
 
 @patch(
-    "app.views.api.create_next_weekly_note",
+    "app.views.markdown_api.create_next_weekly_note",
     side_effect=Exception("weekly note error"),
 )
 def test_create_next_weekly_note_error(
