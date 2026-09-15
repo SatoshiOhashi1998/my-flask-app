@@ -24,6 +24,8 @@ def download(
     trim_overwrite: bool = True,
     download_type: str = "video",
 ) -> str:
+    print("Deno:", shutil.which("deno"))
+
     validate_download_params(
         video_id,
         save_dir,
