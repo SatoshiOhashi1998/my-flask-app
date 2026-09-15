@@ -101,10 +101,11 @@ class UrlScheduler:
         
         self.add_job(
             add_thino_summary_to_weekly_note,
-            "cron",
+            trigger="cron",
             day_of_week="sat",
             hour=23,
             minute=0,
+            job_if="add_thino_summary_to_weekly_note"
         )
 
     def schedule_url_jobs(self):
