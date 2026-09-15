@@ -5,6 +5,9 @@ from zoneinfo import ZoneInfo
 
 from app.models import db, Comment, VideoDataModel, MusicDataModel
 from app.youtube.youtube_api import fetch_youtube_video_info
+from myutils.markdown.note_processor import NoteParser
+from myutils.markdown.utils import MarkdownUtils
+from myutils.markdown.vault import Note
 
 
 JST = ZoneInfo("Asia/Tokyo")
@@ -37,7 +40,6 @@ def export_today_comments_to_md(output_dir=None, now=None):
     )
     end_dt = start_dt + timedelta(days=1)
 
-    # 本日のコメントを取得
     comments = Comment.query.filter(
         Comment.created_at >= start_dt,
         Comment.created_at < end_dt
@@ -91,7 +93,6 @@ def export_today_comments_to_md(output_dir=None, now=None):
                     f"{c.video_id}: {e}"
                 )
 
-        # Obsidianの見出しリンクとのUnicode表現を統一
         media_name = unicodedata.normalize("NFC", media_name)
 
         watch_url = (
@@ -99,9 +100,6 @@ def export_today_comments_to_md(output_dir=None, now=None):
             f"?v={c.video_id}&type={media_type}"
         )
 
-        # コメント本文の各行をMarkdownの引用にする。
-        # 空行にも "> " を付けることで、
-        # 複数段落でも1つの引用ブロックとして維持する。
         quoted_content = "\n".join(
             f"> {line}"
             for line in c.content.splitlines()
@@ -116,10 +114,69 @@ def export_today_comments_to_md(output_dir=None, now=None):
         md_lines.append(quoted_content)
         md_lines.append("")
 
-    # 既存ファイルがあっても完全に上書きする
     with open(file_path, "w", encoding="utf-8") as f:
         f.write("\n".join(md_lines))
 
     print(f"Markdownを出力しました: {file_path}")
 
     return file_path
+
+
+def collect_comment_links(
+    comment_export_dir: str,
+    target_date: datetime,
+    start_of_week: str = "monday",
+) -> list[str]:
+    """
+    指定した週のコメントMarkdownファイルから、
+    各コメントの見出しへのObsidianリンクを取得する。
+
+    対象ファイル:
+        comments_YYYY-MM-DD.md
+
+    対象となるのはMarkdown内の ## 見出しのみ。
+    """
+
+    if start_of_week not in ("monday", "sunday"):
+        raise ValueError(
+            "start_of_weekは'monday'または'sunday'を指定してください。"
+        )
+
+    start_date, end_date, _, _ = MarkdownUtils.calculate_week_range(
+        target_date,
+        start_of_week=start_of_week,
+    )
+
+    links = []
+
+    current_date = start_date.date()
+
+    while current_date <= end_date.date():
+        file_name = f"comments_{current_date:%Y-%m-%d}.md"
+        file_path = os.path.join(
+            comment_export_dir,
+            file_name,
+        )
+
+        if os.path.exists(file_path):
+            note = Note(file_path)
+            parser = NoteParser(note)
+
+            headings = parser.get_headings()
+
+            for heading in headings:
+                if heading["level"] != 2:
+                    continue
+
+                heading_text = heading["text"].strip()
+
+                if not heading_text:
+                    continue
+
+                links.append(
+                    f"[[{file_name[:-3]}#{heading_text}]]"
+                )
+
+        current_date += timedelta(days=1)
+
+    return links

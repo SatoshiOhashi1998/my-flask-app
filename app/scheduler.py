@@ -12,6 +12,7 @@ from app.notes.note_manager import (
     create_dailynote,
     create_next_weekly_note,
     add_thino_summary_to_weekly_note,
+    add_comment_summary_to_weekly_note,
 )
 
 logger = logging.getLogger(__name__)  # モジュール専用ロガー
@@ -106,6 +107,16 @@ class UrlScheduler:
             hour=23,
             minute=0,
             job_id="add_thino_summary_to_weekly_note"
+        )
+        # 毎週土曜日23:00に今週のコメントを
+        # 今週のウィークリーノートへ追加
+        self.add_job(
+            func=add_comment_summary_to_weekly_note,
+            trigger="cron",
+            day_of_week="sat",
+            hour=23,
+            minute=0,
+            job_id="add_comment_summary_to_weekly_note"
         )
 
     def schedule_url_jobs(self):
