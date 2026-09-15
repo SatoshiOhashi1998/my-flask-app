@@ -11,6 +11,7 @@ from app.notes.export_comments import export_today_comments_to_md
 from app.notes.note_manager import (
     create_dailynote,
     create_next_weekly_note,
+    add_thino_summary_to_weekly_note,
 )
 
 logger = logging.getLogger(__name__)  # モジュール専用ロガー
@@ -78,7 +79,7 @@ class UrlScheduler:
             minute=55,
             job_id="export_today_comments_23_hour"
         )
-        
+
         # 毎日18:00にデイリーノートを作成
         self.add_job(
             func=create_dailynote,
@@ -96,6 +97,14 @@ class UrlScheduler:
             hour=23,
             minute=0,
             job_id="create_next_weekly_note"
+        )
+        
+        scheduler.add_job(
+            add_thino_summary_to_weekly_note,
+            "cron",
+            day_of_week="sat",
+            hour=23,
+            minute=0,
         )
 
     def schedule_url_jobs(self):
