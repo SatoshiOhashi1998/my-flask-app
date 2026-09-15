@@ -10,6 +10,7 @@ from app.notes.vocabulary_manager import (
 from app.notes.note_manager import (
     create_dailynote,
     create_next_weekly_note,
+    add_thino_summary_to_weekly_note,
 )
 
 from myutils.markdown.vault import Vault
@@ -166,3 +167,27 @@ def register_markdown_routes(api_bp):
                     f"エラーが発生しました: {str(e)}"
                 ),
             }), 500
+
+
+    @api_bp.get("/api/markdown/thino-summary")
+    def add_thino_summary():
+        try:
+            add_thino_summary_to_weekly_note()
+            return {
+                "message": "Thino Summaryを更新しました。"
+            }, 200
+
+        except ValueError as e:
+            return {
+                "error": str(e)
+            }, 400
+
+        except FileNotFoundError as e:
+            return {
+                "error": str(e)
+            }, 404
+
+        except Exception as e:
+            return {
+                "error": str(e)
+            }, 500
