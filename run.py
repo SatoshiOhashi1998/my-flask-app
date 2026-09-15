@@ -1,3 +1,4 @@
+# git revert勉強用テスト
 from dotenv import load_dotenv
 load_dotenv()
 
