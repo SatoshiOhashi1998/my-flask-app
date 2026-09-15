@@ -99,7 +99,7 @@ class UrlScheduler:
             job_id="create_next_weekly_note"
         )
         
-        scheduler.add_job(
+        self.add_job(
             add_thino_summary_to_weekly_note,
             "cron",
             day_of_week="sat",
