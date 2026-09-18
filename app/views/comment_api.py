@@ -138,11 +138,6 @@ def register_comment_routes(api_bp):
             target_date=target_date,
         )
 
-        if file_path is None:
-            return jsonify({
-                "message": f"{date_str}のコメントはありません"
-            }), 404
-
         return jsonify({
             "message": "コメントを出力しました",
             "date": date_str,

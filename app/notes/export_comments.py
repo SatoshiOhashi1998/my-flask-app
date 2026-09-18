@@ -33,10 +33,8 @@ def export_comments_to_md(output_dir=None, target_date=None):
         str:
             出力したMarkdownファイルのパス。
 
-        None:
-            指定日のコメントが存在しない場合。
-
     - 日付は日本時間（JST）を基準とする
+    - コメントが0件でもMarkdownファイルを作成する
     - 既存のMarkdownファイルがあれば完全に上書きする
     - コメント本文は複数行・空行を含めて引用ブロックとして出力する
     - 見出しはUnicode NFC形式に正規化する
@@ -51,7 +49,9 @@ def export_comments_to_md(output_dir=None, target_date=None):
         target_date = target_date.date()
 
     if not isinstance(target_date, date):
-        raise TypeError("target_dateはdate型またはdatetime型で指定してください。")
+        raise TypeError(
+            "target_dateはdate型またはdatetime型で指定してください。"
+        )
 
     os.makedirs(output_dir, exist_ok=True)
 
@@ -74,7 +74,6 @@ def export_comments_to_md(output_dir=None, target_date=None):
 
     if not comments:
         print(f"{target_date.isoformat()}のコメントはありません。")
-        return None
 
     filename = f"comments_{target_date.isoformat()}.md"
     file_path = os.path.join(output_dir, filename)
