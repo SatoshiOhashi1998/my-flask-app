@@ -1,0 +1,1053 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>API Tool</title>
+
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            padding: 30px;
+            font-family: sans-serif;
+            background: #f5f5f5;
+            color: #222;
+        }
+
+        h1 {
+            margin-top: 0;
+            margin-bottom: 30px;
+        }
+
+        h2 {
+            margin-top: 0;
+            margin-bottom: 20px;
+        }
+
+        h3 {
+            margin-top: 0;
+            margin-bottom: 10px;
+        }
+
+        .section {
+            max-width: 1000px;
+            margin-bottom: 25px;
+            padding: 20px;
+            background: white;
+            border-radius: 8px;
+        }
+
+        .operation {
+            margin-bottom: 20px;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+        }
+
+        .operation:last-child {
+            margin-bottom: 0;
+        }
+
+        .form-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        label {
+            display: inline-flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        input {
+            padding: 7px 9px;
+            border: 1px solid #bbb;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+
+        input[type="date"] {
+            width: 150px;
+        }
+
+        input[type="time"] {
+            width: 110px;
+        }
+
+        input[type="text"] {
+            min-width: 250px;
+        }
+
+        button {
+            padding: 8px 14px;
+            border: none;
+            border-radius: 4px;
+            background: #333;
+            color: white;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        button:hover {
+            background: #555;
+        }
+
+        button.danger {
+            background: #b00020;
+        }
+
+        button.danger:hover {
+            background: #d00030;
+        }
+
+        .description {
+            margin: 0 0 12px;
+            color: #666;
+            font-size: 14px;
+        }
+
+        .endpoint {
+            margin-bottom: 12px;
+            font-family: monospace;
+            color: #666;
+            font-size: 13px;
+        }
+
+        #response-section {
+            max-width: 1000px;
+            margin-top: 30px;
+        }
+
+        #response-status {
+            margin-bottom: 10px;
+            font-weight: bold;
+        }
+
+        #response {
+            min-height: 150px;
+            margin: 0;
+            padding: 15px;
+            overflow-x: auto;
+            background: #222;
+            color: #eee;
+            border-radius: 6px;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+    </style>
+</head>
+
+<body>
+
+<h1>API Tool</h1>
+
+
+<!-- ==================== Markdown ==================== -->
+
+<section class="section">
+    <h2>Markdown</h2>
+
+    <div class="operation">
+        <h3>Daily Noteを作成</h3>
+
+        <div class="endpoint">
+            GET /api/markdown/create_dailynote
+        </div>
+
+        <p class="description">
+            指定した日付からDaily Noteを作成します。
+            日付を空欄にするとAPI側のデフォルト値が使用されます。
+        </p>
+
+        <div class="form-row">
+            <label>
+                開始日
+                <input type="date" id="daily-note-date">
+            </label>
+
+            <button type="button" id="create-daily-note">
+                実行
+            </button>
+        </div>
+    </div>
+
+
+    <div class="operation">
+        <h3>英語語彙を出力</h3>
+
+        <div class="endpoint">
+            GET /api/markdown/export_english
+        </div>
+
+        <button type="button" id="export-english">
+            実行
+        </button>
+    </div>
+
+
+    <div class="operation">
+        <h3>語彙を出力</h3>
+
+        <div class="endpoint">
+            GET /api/markdown/export_vocablary
+        </div>
+
+        <button type="button" id="export-vocabulary">
+            実行
+        </button>
+    </div>
+
+
+    <div class="operation">
+        <h3>Weekly Noteを作成</h3>
+
+        <div class="endpoint">
+            GET /api/markdown/create_weekly_note
+        </div>
+
+        <p class="description">
+            指定した日付を含む週のWeekly Noteを作成します。
+        </p>
+
+        <div class="form-row">
+            <label>
+                対象日
+                <input type="date" id="weekly-note-date">
+            </label>
+
+            <button type="button" id="create-weekly-note">
+                実行
+            </button>
+        </div>
+    </div>
+
+
+    <div class="operation">
+        <h3>次週のWeekly Noteを作成</h3>
+
+        <div class="endpoint">
+            GET /api/markdown/create_next_weekly_note
+        </div>
+
+        <button type="button" id="create-next-weekly-note">
+            実行
+        </button>
+    </div>
+</section>
+
+
+<!-- ==================== Weather ==================== -->
+
+<section class="section">
+    <h2>Weather</h2>
+
+    <div class="operation">
+        <h3>今日の天気を取得</h3>
+
+        <div class="endpoint">
+            GET /api/weather/get/today
+        </div>
+
+        <button type="button" id="get-today-weather">
+            実行
+        </button>
+    </div>
+
+
+    <div class="operation">
+        <h3>明日の天気を取得</h3>
+
+        <div class="endpoint">
+            GET /api/weather/get/tomorrow
+        </div>
+
+        <button type="button" id="get-tomorrow-weather">
+            実行
+        </button>
+    </div>
+</section>
+
+
+<!-- ==================== Calendar ==================== -->
+
+<section class="section">
+    <h2>Calendar</h2>
+
+    <div class="operation">
+        <h3>今日のタスクを同期</h3>
+
+        <div class="endpoint">
+            GET /api/calendar/sync-tasks/today
+        </div>
+
+        <div class="form-row">
+            <label>
+                開始時刻
+                <input type="time" id="calendar-today-start-time" value="09:00">
+            </label>
+
+            <button type="button" id="sync-calendar-today">
+                実行
+            </button>
+        </div>
+    </div>
+
+
+    <div class="operation">
+        <h3>明日のタスクを同期</h3>
+
+        <div class="endpoint">
+            GET /api/calendar/sync-tasks/tomorrow
+        </div>
+
+        <div class="form-row">
+            <label>
+                開始時刻
+                <input type="time" id="calendar-tomorrow-start-time" value="09:00">
+            </label>
+
+            <button type="button" id="sync-calendar-tomorrow">
+                実行
+            </button>
+        </div>
+    </div>
+
+
+    <div class="operation">
+        <h3>指定日のタスクを同期</h3>
+
+        <div class="endpoint">
+            GET /api/calendar/sync-tasks/date
+        </div>
+
+        <div class="form-row">
+            <label>
+                日付
+                <input type="date" id="calendar-date">
+            </label>
+
+            <label>
+                開始時刻
+                <input type="time" id="calendar-date-start-time" value="09:00">
+            </label>
+
+            <button type="button" id="sync-calendar-date">
+                実行
+            </button>
+        </div>
+    </div>
+
+
+    <div class="operation">
+        <h3>15時までのタスクを同期</h3>
+
+        <div class="endpoint">
+            GET /api/calendar/sync-tasks/before-15
+        </div>
+
+        <div class="form-row">
+            <label>
+                日付
+                <input type="date" id="calendar-before-15-date">
+            </label>
+
+            <label>
+                開始時刻
+                <input type="time" id="calendar-before-15-start-time" value="09:00">
+            </label>
+
+            <button type="button" id="sync-calendar-before-15">
+                実行
+            </button>
+        </div>
+    </div>
+
+
+    <div class="operation">
+        <h3>18時までのタスクを同期</h3>
+
+        <div class="endpoint">
+            GET /api/calendar/sync-tasks/before-18
+        </div>
+
+        <div class="form-row">
+            <label>
+                日付
+                <input type="date" id="calendar-before-18-date">
+            </label>
+
+            <label>
+                開始時刻
+                <input type="time" id="calendar-before-18-start-time" value="15:00">
+            </label>
+
+            <button type="button" id="sync-calendar-before-18">
+                実行
+            </button>
+        </div>
+    </div>
+
+
+    <div class="operation">
+        <h3>18時以降のタスクを同期</h3>
+
+        <div class="endpoint">
+            GET /api/calendar/sync-tasks/after-18
+        </div>
+
+        <div class="form-row">
+            <label>
+                日付
+                <input type="date" id="calendar-after-18-date">
+            </label>
+
+            <label>
+                開始時刻
+                <input type="time" id="calendar-after-18-start-time" value="18:00">
+            </label>
+
+            <button type="button" id="sync-calendar-after-18">
+                実行
+            </button>
+        </div>
+    </div>
+</section>
+
+
+<!-- ==================== Clipboard ==================== -->
+
+<section class="section">
+    <h2>Clipboard</h2>
+
+    <div class="operation">
+        <h3>コードをコピー</h3>
+
+        <div class="endpoint">
+            POST /api/clipboard/copy-code
+        </div>
+
+        <p class="description">
+            指定したディレクトリやファイルのコードをクリップボードへコピーします。
+        </p>
+
+        <div class="form-row">
+            <label>
+                Target
+                <input
+                    type="text"
+                    id="clipboard-target"
+                    placeholder="例: app"
+                >
+            </label>
+        </div>
+
+        <div class="form-row">
+            <label>
+                Extensions
+                <input
+                    type="text"
+                    id="clipboard-extensions"
+                    placeholder="例: .py,.js,.jsx"
+                >
+            </label>
+        </div>
+
+        <div class="form-row">
+            <label>
+                Exclude directories
+                <input
+                    type="text"
+                    id="clipboard-exclude-dirs"
+                    placeholder="例: __pycache__,.git"
+                >
+            </label>
+        </div>
+
+        <div class="form-row">
+            <label>
+                Recursive
+                <input
+                    type="checkbox"
+                    id="clipboard-recursive"
+                    checked
+                >
+            </label>
+
+            <button type="button" id="copy-code">
+                実行
+            </button>
+        </div>
+    </div>
+</section>
+
+
+<!-- ==================== Media ==================== -->
+
+<section class="section">
+    <h2>Media</h2>
+
+    <div class="operation">
+        <h3>動画のOriginal Nameを変更</h3>
+
+        <div class="endpoint">
+            PATCH /api/videos/&lt;video_id&gt;/original-name
+        </div>
+
+        <div class="form-row">
+            <label>
+                Video ID
+                <input
+                    type="text"
+                    id="video-id"
+                >
+            </label>
+
+            <label>
+                Original Name
+                <input
+                    type="text"
+                    id="video-original-name"
+                >
+            </label>
+
+            <button type="button" id="update-video-name">
+                実行
+            </button>
+        </div>
+    </div>
+
+
+    <div class="operation">
+        <h3>音楽のOriginal Nameを変更</h3>
+
+        <div class="endpoint">
+            PATCH /api/musics/&lt;music_id&gt;/original-name
+        </div>
+
+        <div class="form-row">
+            <label>
+                Music ID
+                <input
+                    type="text"
+                    id="music-id"
+                >
+            </label>
+
+            <label>
+                Original Name
+                <input
+                    type="text"
+                    id="music-original-name"
+                >
+            </label>
+
+            <button type="button" id="update-music-name">
+                実行
+            </button>
+        </div>
+    </div>
+</section>
+
+
+<!-- ==================== Maintenance ==================== -->
+
+<section class="section">
+    <h2>Maintenance</h2>
+
+    <div class="operation">
+        <h3>Media情報をリセット</h3>
+
+        <div class="endpoint">
+            GET /api/reset/media
+        </div>
+
+        <p class="description">
+            Mediaのメタデータを更新し、存在しないメディアのDBエントリを削除します。
+        </p>
+
+        <button
+            type="button"
+            id="reset-media"
+            class="danger"
+        >
+            Mediaをリセット
+        </button>
+    </div>
+</section>
+
+
+<!-- ==================== Response ==================== -->
+
+<section id="response-section">
+    <h2>Response</h2>
+
+    <div id="response-status"></div>
+
+    <pre id="response"></pre>
+</section>
+
+
+<script>
+    /**
+     * APIを呼び出してレスポンスを表示する共通関数
+     */
+    async function callApi(url, options = {}) {
+        const statusElement = document.getElementById("response-status");
+        const responseElement = document.getElementById("response");
+
+        statusElement.textContent = "実行中...";
+        responseElement.textContent = "";
+
+        try {
+            const response = await fetch(url, options);
+            const text = await response.text();
+
+            let data;
+
+            try {
+                data = JSON.parse(text);
+            } catch {
+                data = text;
+            }
+
+            statusElement.textContent =
+                `HTTP ${response.status} ${response.statusText}`;
+
+            if (typeof data === "string") {
+                responseElement.textContent = data;
+            } else {
+                responseElement.textContent = JSON.stringify(data, null, 2);
+            }
+
+        } catch (error) {
+            statusElement.textContent = "通信エラー";
+            responseElement.textContent = error.toString();
+        }
+    }
+
+
+    /**
+     * 現在の日付を YYYY-MM-DD で取得
+     */
+    function getToday() {
+        const date = new Date();
+
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, "0");
+        const day = String(date.getDate()).padStart(2, "0");
+
+        return `${year}-${month}-${day}`;
+    }
+
+
+    /**
+     * カンマ区切りの入力を配列に変換
+     *
+     * 例:
+     * ".py,.js,.jsx"
+     * ↓
+     * [".py", ".js", ".jsx"]
+     */
+    function parseCommaSeparated(value) {
+        return value
+            .split(",")
+            .map(item => item.trim())
+            .filter(item => item !== "");
+    }
+
+
+    // ============================================================
+    // Markdown
+    // ============================================================
+
+    document
+        .getElementById("create-daily-note")
+        .addEventListener("click", () => {
+            const date = document.getElementById("daily-note-date").value;
+
+            const params = new URLSearchParams();
+
+            if (date) {
+                params.set("start_date", date);
+            }
+
+            const query = params.toString();
+
+            const url = query
+                ? `/api/markdown/create_dailynote?${query}`
+                : "/api/markdown/create_dailynote";
+
+            callApi(url);
+        });
+
+
+    document
+        .getElementById("export-english")
+        .addEventListener("click", () => {
+            callApi("/api/markdown/export_english");
+        });
+
+
+    document
+        .getElementById("export-vocabulary")
+        .addEventListener("click", () => {
+            callApi("/api/markdown/export_vocablary");
+        });
+
+
+    document
+        .getElementById("create-weekly-note")
+        .addEventListener("click", () => {
+            const date = document.getElementById("weekly-note-date").value;
+
+            const params = new URLSearchParams();
+
+            if (date) {
+                params.set("target_date", date);
+            }
+
+            const query = params.toString();
+
+            const url = query
+                ? `/api/markdown/create_weekly_note?${query}`
+                : "/api/markdown/create_weekly_note";
+
+            callApi(url);
+        });
+
+
+    document
+        .getElementById("create-next-weekly-note")
+        .addEventListener("click", () => {
+            callApi("/api/markdown/create_next_weekly_note");
+        });
+
+
+    // ============================================================
+    // Weather
+    // ============================================================
+
+    document
+        .getElementById("get-today-weather")
+        .addEventListener("click", () => {
+            callApi("/api/weather/get/today");
+        });
+
+
+    document
+        .getElementById("get-tomorrow-weather")
+        .addEventListener("click", () => {
+            callApi("/api/weather/get/tomorrow");
+        });
+
+
+    // ============================================================
+    // Calendar
+    // ============================================================
+
+    document
+        .getElementById("sync-calendar-today")
+        .addEventListener("click", () => {
+            const startTime =
+                document.getElementById("calendar-today-start-time").value;
+
+            const params = new URLSearchParams();
+
+            if (startTime) {
+                params.set("start_time", startTime);
+            }
+
+            callApi(
+                `/api/calendar/sync-tasks/today?${params.toString()}`
+            );
+        });
+
+
+    document
+        .getElementById("sync-calendar-tomorrow")
+        .addEventListener("click", () => {
+            const startTime =
+                document.getElementById("calendar-tomorrow-start-time").value;
+
+            const params = new URLSearchParams();
+
+            if (startTime) {
+                params.set("start_time", startTime);
+            }
+
+            callApi(
+                `/api/calendar/sync-tasks/tomorrow?${params.toString()}`
+            );
+        });
+
+
+    document
+        .getElementById("sync-calendar-date")
+        .addEventListener("click", () => {
+            const date =
+                document.getElementById("calendar-date").value;
+
+            const startTime =
+                document.getElementById("calendar-date-start-time").value;
+
+            if (!date) {
+                alert("日付を指定してください。");
+                return;
+            }
+
+            const params = new URLSearchParams();
+
+            params.set("date", date);
+
+            if (startTime) {
+                params.set("start_time", startTime);
+            }
+
+            callApi(
+                `/api/calendar/sync-tasks/date?${params.toString()}`
+            );
+        });
+
+
+    document
+        .getElementById("sync-calendar-before-15")
+        .addEventListener("click", () => {
+            const date =
+                document.getElementById("calendar-before-15-date").value;
+
+            const startTime =
+                document.getElementById("calendar-before-15-start-time").value;
+
+            const params = new URLSearchParams();
+
+            if (date) {
+                params.set("date", date);
+            }
+
+            if (startTime) {
+                params.set("start_time", startTime);
+            }
+
+            callApi(
+                `/api/calendar/sync-tasks/before-15?${params.toString()}`
+            );
+        });
+
+
+    document
+        .getElementById("sync-calendar-before-18")
+        .addEventListener("click", () => {
+            const date =
+                document.getElementById("calendar-before-18-date").value;
+
+            const startTime =
+                document.getElementById("calendar-before-18-start-time").value;
+
+            const params = new URLSearchParams();
+
+            if (date) {
+                params.set("date", date);
+            }
+
+            if (startTime) {
+                params.set("start_time", startTime);
+            }
+
+            callApi(
+                `/api/calendar/sync-tasks/before-18?${params.toString()}`
+            );
+        });
+
+
+    document
+        .getElementById("sync-calendar-after-18")
+        .addEventListener("click", () => {
+            const date =
+                document.getElementById("calendar-after-18-date").value;
+
+            const startTime =
+                document.getElementById("calendar-after-18-start-time").value;
+
+            const params = new URLSearchParams();
+
+            if (date) {
+                params.set("date", date);
+            }
+
+            if (startTime) {
+                params.set("start_time", startTime);
+            }
+
+            callApi(
+                `/api/calendar/sync-tasks/after-18?${params.toString()}`
+            );
+        });
+
+
+    // ============================================================
+    // Clipboard
+    // ============================================================
+
+    document
+        .getElementById("copy-code")
+        .addEventListener("click", () => {
+            const target =
+                document.getElementById("clipboard-target").value.trim();
+
+            const extensions =
+                parseCommaSeparated(
+                    document.getElementById("clipboard-extensions").value
+                );
+
+            const excludeDirs =
+                parseCommaSeparated(
+                    document.getElementById("clipboard-exclude-dirs").value
+                );
+
+            const recursive =
+                document.getElementById("clipboard-recursive").checked;
+
+            if (!target) {
+                alert("Targetを指定してください。");
+                return;
+            }
+
+            const data = {
+                target: target,
+                extensions: extensions,
+                exclude_dirs: excludeDirs,
+                recursive: recursive,
+            };
+
+            callApi("/api/clipboard/copy-code", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify(data),
+            });
+        });
+
+
+    // ============================================================
+    // Media
+    // ============================================================
+
+    document
+        .getElementById("update-video-name")
+        .addEventListener("click", () => {
+            const videoId =
+                document.getElementById("video-id").value.trim();
+
+            const originalName =
+                document
+                    .getElementById("video-original-name")
+                    .value
+                    .trim();
+
+            if (!videoId) {
+                alert("Video IDを指定してください。");
+                return;
+            }
+
+            if (!originalName) {
+                alert("Original Nameを指定してください。");
+                return;
+            }
+
+            callApi(
+                `/api/videos/${encodeURIComponent(videoId)}/original-name`,
+                {
+                    method: "PATCH",
+                    headers: {
+                        "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify({
+                        original_name: originalName,
+                    }),
+                }
+            );
+        });
+
+
+    document
+        .getElementById("update-music-name")
+        .addEventListener("click", () => {
+            const musicId =
+                document.getElementById("music-id").value.trim();
+
+            const originalName =
+                document
+                    .getElementById("music-original-name")
+                    .value
+                    .trim();
+
+            if (!musicId) {
+                alert("Music IDを指定してください。");
+                return;
+            }
+
+            if (!originalName) {
+                alert("Original Nameを指定してください。");
+                return;
+            }
+
+            callApi(
+                `/api/musics/${encodeURIComponent(musicId)}/original-name`,
+                {
+                    method: "PATCH",
+                    headers: {
+                        "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify({
+                        original_name: originalName,
+                    }),
+                }
+            );
+        });
+
+
+    // ============================================================
+    // Maintenance
+    // ============================================================
+
+    document
+        .getElementById("reset-media")
+        .addEventListener("click", () => {
+            const confirmed = confirm(
+                "Media情報をリセットします。\n実行してもよろしいですか？"
+            );
+
+            if (!confirmed) {
+                return;
+            }
+
+            callApi("/api/reset/media");
+        });
+
+
+    // ============================================================
+    // 初期値
+    // ============================================================
+
+    const today = getToday();
+
+    document.getElementById("daily-note-date").value = today;
+    document.getElementById("weekly-note-date").value = today;
+
+    document.getElementById("calendar-date").value = today;
+    document.getElementById("calendar-before-15-date").value = today;
+    document.getElementById("calendar-before-18-date").value = today;
+    document.getElementById("calendar-after-18-date").value = today;
+</script>
+
+</body>
+</html>
