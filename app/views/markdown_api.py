@@ -40,6 +40,8 @@ def register_markdown_routes(api_bp):
                         "YYYY-MM-DD 形式で指定してください。"
                     ),
                 }), 400
+        else:
+            start_date = datetime.now()
 
         try:
             create_dailynote(start_date=start_date)

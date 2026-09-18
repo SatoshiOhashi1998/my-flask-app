@@ -69,23 +69,16 @@ def add_thino_summary_to_weekly_note(
         "\n\n".join(links),
     )
 
-
 def get_daily_template_spec():
-    template_path = os.getenv("DAILY_NOTE_TEMPLATE")
-
-    if not template_path:
-        return {
-            "default": os.getenv("DAILY_NOTE_TEMPLATE_DEFAULT", ""),
-            "monday": os.getenv("DAILY_NOTE_TEMPLATE_MONDAY", ""),
-            "tuesday": os.getenv("DAILY_NOTE_TEMPLATE_TUESDAY", ""),
-            "wednesday": os.getenv("DAILY_NOTE_TEMPLATE_WEDNESDAY", ""),
-            "thursday": os.getenv("DAILY_NOTE_TEMPLATE_THURSDAY", ""),
-            "friday": os.getenv("DAILY_NOTE_TEMPLATE_FRIDAY", ""),
-            "saturday": os.getenv("DAILY_NOTE_TEMPLATE_SATURDAY", ""),
-            "sunday": os.getenv("DAILY_NOTE_TEMPLATE_SUNDAY", ""),
-        }
-
-    return template_path
+    return {
+        "MONDAY": os.getenv("DAILY_NOTE_TEMPLATE_MONDAY"),
+        "TUESDAY": os.getenv("DAILY_NOTE_TEMPLATE_TUESDAY"),
+        "WEDNESDAY": os.getenv("DAILY_NOTE_TEMPLATE_WEDNESDAY"),
+        "THURSDAY": os.getenv("DAILY_NOTE_TEMPLATE_THURSDAY"),
+        "FRIDAY": os.getenv("DAILY_NOTE_TEMPLATE_FRIDAY"),
+        "SATURDAY": os.getenv("DAILY_NOTE_TEMPLATE_SATURDAY"),
+        "SUNDAY": os.getenv("DAILY_NOTE_TEMPLATE_SUNDAY"),
+    }
 
 
 def create_dailynote(start_date=None):
