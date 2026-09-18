@@ -5,13 +5,27 @@ from pathlib import Path
 from app.models import db, Comment, VideoDataModel
 from app.notes.export_comments import export_today_comments_to_md
 
-class TestExportTodayCommentsToMd:
-    def test_export_no_comments(self, app):
-        """本日のコメントがない場合、ファイルを作成せずNoneを返す。"""
-        with app.app_context():
-            result = export_today_comments_to_md()
 
-            assert result is None
+class TestExportTodayCommentsToMd:
+    def test_export_no_comments(self, app, tmp_path):
+        """本日のコメントがない場合でもMarkdownファイルを作成する。"""
+        with app.app_context():
+            result = export_today_comments_to_md(
+                output_dir=tmp_path,
+                now=datetime(2026, 9, 18, 23, 0, 0),
+            )
+
+            assert result is not None
+
+            file_path = Path(result)
+
+            assert file_path.exists()
+            assert file_path.name == "comments_2026-09-18.md"
+
+            content = file_path.read_text(encoding="utf-8")
+
+            assert "# 本日のコメントまとめ (2026-09-18)" in content
+            assert "合計コメント数: **0件**" in content
 
     def test_export_multiline_comment(self, app, tmp_path):
         """複数行・空行を含むコメントが正しく引用ブロックになる。"""

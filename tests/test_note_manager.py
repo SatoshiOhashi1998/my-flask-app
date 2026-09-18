@@ -9,12 +9,25 @@ from app.notes.note_manager import (
 
 
 def test_get_daily_template_spec(monkeypatch):
-    monkeypatch.setenv("DAILY_NOTE_TEMPLATE", "default.md")
     monkeypatch.setenv("DAILY_NOTE_TEMPLATE_MONDAY", "monday.md")
+    monkeypatch.setenv("DAILY_NOTE_TEMPLATE_TUESDAY", "tuesday.md")
+    monkeypatch.setenv("DAILY_NOTE_TEMPLATE_WEDNESDAY", "wednesday.md")
+    monkeypatch.setenv("DAILY_NOTE_TEMPLATE_THURSDAY", "thursday.md")
+    monkeypatch.setenv("DAILY_NOTE_TEMPLATE_FRIDAY", "friday.md")
+    monkeypatch.setenv("DAILY_NOTE_TEMPLATE_SATURDAY", "saturday.md")
+    monkeypatch.setenv("DAILY_NOTE_TEMPLATE_SUNDAY", "sunday.md")
 
     result = get_daily_template_spec()
 
-    assert result == "default.md"
+    assert result == {
+        "MONDAY": "monday.md",
+        "TUESDAY": "tuesday.md",
+        "WEDNESDAY": "wednesday.md",
+        "THURSDAY": "thursday.md",
+        "FRIDAY": "friday.md",
+        "SATURDAY": "saturday.md",
+        "SUNDAY": "sunday.md",
+    }
 
 
 def test_create_dailynote(monkeypatch):
@@ -23,7 +36,13 @@ def test_create_dailynote(monkeypatch):
     start_date = datetime(2026, 9, 8)
 
     template_spec = {
-        "default": "default.md",
+        "MONDAY": "monday.md",
+        "TUESDAY": "tuesday.md",
+        "WEDNESDAY": "wednesday.md",
+        "THURSDAY": "thursday.md",
+        "FRIDAY": "friday.md",
+        "SATURDAY": "saturday.md",
+        "SUNDAY": "sunday.md",
     }
 
     with patch(
