@@ -1,6 +1,6 @@
 import os
 import unicodedata
-from datetime import datetime, time, timedelta
+from datetime import date, datetime, time, timedelta
 from zoneinfo import ZoneInfo
 
 from app.models import db, Comment, VideoDataModel, MusicDataModel
@@ -13,10 +13,28 @@ from myutils.markdown.vault import Note
 JST = ZoneInfo("Asia/Tokyo")
 
 
-def export_today_comments_to_md(output_dir=None, now=None):
+def export_comments_to_md(output_dir=None, target_date=None):
     """
-    本日のコメントを取得し、Markdownファイルとして出力します。
-    呼び出し元で Flask アプリケーションコンテキスト内に入っている必要があります。
+    指定した日のコメントを取得し、Markdownファイルとして出力する。
+
+    呼び出し元で Flask アプリケーションコンテキスト内に
+    入っている必要があります。
+
+    Args:
+        output_dir:
+            Markdownファイルの出力先。
+            Noneの場合は環境変数 EXPORT_DIR を使用する。
+
+        target_date:
+            出力対象の日付。
+            date型またはdatetime型を指定する。
+
+    Returns:
+        str:
+            出力したMarkdownファイルのパス。
+
+        None:
+            指定日のコメントが存在しない場合。
 
     - 日付は日本時間（JST）を基準とする
     - 既存のMarkdownファイルがあれば完全に上書きする
@@ -26,41 +44,50 @@ def export_today_comments_to_md(output_dir=None, now=None):
     if not output_dir:
         output_dir = os.getenv("EXPORT_DIR", "./exports")
 
-    if now is None:
-        now = datetime.now(JST)
+    if target_date is None:
+        raise ValueError("target_dateを指定してください。")
 
-    today = now.date()
+    if isinstance(target_date, datetime):
+        target_date = target_date.date()
+
+    if not isinstance(target_date, date):
+        raise TypeError("target_dateはdate型またはdatetime型で指定してください。")
 
     os.makedirs(output_dir, exist_ok=True)
 
     start_dt = datetime.combine(
-        today,
+        target_date,
         time.min,
-        tzinfo=JST
+        tzinfo=JST,
     )
     end_dt = start_dt + timedelta(days=1)
 
-    comments = Comment.query.filter(
-        Comment.created_at >= start_dt,
-        Comment.created_at < end_dt
-    ).order_by(Comment.created_at.asc()).all()
+    comments = (
+        Comment.query
+        .filter(
+            Comment.created_at >= start_dt,
+            Comment.created_at < end_dt,
+        )
+        .order_by(Comment.created_at.asc())
+        .all()
+    )
 
     if not comments:
-        print("本日のコメントはありません。")
+        print(f"{target_date.isoformat()}のコメントはありません。")
         return None
 
-    filename = f"comments_{today.isoformat()}.md"
+    filename = f"comments_{target_date.isoformat()}.md"
     file_path = os.path.join(output_dir, filename)
 
     md_lines = [
         "---",
-        f"created: {today.isoformat()}",
+        f"created: {target_date.isoformat()}",
         "---",
         "",
-        f"# 本日のコメントまとめ ({today.isoformat()})",
+        f"# 本日のコメントまとめ ({target_date.isoformat()})",
         "",
         f"合計コメント数: **{len(comments)}件**",
-        ""
+        "",
     ]
 
     for c in comments:
@@ -84,7 +111,7 @@ def export_today_comments_to_md(output_dir=None, now=None):
                 if yt_info:
                     media_name = yt_info.get(
                         "filetitle",
-                        c.video_id
+                        c.video_id,
                     )
 
             except Exception as e:
@@ -93,7 +120,10 @@ def export_today_comments_to_md(output_dir=None, now=None):
                     f"{c.video_id}: {e}"
                 )
 
-        media_name = unicodedata.normalize("NFC", media_name)
+        media_name = unicodedata.normalize(
+            "NFC",
+            media_name,
+        )
 
         watch_url = (
             f"http://localhost:5173/watch"
@@ -122,6 +152,34 @@ def export_today_comments_to_md(output_dir=None, now=None):
     return file_path
 
 
+def export_today_comments_to_md(output_dir=None, now=None):
+    """
+    本日のコメントを取得し、Markdownファイルとして出力する。
+
+    内部ではexport_comments_to_md()を使用する。
+
+    Args:
+        output_dir:
+            Markdownファイルの出力先。
+            Noneの場合は環境変数 EXPORT_DIR を使用する。
+
+        now:
+            現在日時。
+            テスト時などに指定可能。
+            Noneの場合は現在のJSTを使用する。
+
+    Returns:
+        export_comments_to_md()の戻り値。
+    """
+    if now is None:
+        now = datetime.now(JST)
+
+    return export_comments_to_md(
+        output_dir=output_dir,
+        target_date=now.date(),
+    )
+
+
 def collect_comment_links(
     comment_export_dir: str,
     target_date: datetime,
@@ -134,7 +192,7 @@ def collect_comment_links(
     対象ファイル:
         comments_YYYY-MM-DD.md
 
-    対象となるのはMarkdown内の ## 見出しのみ。
+    対象となるのはMarkdown内の##見出しのみ。
     """
 
     if start_of_week not in ("monday", "sunday"):

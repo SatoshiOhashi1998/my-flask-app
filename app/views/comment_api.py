@@ -1,7 +1,8 @@
 from flask import jsonify, request
+from datetime import datetime
 
 from app.models import Comment, db
-from app.notes.export_comments import export_today_comments_to_md
+from app.notes.export_comments import export_comments_to_md, export_today_comments_to_md
 
 
 def register_comment_routes(api_bp):
@@ -119,4 +120,32 @@ def register_comment_routes(api_bp):
         return jsonify({
             "message": "本日のコメントを出力しました"
         })
-        
+
+    @api_bp.route("/api/comments/export/<date_str>", methods=["GET"])
+    def export_comments_by_date(date_str):
+        try:
+            target_date = datetime.strptime(
+                date_str,
+                "%Y-%m-%d",
+            ).date()
+
+        except ValueError:
+            return jsonify({
+                "error": "日付はYYYY-MM-DD形式で指定してください"
+            }), 400
+
+        file_path = export_comments_to_md(
+            target_date=target_date,
+        )
+
+        if file_path is None:
+            return jsonify({
+                "message": f"{date_str}のコメントはありません"
+            }), 404
+
+        return jsonify({
+            "message": "コメントを出力しました",
+            "date": date_str,
+            "file_path": file_path,
+        })
+            
