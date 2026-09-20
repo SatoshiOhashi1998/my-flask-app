@@ -170,3 +170,70 @@ def register_markdown_routes(api_bp):
                     f"エラーが発生しました: {str(e)}"
                 ),
             }), 500
+
+    
+    @api_bp.route(
+        "/api/markdown/add_thino_summary",
+        methods=["GET"],
+    )
+    def add_thino_summary():
+        try:
+            add_thino_summary_to_weekly_note()
+
+            return jsonify({
+                "status": "success",
+                "message": "今週のThino Summaryを更新しました",
+            }), 200
+
+        except Exception as e:
+            return jsonify({
+                "status": "error",
+                "message": (
+                    f"Thino Summaryの更新中に"
+                    f"エラーが発生しました: {str(e)}"
+                ),
+            }), 500
+
+
+    @api_bp.route(
+        "/api/markdown/add_thino_summary/<date_str>",
+        methods=["GET"],
+    )
+    def add_thino_summary_by_date(date_str):
+        try:
+            target_date = datetime.strptime(
+                date_str,
+                "%Y-%m-%d",
+            )
+
+        except ValueError:
+            return jsonify({
+                "status": "error",
+                "message": (
+                    "無効な日付フォーマットです。"
+                    "YYYY-MM-DD 形式で指定してください。"
+                ),
+            }), 400
+
+        try:
+            add_thino_summary_to_weekly_note(
+                target_date=target_date,
+            )
+
+            return jsonify({
+                "status": "success",
+                "message": (
+                    f"{date_str} の属する週の"
+                    "Thino Summaryを更新しました"
+                ),
+                "target_date": date_str,
+            }), 200
+
+        except Exception as e:
+            return jsonify({
+                "status": "error",
+                "message": (
+                    f"Thino Summaryの更新中に"
+                    f"エラーが発生しました: {str(e)}"
+                ),
+            }), 500
