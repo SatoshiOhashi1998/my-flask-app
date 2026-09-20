@@ -37,9 +37,8 @@ def fetch_youtube_video_info(video_id: str) -> dict:
     """YouTube Data APIを使用して指定動画の詳細情報を取得する"""
     yt_api = YouTubeAPI()
 
-    item = yt_api.get_video_details(
+    item = yt_api.get_video_details_with_cache(
         video_id,
-        part="snippet",
     )
 
     if item is None:
