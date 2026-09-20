@@ -3,6 +3,7 @@ from datetime import datetime
 
 from app.models import Comment, db
 from app.notes.export_comments import export_comments_to_md, export_today_comments_to_md
+from app.notes.note_manager import add_comment_summary_to_weekly_note
 
 
 def register_comment_routes(api_bp):
@@ -143,4 +144,47 @@ def register_comment_routes(api_bp):
             "date": date_str,
             "file_path": file_path,
         })
+
+    @api_bp.route("/api/comments/add-summary", methods=["GET"])
+    def add_comment_summary():
+        try:
+            add_comment_summary_to_weekly_note()
+
+            return jsonify({
+                "message": "今週のComment Summaryを更新しました",
+            })
+
+        except Exception as e:
+            return jsonify({
+                "error": str(e),
+            }), 500
+
+
+    @api_bp.route("/api/comments/add-summary/<date_str>", methods=["GET"])
+    def add_comment_summary_by_date(date_str):
+        try:
+            target_date = datetime.strptime(
+                date_str,
+                "%Y-%m-%d",
+            )
+
+        except ValueError:
+            return jsonify({
+                "error": "日付はYYYY-MM-DD形式で指定してください"
+            }), 400
+
+        try:
+            add_comment_summary_to_weekly_note(
+                target_date=target_date,
+            )
+
+            return jsonify({
+                "message": "Comment Summaryを更新しました",
+                "date": date_str,
+            })
+
+        except Exception as e:
+            return jsonify({
+                "error": str(e),
+            }), 500
             
