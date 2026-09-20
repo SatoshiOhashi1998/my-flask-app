@@ -1,67 +1,56 @@
-import os
-from googleapiclient.discovery import build
+from myutils.youtube_api.fetch_youtube_data import YouTubeAPI
+
 
 def fetch_youtube_videos(query: str, max_results: int = 45) -> list:
     """YouTube Data APIを使用して動画を検索し、整形したリストを返す"""
     if not query:
         return []
 
-    api_key = os.getenv("YOUTUBE_API_KEY")
-    if not api_key:
-        raise ValueError("YOUTUBE_API_KEY is not set.")
+    yt_api = YouTubeAPI()
 
-    youtube = build('youtube', 'v3', developerKey=api_key)
-    
-    response = youtube.search().list(
-        q=query,
-        part='snippet',
-        type='video',
-        maxResults=max_results
-    ).execute()
+    response = yt_api.search_videos(
+        query=query,
+        max_results=max_results,
+    )
 
     items = []
-    for item in response.get('items', []):
-        if 'videoId' not in item.get('id', {}):
+
+    for item in response.get("items", []):
+        if "videoId" not in item.get("id", {}):
             continue
 
-        video_id = item['id']['videoId']
-        snippet = item['snippet']
-        
+        video_id = item["id"]["videoId"]
+        snippet = item["snippet"]
+
         items.append({
-            'id': video_id,
-            'filetitle': snippet['title'],
-            'dirpath': f"YouTube / {snippet['channelTitle']}",
-            'thumbnail': snippet['thumbnails']['high']['url'],
-            'type': 'youtube'
+            "id": video_id,
+            "filetitle": snippet["title"],
+            "dirpath": f"YouTube / {snippet['channelTitle']}",
+            "thumbnail": snippet["thumbnails"]["high"]["url"],
+            "type": "youtube",
         })
 
-    items = items
     return items
+
 
 def fetch_youtube_video_info(video_id: str) -> dict:
     """YouTube Data APIを使用して指定動画の詳細情報を取得する"""
-    api_key = os.getenv("YOUTUBE_API_KEY")
-    if not api_key:
-        raise ValueError("YOUTUBE_API_KEY is not set.")
+    yt_api = YouTubeAPI()
 
-    youtube = build('youtube', 'v3', developerKey=api_key)
-    
-    response = youtube.videos().list(
-        part='snippet',
-        id=video_id
-    ).execute()
+    item = yt_api.get_video_details(
+        video_id,
+        part="snippet",
+    )
 
-    items = response.get('items', [])
-    if not items:
+    if item is None:
         return None
 
-    item = items[0]
-    snippet = item['snippet']
+    snippet = item["snippet"]
 
     return {
-        'id': video_id,
-        'filetitle': snippet['title'],
-        'dirpath': f"YouTube / {snippet['channelTitle']}",
-        'thumbnail': snippet['thumbnails']['high']['url'],
-        'type': 'youtube'
+        "id": video_id,
+        "filetitle": snippet["title"],
+        "dirpath": f"YouTube / {snippet['channelTitle']}",
+        "thumbnail": snippet["thumbnails"]["high"]["url"],
+        "type": "youtube",
     }

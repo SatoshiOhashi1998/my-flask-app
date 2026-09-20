@@ -16,7 +16,7 @@ Google Apps Script（GAS）に送信する機能を提供します。
 - `GAS_YouTube_URL`: Google Apps ScriptのエンドポイントURL
 
 必要なライブラリ：
-- `os`, `requests`, `json`, `time`, `datetime`, `timedelta`, `pytz`, `isodate`, `pandas`
+- `os`, `time`, `datetime`, `timedelta`, `pytz`, `isodate`, `pandas`
 
 関数：
 
@@ -37,7 +37,7 @@ get_archived_live_streams_by_channelid(channel_ids, published_after=None, publis
 get_archived_live_stream_by_videoid(video_id)
     特定のビデオIDに基づいてアーカイブライブ配信の情報を取得します。
     引数:
-    - video_id: ビデオID（必須）
+    - video_id: 動画ID（必須）
     戻り値: 取得した配信情報を含む辞書
 
 send_to_gas(data)
@@ -51,37 +51,18 @@ get_channel_ids_from_excel()
 
 使用方法：
 1. 必要な環境変数（`YOUTUBE_API_KEY`と`GAS_YouTube_URL`）を設定します。
-2. `get_archived_live_streams_by_query`, `get_archived_live_streams_by_channelid`または`get_archived_live_stream_by_videoid`を使用してアーカイブされたライブストリーム情報を取得します。
+2. `get_archived_live_streams_by_query`、`get_archived_live_streams_by_channelid`または
+   `get_archived_live_stream_by_videoid`を使用してアーカイブされたライブストリーム情報を取得します。
 3. `send_to_gas`関数を呼び出し、取得したデータをGASに送信します。
-
-例:
-```python
-if __name__ == "__main__":
-    target_date = '2024-10-27T20:00:00Z'
-    
-    # チャンネルIDに基づく例
-    channel_ids = get_channel_ids_from_excel()
-    archived_streams = get_archived_live_streams_by_channelid(channel_ids, published_after=target_date)
-    send_to_gas(archived_streams)
-
-    # キーワードに基づく例
-    archived_streams = get_archived_live_streams_by_query('#にじ遊戯王祭2024', published_after=target_date)
-    send_to_gas(archived_streams)
-
-    # ビデオIDに基づく例
-    video_id = "RNQs6Abec3I"
-    archived_streams = get_archived_live_stream_by_videoid(video_id)
-    send_to_gas(archived_streams)
 """
 
 import os
-import requests
-import json
 import time
 from datetime import datetime, timedelta
-import pytz
-import isodate  # ISO 8601形式のdurationを解析するためのライブラリ
+
+import isodate
 import pandas as pd
+import pytz
 
 from myutils.youtube_api.fetch_youtube_data import YouTubeAPI
 from myutils.gas_api.use_gas import send_to_gas
@@ -90,7 +71,11 @@ from myutils.gas_api.use_gas import send_to_gas
 GAS_URL = os.getenv("GAS_UTIL_URL")
 
 
-def get_archived_live_streams_by_channelid(channel_ids, published_after=None, published_before=None):
+def get_archived_live_streams_by_channelid(
+    channel_ids,
+    published_after=None,
+    published_before=None,
+):
     yt_api = YouTubeAPI()
 
     archived_streams = []
@@ -101,27 +86,22 @@ def get_archived_live_streams_by_channelid(channel_ids, published_after=None, pu
     if published_before is None:
         published_before = datetime.utcnow()
 
-    # APIの日時指定はISOフォーマット文字列でZ付きで渡す
-    published_after_str = published_after.strftime("%Y-%m-%dT%H:%M:%SZ")
-    published_before_str = published_before.strftime("%Y-%m-%dT%H:%M:%SZ")
-
     for channel_id in channel_ids:
         next_page_token = None
+
         while True:
-            response = yt_api.call_api(
-                "search", "list",
-                part="snippet",
-                channelId=channel_id,
+            response = yt_api.search_videos(
+                channel_id=channel_id,
+                published_after=published_after,
+                published_before=published_before,
+                event_type="completed",
+                max_results=10,
                 order="date",
-                type="video",
-                eventType="completed",
-                publishedAfter=published_after_str,
-                publishedBefore=published_before_str,
-                maxResults=10,
-                pageToken=next_page_token
+                page_token=next_page_token,
             )
 
             items = response.get("items", [])
+
             if not items:
                 break
 
@@ -129,82 +109,103 @@ def get_archived_live_streams_by_channelid(channel_ids, published_after=None, pu
                 video_id = event["id"]["videoId"]
                 channel_title = event["snippet"]["channelTitle"]
 
-                # 動画の詳細情報取得
-                video_details_resp = yt_api.call_api(
-                    "videos", "list",
+                # 動画の詳細情報を取得
+                video_info = yt_api.get_video_details(
+                    video_id,
                     part="contentDetails",
-                    id=video_id
                 )
-                video_items = video_details_resp.get("items", [])
-                if not video_items:
+
+                if video_info is None:
                     continue
 
-                duration_iso = video_items[0]["contentDetails"].get(
-                    "duration", "PT0S")
+                duration_iso = video_info["contentDetails"].get(
+                    "duration",
+                    "PT0S",
+                )
+
                 published_at = event["snippet"]["publishedAt"]
+
                 utc_time = datetime.fromisoformat(
-                    published_at[:-1])  # 'Z'を除去してISO形式に
+                    published_at[:-1]
+                )
+
                 end_time = utc_time.replace(tzinfo=pytz.utc)
-                duration_timedelta = isodate.parse_duration(duration_iso)
+
+                duration_timedelta = isodate.parse_duration(
+                    duration_iso
+                )
+
                 start_time = end_time - duration_timedelta
 
                 # JSTに変換
                 jst_tz = pytz.timezone("Asia/Tokyo")
+
                 jst_start_time = start_time.astimezone(jst_tz)
                 jst_end_time = end_time.astimezone(jst_tz)
 
-                stream_url = f"https://www.youtube.com/watch?v={video_id}"
+                stream_url = (
+                    f"https://www.youtube.com/watch?v={video_id}"
+                )
 
                 archived_streams.append({
                     "title": "配信: " + event["snippet"]["title"],
                     "start": jst_start_time.isoformat(),
                     "end": jst_end_time.isoformat(),
-                    "description": f"配信元: {channel_title}\nリンク: {stream_url}",
+                    "description": (
+                        f"配信元: {channel_title}\n"
+                        f"リンク: {stream_url}"
+                    ),
                     "allDay": False,
-                    "color": "BLUE"
+                    "color": "BLUE",
                 })
 
             next_page_token = response.get("nextPageToken")
+
             if not next_page_token:
                 break
 
-            time.sleep(1)  # API制限対策
+            time.sleep(1)
 
-        time.sleep(1)  # API制限対策
+        time.sleep(1)
 
+    send_data = {
+        "action": "youtube",
+        "data": archived_streams,
+    }
 
-    send_data = {'action': 'youtube', 'data': archived_streams}
     return send_data
 
 
-def get_archived_live_streams_by_query(query, published_after=None, published_before=None):
+def get_archived_live_streams_by_query(
+    query,
+    published_after=None,
+    published_before=None,
+):
     yt_api = YouTubeAPI()
+
     archived_streams = []
 
     if published_after is None:
         published_after = datetime.utcnow() - timedelta(days=7)
+
     if published_before is None:
         published_before = datetime.utcnow()
 
-    published_after_str = published_after.strftime("%Y-%m-%dT%H:%M:%SZ")
-    published_before_str = published_before.strftime("%Y-%m-%dT%H:%M:%SZ")
-
     next_page_token = None
+
     while True:
-        response = yt_api.call_api(
-            "search", "list",
-            part="snippet",
-            q=query,
-            type="video",
-            eventType="completed",
+        response = yt_api.search_videos(
+            query=query,
+            published_after=published_after,
+            published_before=published_before,
+            event_type="completed",
+            max_results=50,
             order="date",
-            publishedAfter=published_after_str,
-            publishedBefore=published_before_str,
-            maxResults=50,
-            pageToken=next_page_token
+            page_token=next_page_token,
         )
 
         items = response.get("items", [])
+
         if not items:
             break
 
@@ -212,183 +213,255 @@ def get_archived_live_streams_by_query(query, published_after=None, published_be
             video_id = event["id"]["videoId"]
             channel_title = event["snippet"]["channelTitle"]
 
-            video_details_resp = yt_api.call_api(
-                "videos", "list",
+            video_info = yt_api.get_video_details(
+                video_id,
                 part="contentDetails",
-                id=video_id
             )
-            video_items = video_details_resp.get("items", [])
-            if not video_items:
+
+            if video_info is None:
                 continue
 
-            duration_iso = video_items[0]["contentDetails"].get(
-                "duration", "PT0S")
+            duration_iso = video_info["contentDetails"].get(
+                "duration",
+                "PT0S",
+            )
+
             published_at = event["snippet"]["publishedAt"]
-            utc_time = datetime.fromisoformat(published_at[:-1])
+
+            utc_time = datetime.fromisoformat(
+                published_at[:-1]
+            )
+
             end_time = utc_time.replace(tzinfo=pytz.utc)
-            duration_timedelta = isodate.parse_duration(duration_iso)
+
+            duration_timedelta = isodate.parse_duration(
+                duration_iso
+            )
+
             start_time = end_time - duration_timedelta
 
             jst_tz = pytz.timezone("Asia/Tokyo")
+
             jst_start_time = start_time.astimezone(jst_tz)
             jst_end_time = end_time.astimezone(jst_tz)
 
-            stream_url = f"https://www.youtube.com/watch?v={video_id}"
+            stream_url = (
+                f"https://www.youtube.com/watch?v={video_id}"
+            )
 
             archived_streams.append({
                 "title": "配信: " + event["snippet"]["title"],
                 "start": jst_start_time.isoformat(),
                 "end": jst_end_time.isoformat(),
-                "description": f"配信元: {channel_title}\nリンク: {stream_url}",
+                "description": (
+                    f"配信元: {channel_title}\n"
+                    f"リンク: {stream_url}"
+                ),
                 "allDay": False,
-                "color": "BLUE"
+                "color": "BLUE",
             })
 
         next_page_token = response.get("nextPageToken")
+
         if not next_page_token:
             break
+
         time.sleep(1)
-    send_data = {'action': 'youtube', 'data': archived_streams}
+
+    send_data = {
+        "action": "youtube",
+        "data": archived_streams,
+    }
 
     return send_data
 
 
 def get_archived_live_stream_by_videoid(video_id):
     yt_api = YouTubeAPI()
+
     archived_streams = []
 
-    video_resp = yt_api.call_api(
-        "videos", "list",
+    video_info = yt_api.get_video_details(
+        video_id,
         part="snippet,contentDetails",
-        id=video_id
     )
-    items = video_resp.get("items", [])
-    if not items:
-        return {"error": "Video not found or is not an archived live stream"}
 
-    video_info = items[0]
-    duration = video_info["contentDetails"].get("duration", "PT0S")
+    if video_info is None:
+        return {
+            "error": "Video not found or is not an archived live stream"
+        }
+
+    duration = video_info["contentDetails"].get(
+        "duration",
+        "PT0S",
+    )
+
     published_at = video_info["snippet"]["publishedAt"]
     title = video_info["snippet"]["title"]
     channel_title = video_info["snippet"]["channelTitle"]
 
     end_time = datetime.fromisoformat(
-        published_at[:-1]).replace(tzinfo=pytz.utc)
+        published_at[:-1]
+    ).replace(tzinfo=pytz.utc)
+
     duration_timedelta = isodate.parse_duration(duration)
+
     start_time = end_time - duration_timedelta
 
     jst_tz = pytz.timezone("Asia/Tokyo")
+
     jst_start_time = start_time.astimezone(jst_tz)
     jst_end_time = end_time.astimezone(jst_tz)
 
-    stream_url = f"https://www.youtube.com/watch?v={video_id}"
+    stream_url = (
+        f"https://www.youtube.com/watch?v={video_id}"
+    )
 
     archived_streams.append({
         "title": "配信: " + title,
         "start": jst_start_time.isoformat(),
         "end": jst_end_time.isoformat(),
-        "description": f"配信元: {channel_title}\nリンク: {stream_url}",
+        "description": (
+            f"配信元: {channel_title}\n"
+            f"リンク: {stream_url}"
+        ),
         "allDay": False,
-        "color": "BLUE"
+        "color": "BLUE",
     })
 
-    send_data = {'action': 'youtube', 'data': archived_streams}
+    send_data = {
+        "action": "youtube",
+        "data": archived_streams,
+    }
 
     return send_data
 
 
 def get_archived_live_streams_by_playlistid(playlist_id):
     yt_api = YouTubeAPI()
+
     archived_streams = []
 
     next_page_token = None
+
     while True:
-        response = yt_api.call_api(
-            "playlistItems", "list",
-            part="snippet",
-            playlistId=playlist_id,
-            maxResults=50,
-            pageToken=next_page_token
+        response = yt_api.get_playlist_items(
+            playlist_id=playlist_id,
+            max_results=50,
+            page_token=next_page_token,
         )
 
         items = response.get("items", [])
+
         if not items:
             break
 
-        video_ids = [item["snippet"]["resourceId"]["videoId"]
-                     for item in items]
+        video_ids = [
+            item["snippet"]["resourceId"]["videoId"]
+            for item in items
+        ]
 
         for video_id in video_ids:
-            video_details_resp = yt_api.call_api(
-                "videos", "list",
+            video_info = yt_api.get_video_details(
+                video_id,
                 part="snippet,contentDetails",
-                id=video_id
             )
-            video_items = video_details_resp.get("items", [])
-            if not video_items:
+
+            if video_info is None:
                 continue
 
-            detail = video_items[0]
-            title = "配信: " + detail["snippet"]["title"]
-            published_at = detail["snippet"]["publishedAt"]
-            channel_title = detail["snippet"]["channelTitle"]
-            duration = detail["contentDetails"].get("duration", "PT0S")
+            snippet = video_info["snippet"]
+            content_details = video_info["contentDetails"]
 
-            utc_time = datetime.fromisoformat(published_at[:-1])
+            title = "配信: " + snippet["title"]
+            published_at = snippet["publishedAt"]
+            channel_title = snippet["channelTitle"]
+
+            duration = content_details.get(
+                "duration",
+                "PT0S",
+            )
+
+            utc_time = datetime.fromisoformat(
+                published_at[:-1]
+            )
+
             end_time = utc_time.replace(tzinfo=pytz.utc)
-            duration_timedelta = isodate.parse_duration(duration)
+
+            duration_timedelta = isodate.parse_duration(
+                duration
+            )
+
             start_time = end_time - duration_timedelta
 
             jst_tz = pytz.timezone("Asia/Tokyo")
+
             jst_start_time = start_time.astimezone(jst_tz)
             jst_end_time = end_time.astimezone(jst_tz)
 
-            stream_url = f"https://www.youtube.com/watch?v={video_id}"
+            stream_url = (
+                f"https://www.youtube.com/watch?v={video_id}"
+            )
 
             archived_streams.append({
                 "title": title,
                 "start": jst_start_time.isoformat(),
                 "end": jst_end_time.isoformat(),
-                "description": f"配信元: {channel_title}\nリンク: {stream_url}",
+                "description": (
+                    f"配信元: {channel_title}\n"
+                    f"リンク: {stream_url}"
+                ),
                 "allDay": False,
-                "color": "BLUE"
+                "color": "BLUE",
             })
 
         next_page_token = response.get("nextPageToken")
+
         if not next_page_token:
             break
+
         time.sleep(1)
 
-    send_data = {'action': 'youtube', 'data': archived_streams}
+    send_data = {
+        "action": "youtube",
+        "data": archived_streams,
+    }
+
     return send_data
 
 
 def get_channel_ids_from_excel():
     """
-    チャンネルIDをまとめているExcelファイルからデータを取得。チャンネルIDのリストを返す。
+    チャンネルIDをまとめているExcelファイルからデータを取得。
+    チャンネルIDのリストを返す。
     """
-    CSV_PATH = os.getenv('CHANNEL_CSV_PATH')
-    sheet_name = 'データ'                 # シート名
-    table_name = 'チャンネルID'            # テーブル名
+    csv_path = os.getenv("CHANNEL_CSV_PATH")
+    sheet_name = "データ"
+
     # Excelファイルを読み込み
-    excel_data = pd.read_excel(CSV_PATH, sheet_name=sheet_name)
+    excel_data = pd.read_excel(
+        csv_path,
+        sheet_name=sheet_name,
+    )
 
-    # 列名を表示
-    print("列名:", excel_data.columns.tolist())  # ここで列名を確認
+    print("列名:", excel_data.columns.tolist())
 
-    # テーブルから指定された条件に一致するchannelIdを取得
-    channel_ids = excel_data[(excel_data['favorite'] == 1)
-                             ]['channelId'].tolist()
+    # favorite == 1 のチャンネルIDを取得
+    channel_ids = excel_data[
+        excel_data["favorite"] == 1
+    ]["channelId"].tolist()
 
     return channel_ids
 
 
 def send_archived_streams_from_excel_channels():
     channel_ids = get_channel_ids_from_excel()
-    archived_streams = get_archived_live_streams_by_channelid(channel_ids)
-    send_to_gas(archived_streams, GAS_URL)
 
+    archived_streams = get_archived_live_streams_by_channelid(
+        channel_ids
+    )
 
-# 使用例
-if __name__ == "__main__":
-    send_archived_streams_from_excel_channels()
+    send_to_gas(
+        archived_streams,
+        GAS_URL,
+    )
