@@ -66,7 +66,7 @@ def add_thino_summary_to_weekly_note(
 
     weekly_note.replace_heading_content(
         THINO_SUMMARY_HEADING,
-        "\n\n".join(links),
+        "\n\n".join(f"#### {link}" for link in links),
     )
 
 def get_daily_template_spec():
@@ -183,5 +183,5 @@ def add_comment_summary_to_weekly_note(
 
     weekly_note.replace_heading_content(
         COMMENT_SUMMARY_HEADING,
-        "\n\n".join(links),
+        "\n\n".join(f"#### {link}" for link in links),
     )
