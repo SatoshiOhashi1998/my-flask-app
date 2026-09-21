@@ -5,7 +5,6 @@ from apscheduler.schedulers.background import BackgroundScheduler
 from .markdown_jobs import register_markdown_jobs
 from .others_jobs import register_others_jobs
 
-
 logger = logging.getLogger(__name__)
 
 
@@ -20,19 +19,16 @@ class Scheduler:
         )
         self.scheduler.start()
 
-        # 各種ジョブを登録
         register_markdown_jobs(
-            scheduler=self.scheduler,
+            scheduler=self,
             app=self.app,
         )
 
         register_others_jobs(
-            scheduler=self.scheduler,
+            scheduler=self,
         )
 
     def add_job(self, func, trigger, job_id, **kwargs):
-        """ジョブを追加する"""
-
         self.scheduler.add_job(
             func,
             trigger,
@@ -46,8 +42,6 @@ class Scheduler:
         )
 
     def remove_job(self, job_id):
-        """指定したIDのジョブを削除する"""
-
         try:
             self.scheduler.remove_job(job_id)
 
@@ -64,8 +58,6 @@ class Scheduler:
             )
 
     def get_job_list(self):
-        """登録されているジョブの一覧を取得する"""
-
         jobs = self.scheduler.get_jobs()
 
         return [

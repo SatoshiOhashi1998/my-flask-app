@@ -1,132 +1,161 @@
 import logging
-import os
-import webbrowser
 
-from dataclasses import dataclass
-
-from app import mail
-from app.weather import (
-    register_tomorrow_weather_to_calendar,
+from app.notes.export_comments import export_today_comments_to_md
+from app.notes.note_manager import (
+    create_dailynote,
+    create_next_weekly_note,
+    add_thino_summary_to_weekly_note,
+    add_comment_summary_to_weekly_note,
 )
-
 
 logger = logging.getLogger(__name__)
 
 
-@dataclass
-class UrlJob:
-    """URLジョブを管理するデータクラス"""
+def _run_with_app_context(app, func, func_name):
+    if app is None:
+        logger.warning(
+            "%s: Flask appが指定されていません。"
+            "application contextなしで実行します。",
+            func_name,
+        )
+        return func()
 
-    url: str
-    job_id: str
-
-
-def register_others_jobs(scheduler):
-    """Markdown以外のジョブを登録する"""
-
-    # ---------------------------------------------------------
-    # URL
-    # ---------------------------------------------------------
-
-    url_jobs = [
-        UrlJob(
-            url=os.getenv("DYNALIST_URL"),
-            job_id="target_job",
-        ),
-        UrlJob(
-            url=os.getenv("TENKI_URL"),
-            job_id="weather_job",
-        ),
-        UrlJob(
-            url=os.getenv("KIATSU_URL"),
-            job_id="kiatsu_job",
-        ),
-        UrlJob(
-            url=os.getenv("ILLUST_LIST_URL"),
-            job_id="illust_job",
-        ),
-    ]
-
-    _register_url_jobs(
-        scheduler=scheduler,
-        url_jobs=url_jobs,
+    logger.info(
+        "%s: app_contextを使用して実行します。",
+        func_name,
     )
 
-    # ---------------------------------------------------------
-    # メールチェック
-    # ---------------------------------------------------------
+    with app.app_context():
+        return func()
 
-    scheduler.add_job(
-        func=mail.check_email,
-        trigger="interval",
-        minutes=5,
-        id="check_email",
+
+def export_comments_job(app):
+    logger.info(
+        "export_today_comments_to_md() を開始します。"
     )
 
-    # ---------------------------------------------------------
-    # 天気情報
-    # ---------------------------------------------------------
+    try:
+        result = _run_with_app_context(
+            app=app,
+            func=export_today_comments_to_md,
+            func_name="export_today_comments_to_md",
+        )
+
+        logger.info(
+            "export_today_comments_to_md() が完了しました。"
+        )
+
+        return result
+
+    except Exception:
+        logger.exception(
+            "export_today_comments_to_md() の実行中にエラーが発生しました。"
+        )
+        raise
+
+
+def add_thino_summary_job(app):
+    logger.info(
+        "add_thino_summary_to_weekly_note() を開始します。"
+    )
+
+    try:
+        result = _run_with_app_context(
+            app=app,
+            func=add_thino_summary_to_weekly_note,
+            func_name="add_thino_summary_to_weekly_note",
+        )
+
+        logger.info(
+            "add_thino_summary_to_weekly_note() が完了しました。"
+        )
+
+        return result
+
+    except Exception:
+        logger.exception(
+            "add_thino_summary_to_weekly_note() の実行中にエラーが発生しました。"
+        )
+        raise
+
+
+def add_comment_summary_job(app):
+    logger.info(
+        "add_comment_summary_to_weekly_note() を開始します。"
+    )
+
+    try:
+        result = _run_with_app_context(
+            app=app,
+            func=add_comment_summary_to_weekly_note,
+            func_name="add_comment_summary_to_weekly_note",
+        )
+
+        logger.info(
+            "add_comment_summary_to_weekly_note() が完了しました。"
+        )
+
+        return result
+
+    except Exception:
+        logger.exception(
+            "add_comment_summary_to_weekly_note() の実行中にエラーが発生しました。"
+        )
+        raise
+
+
+def register_markdown_jobs(scheduler, app=None):
+    scheduler.add_job(
+        func=export_comments_job,
+        trigger="cron",
+        hour=22,
+        minute=0,
+        job_id="export_today_comments_22_hour",
+        args=[app],
+    )
 
     scheduler.add_job(
-        func=register_tomorrow_weather_to_calendar,
+        func=export_comments_job,
         trigger="cron",
         hour=23,
+        minute=55,
+        job_id="export_today_comments_23_hour",
+        args=[app],
+    )
+
+    scheduler.add_job(
+        func=create_dailynote,
+        trigger="cron",
+        hour=18,
         minute=0,
-        id="get_weather_data",
+        job_id="create_daily_notes",
     )
-
-
-def _register_url_jobs(scheduler, url_jobs):
-    """URLを開くジョブを登録する"""
-
-    weather_job = next(
-        job
-        for job in url_jobs
-        if job.job_id == "weather_job"
-    )
-
-    kiatsu_job = next(
-        job
-        for job in url_jobs
-        if job.job_id == "kiatsu_job"
-    )
-
-    # ---------------------------------------------------------
-    # 気象情報
-    # ---------------------------------------------------------
 
     scheduler.add_job(
-        webbrowser.open,
+        func=create_next_weekly_note,
         trigger="cron",
-        hour=0,
-        minute=5,
-        args=[weather_job.url],
-        id=f"{weather_job.job_id}_0",
+        day_of_week="sat",
+        hour=23,
+        minute=0,
+        job_id="create_next_weekly_note",
     )
-
-    # ---------------------------------------------------------
-    # 気圧情報
-    # ---------------------------------------------------------
 
     scheduler.add_job(
-        webbrowser.open,
+        func=add_thino_summary_job,
         trigger="cron",
-        hour=0,
-        minute=5,
-        args=[kiatsu_job.url],
-        id=f"{kiatsu_job.job_id}_0",
+        day_of_week="sat",
+        hour=23,
+        minute=0,
+        job_id="add_thino_summary_to_weekly_note",
+        args=[app],
     )
 
-    # ---------------------------------------------------------
-    # 天気情報
-    # ---------------------------------------------------------
-
-    for hour in [9, 12, 18]:
-        scheduler.add_job(
-            webbrowser.open,
-            trigger="cron",
-            hour=hour,
-            minute=0,
-            args=[weather_job.url],
-            id=f"{weather_job.job_id}_{hour}",
-        )
+    scheduler.add_job(
+        func=add_comment_summary_job,
+        trigger="cron",
+        day_of_week="sat",
+        hour=23,
+        minute=0,
+        job_id="add_comment_summary_to_weekly_note",
+        args=[app],
+    )
