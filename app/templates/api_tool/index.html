@@ -291,7 +291,11 @@
         <div class="form-row">
             <label>
                 開始時刻
-                <input type="time" id="calendar-today-start-time" value="09:00">
+                <input
+                    type="time"
+                    id="calendar-today-start-time"
+                    value="09:00"
+                >
             </label>
 
             <button type="button" id="sync-calendar-today">
@@ -311,7 +315,11 @@
         <div class="form-row">
             <label>
                 開始時刻
-                <input type="time" id="calendar-tomorrow-start-time" value="09:00">
+                <input
+                    type="time"
+                    id="calendar-tomorrow-start-time"
+                    value="09:00"
+                >
             </label>
 
             <button type="button" id="sync-calendar-tomorrow">
@@ -336,7 +344,11 @@
 
             <label>
                 開始時刻
-                <input type="time" id="calendar-date-start-time" value="09:00">
+                <input
+                    type="time"
+                    id="calendar-date-start-time"
+                    value="09:00"
+                >
             </label>
 
             <button type="button" id="sync-calendar-date">
@@ -361,7 +373,11 @@
 
             <label>
                 開始時刻
-                <input type="time" id="calendar-before-15-start-time" value="09:00">
+                <input
+                    type="time"
+                    id="calendar-before-15-start-time"
+                    value="09:00"
+                >
             </label>
 
             <button type="button" id="sync-calendar-before-15">
@@ -386,7 +402,11 @@
 
             <label>
                 開始時刻
-                <input type="time" id="calendar-before-18-start-time" value="15:00">
+                <input
+                    type="time"
+                    id="calendar-before-18-start-time"
+                    value="15:00"
+                >
             </label>
 
             <button type="button" id="sync-calendar-before-18">
@@ -411,7 +431,11 @@
 
             <label>
                 開始時刻
-                <input type="time" id="calendar-after-18-start-time" value="18:00">
+                <input
+                    type="time"
+                    id="calendar-after-18-start-time"
+                    value="18:00"
+                >
             </label>
 
             <button type="button" id="sync-calendar-after-18">
@@ -482,6 +506,56 @@
             </label>
 
             <button type="button" id="copy-code">
+                実行
+            </button>
+        </div>
+    </div>
+
+
+    <div class="operation">
+        <h3>ファイル構成をコピー</h3>
+
+        <div class="endpoint">
+            POST /api/clipboard/copy-file-tree
+        </div>
+
+        <p class="description">
+            指定したディレクトリ以下のファイル構成をクリップボードへコピーします。
+        </p>
+
+        <div class="form-row">
+            <label>
+                Target
+                <input
+                    type="text"
+                    id="file-tree-target"
+                    placeholder="例: ."
+                >
+            </label>
+        </div>
+
+        <div class="form-row">
+            <label>
+                Exclude directories
+                <input
+                    type="text"
+                    id="file-tree-exclude-dirs"
+                    placeholder="例: __pycache__,.git,node_modules"
+                >
+            </label>
+        </div>
+
+        <div class="form-row">
+            <label>
+                Recursive
+                <input
+                    type="checkbox"
+                    id="file-tree-recursive"
+                    checked
+                >
+            </label>
+
+            <button type="button" id="copy-file-tree">
                 実行
             </button>
         </div>
@@ -671,7 +745,8 @@
     document
         .getElementById("create-daily-note")
         .addEventListener("click", () => {
-            const date = document.getElementById("daily-note-date").value;
+            const date =
+                document.getElementById("daily-note-date").value;
 
             const params = new URLSearchParams();
 
@@ -706,7 +781,8 @@
     document
         .getElementById("create-weekly-note")
         .addEventListener("click", () => {
-            const date = document.getElementById("weekly-note-date").value;
+            const date =
+                document.getElementById("weekly-note-date").value;
 
             const params = new URLSearchParams();
 
@@ -928,6 +1004,41 @@
             };
 
             callApi("/api/clipboard/copy-code", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify(data),
+            });
+        });
+
+
+    document
+        .getElementById("copy-file-tree")
+        .addEventListener("click", () => {
+            const target =
+                document.getElementById("file-tree-target").value.trim();
+
+            const excludeDirs =
+                parseCommaSeparated(
+                    document.getElementById("file-tree-exclude-dirs").value
+                );
+
+            const recursive =
+                document.getElementById("file-tree-recursive").checked;
+
+            if (!target) {
+                alert("Targetを指定してください。");
+                return;
+            }
+
+            const data = {
+                target: target,
+                exclude_dirs: excludeDirs,
+                recursive: recursive,
+            };
+
+            callApi("/api/clipboard/copy-file-tree", {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
