@@ -29,11 +29,14 @@ DEFAULT_EXCLUDE_DIRS = {
     ".venv",
     "venv",
     "__pycache__",
+    ".pytest_cache",
     "node_modules",
     ".idea",
     ".vscode",
     "log",
     "logs",
+    "instance",
+    "exports",
 }
 
 
