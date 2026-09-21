@@ -11,7 +11,7 @@ from flask_cors import CORS
 from app.log import setup_logging
 from app.views.web import web
 from app.views.api import api_bp
-from app.scheduler import UrlScheduler
+from app.scheduler import Scheduler
 from app.models import db
 
 
@@ -60,6 +60,6 @@ def create_app(test_config=None):
 
     # テスト時はスケジューラーを起動しない
     if not app.config.get('TESTING'):
-        scheduler = UrlScheduler(app=app)
+        scheduler = Scheduler(app=app)
 
     return app
