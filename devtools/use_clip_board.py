@@ -64,6 +64,8 @@ DEFAULT_EXCLUDE_DIRS = {
     "node_modules",
     ".idea",
     ".vscode",
+    "log",
+    "logs"
 }
 
 

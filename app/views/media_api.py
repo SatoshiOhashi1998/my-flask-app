@@ -1,7 +1,7 @@
 import locale
 import os
 
-from flask import jsonify, send_from_directory
+from flask import jsonify, send_from_directory, request
 
 from app.models import MusicDataModel, VideoDataModel, db
 from app.media.media_paths import MEDIA_BASE_PATHS
@@ -179,6 +179,51 @@ def register_media_routes(api_bp):
             directory,
             filename,
         )
+
+    @api_bp.route("/api/videos/<video_id>/original-name", methods=["PATCH"])
+    def update_video_original_name(video_id):
+        data = request.get_json()
+
+        if not data or "original_name" not in data:
+            return jsonify({"error": "original_name is required"}), 400
+
+        original_name = data["original_name"]
+
+        if not isinstance(original_name, str) or not original_name.strip():
+            return jsonify({"error": "original_name must not be empty"}), 400
+
+        video = db.session.get(VideoDataModel, video_id)
+
+        if video is None:
+            return jsonify({"error": "Video not found"}), 404
+
+        video.original_name = original_name
+        db.session.commit()
+
+        return jsonify(video.to_dict()), 200
+
+
+    @api_bp.route("/api/musics/<music_id>/original-name", methods=["PATCH"])
+    def update_music_original_name(music_id):
+        data = request.get_json()
+
+        if not data or "original_name" not in data:
+            return jsonify({"error": "original_name is required"}), 400
+
+        original_name = data["original_name"]
+
+        if not isinstance(original_name, str) or not original_name.strip():
+            return jsonify({"error": "original_name must not be empty"}), 400
+
+        music = db.session.get(MusicDataModel, music_id)
+
+        if music is None:
+            return jsonify({"error": "Music not found"}), 404
+
+        music.original_name = original_name
+        db.session.commit()
+
+        return jsonify(music.to_dict()), 200
 
     @api_bp.route("/api/reset/media", methods=["GET"])
     def reset_medias_id():

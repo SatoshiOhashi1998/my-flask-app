@@ -8,6 +8,7 @@ from app.media.media_paths import get_video_directories, get_audio_directories
 
 web = Blueprint("web", __name__)
 
+
 @web.route("/watchVideo", methods=["GET", "POST"])
 def watch_video() -> Response:
     if request.method == "GET":
@@ -17,11 +18,18 @@ def watch_video() -> Response:
 
         locale.setlocale(locale.LC_COLLATE, "ja_JP.UTF-8")
         videos = db.session.query(VideoDataModel).order_by(VideoDataModel.path).all()
-        videos.sort(key=lambda v: (os.path.normpath(os.path.dirname(v.path)), locale.strxfrm(v.original_name)))
+        videos.sort(
+            key=lambda v: (
+                os.path.normpath(os.path.dirname(v.path)),
+                locale.strxfrm(v.original_name),
+            )
+        )
 
         video_data = [
             {
-                "dirpath": os.path.dirname(item.path)[os.path.dirname(item.path).index('static'):],
+                "dirpath": os.path.dirname(item.path)[
+                    os.path.dirname(item.path).index("static") :
+                ],
                 "filename": item.new_name,
                 "filetitle": item.original_name,
             }
@@ -31,17 +39,20 @@ def watch_video() -> Response:
         send_data = {
             "items": video_data,
             "settings": {
-                "v": v_param or '',
+                "v": v_param or "",
                 "t": time_param or 0,
-                "mode": mode_param or 'loop',
-            }
+                "mode": mode_param or "loop",
+            },
         }
 
-        response = make_response(render_template("watchVideo.html", data=send_data))
+        response = make_response(
+            render_template("watchVideo.html", data=send_data)
+        )
         response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
         response.headers["Expires"] = 0
         response.headers["Pragma"] = "no-cache"
         return response
+
     return jsonify({"error": "Unsupported method"}), 405
 
 
@@ -57,8 +68,13 @@ def mahjong():
         os.getenv("OPEN_HAND_EV"),
     ]
     labels = [
-        "main_data", "versus_two", "no_tenpai", "deal_in_rate",
-        "hanchan_earnings", "riichi_ev_path", "open_hand_ev_path",
+        "main_data",
+        "versus_two",
+        "no_tenpai",
+        "deal_in_rate",
+        "hanchan_earnings",
+        "riichi_ev_path",
+        "open_hand_ev_path",
     ]
 
     send_data = {}
@@ -70,3 +86,8 @@ def mahjong():
             send_data[label] = []
 
     return render_template("mahjong.html", data=send_data)
+
+
+@web.route("/api-tool", methods=["GET"])
+def api_tool():
+    return render_template("api_tool/index.html")
