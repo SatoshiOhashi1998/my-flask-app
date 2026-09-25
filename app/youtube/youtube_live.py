@@ -64,7 +64,8 @@ import isodate
 import pandas as pd
 import pytz
 
-from myutils.youtube_api.fetch_youtube_data import YouTubeAPI
+from app.youtube.youtube_api import create_youtube_api
+
 from myutils.gas_api.use_gas import send_to_gas
 
 
@@ -76,7 +77,7 @@ def get_archived_live_streams_by_channelid(
     published_after=None,
     published_before=None,
 ):
-    yt_api = YouTubeAPI()
+    yt_api = create_youtube_api()
 
     archived_streams = []
 
@@ -181,7 +182,7 @@ def get_archived_live_streams_by_query(
     published_after=None,
     published_before=None,
 ):
-    yt_api = YouTubeAPI()
+    yt_api = create_youtube_api()
 
     archived_streams = []
 
@@ -277,7 +278,7 @@ def get_archived_live_streams_by_query(
 
 
 def get_archived_live_stream_by_videoid(video_id):
-    yt_api = YouTubeAPI()
+    yt_api = create_youtube_api()
 
     archived_streams = []
 
@@ -338,7 +339,7 @@ def get_archived_live_stream_by_videoid(video_id):
 
 
 def get_archived_live_streams_by_playlistid(playlist_id):
-    yt_api = YouTubeAPI()
+    yt_api = create_youtube_api()
 
     archived_streams = []
 
