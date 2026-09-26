@@ -54,52 +54,52 @@ def export_comments_job(app):
         raise
 
 
-def add_thino_summary_job(app):
+def update_weekly_note_job(app):
     logger.info(
-        "add_thino_summary_to_weekly_note() を開始します。"
+        "update_weekly_note() を開始します。"
     )
 
     try:
+        def update_weekly_note():
+            logger.info(
+                "create_next_weekly_note() を開始します。"
+            )
+            create_next_weekly_note()
+            logger.info(
+                "create_next_weekly_note() が完了しました。"
+            )
+
+            logger.info(
+                "add_thino_summary_to_weekly_note() を開始します。"
+            )
+            add_thino_summary_to_weekly_note()
+            logger.info(
+                "add_thino_summary_to_weekly_note() が完了しました。"
+            )
+
+            logger.info(
+                "add_comment_summary_to_weekly_note() を開始します。"
+            )
+            add_comment_summary_to_weekly_note()
+            logger.info(
+                "add_comment_summary_to_weekly_note() が完了しました。"
+            )
+
         result = _run_with_app_context(
             app=app,
-            func=add_thino_summary_to_weekly_note,
-            func_name="add_thino_summary_to_weekly_note",
+            func=update_weekly_note,
+            func_name="update_weekly_note",
         )
 
         logger.info(
-            "add_thino_summary_to_weekly_note() が完了しました。"
+            "update_weekly_note() が完了しました。"
         )
 
         return result
 
     except Exception:
         logger.exception(
-            "add_thino_summary_to_weekly_note() の実行中にエラーが発生しました。"
-        )
-        raise
-
-
-def add_comment_summary_job(app):
-    logger.info(
-        "add_comment_summary_to_weekly_note() を開始します。"
-    )
-
-    try:
-        result = _run_with_app_context(
-            app=app,
-            func=add_comment_summary_to_weekly_note,
-            func_name="add_comment_summary_to_weekly_note",
-        )
-
-        logger.info(
-            "add_comment_summary_to_weekly_note() が完了しました。"
-        )
-
-        return result
-
-    except Exception:
-        logger.exception(
-            "add_comment_summary_to_weekly_note() の実行中にエラーが発生しました。"
+            "update_weekly_note() の実行中にエラーが発生しました。"
         )
         raise
 
@@ -132,30 +132,11 @@ def register_markdown_jobs(scheduler, app=None):
     )
 
     scheduler.add_job(
-        func=create_next_weekly_note,
+        func=update_weekly_note_job,
         trigger="cron",
         day_of_week="sat",
         hour=23,
         minute=0,
-        job_id="create_next_weekly_note",
-    )
-
-    scheduler.add_job(
-        func=add_thino_summary_job,
-        trigger="cron",
-        day_of_week="sat",
-        hour=23,
-        minute=0,
-        job_id="add_thino_summary_to_weekly_note",
-        args=[app],
-    )
-
-    scheduler.add_job(
-        func=add_comment_summary_job,
-        trigger="cron",
-        day_of_week="sat",
-        hour=23,
-        minute=0,
-        job_id="add_comment_summary_to_weekly_note",
+        job_id="update_weekly_note",
         args=[app],
     )
