@@ -2,7 +2,8 @@ import traceback
 
 from flask import jsonify, request
 
-from devtools.use_clip_board import copy_code
+from devtools.code_copy import copy_code
+from devtools.file_tree import copy_file_tree
 
 
 def register_clipboard_routes(api_bp):
@@ -83,5 +84,81 @@ def register_clipboard_routes(api_bp):
                 "status": "error",
                 "message": (
                     f"コードのコピー中にエラーが発生しました: {str(e)}"
+                ),
+            }), 500
+
+    @api_bp.route(
+        "/api/clipboard/copy-file-tree",
+        methods=["GET", "POST"],
+    )
+    def copy_file_tree_endpoint():
+
+        if request.method == "GET":
+            target = request.args.get("target")
+
+            if not target:
+                return jsonify({
+                    "status": "error",
+                    "message": "target は必須です。",
+                }), 400
+
+            exclude_dirs = request.args.getlist(
+                "exclude_dir"
+            )
+
+            if not exclude_dirs:
+                exclude_dirs = None
+
+            recursive = request.args.get(
+                "recursive",
+                default="true",
+            ).lower() == "true"
+
+        else:
+            data = request.get_json(silent=True) or {}
+
+            target = data.get("target")
+
+            if not target:
+                return jsonify({
+                    "status": "error",
+                    "message": "target は必須です。",
+                }), 400
+
+            exclude_dirs = (
+                set(data["exclude_dirs"])
+                if data.get("exclude_dirs")
+                else None
+            )
+
+            recursive = data.get(
+                "recursive",
+                True,
+            )
+
+        try:
+            tree = copy_file_tree(
+                target=target,
+                exclude_dirs=exclude_dirs,
+                recursive=recursive,
+            )
+
+            return jsonify({
+                "status": "success",
+                "message": (
+                    "ファイル構成を"
+                    "クリップボードへコピーしました。"
+                ),
+                "tree": tree,
+            }), 200
+
+        except Exception as e:
+            traceback.print_exc()
+
+            return jsonify({
+                "status": "error",
+                "message": (
+                    "ファイル構成のコピー中に"
+                    f"エラーが発生しました: {e}"
                 ),
             }), 500

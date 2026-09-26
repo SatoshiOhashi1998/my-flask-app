@@ -15,7 +15,8 @@ class Scheduler:
         self.app = app
 
         self.scheduler = BackgroundScheduler(
-            max_instances=1
+            max_instances=1,
+            misfire_grace_time=60,
         )
         self.scheduler.start()
 
