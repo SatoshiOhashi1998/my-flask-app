@@ -87,6 +87,9 @@ def create_dailynote(start_date=None):
     if not daily_dir:
         raise ValueError("DAILY_NOTE_DIRが環境変数に設定されていません。")
 
+    if start_date is None:
+        start_date = datetime.now()
+
     template_spec = get_daily_template_spec()
 
     vault = Vault(daily_dir)
