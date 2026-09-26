@@ -18,7 +18,6 @@ class Scheduler:
             max_instances=1,
             misfire_grace_time=60,
         )
-        self.scheduler.start()
 
         register_markdown_jobs(
             scheduler=self,
@@ -28,6 +27,8 @@ class Scheduler:
         register_others_jobs(
             scheduler=self,
         )
+
+        self.scheduler.start()
 
     def add_job(self, func, trigger, job_id, **kwargs):
         self.scheduler.add_job(
