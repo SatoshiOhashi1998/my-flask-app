@@ -60,6 +60,6 @@ def create_app(test_config=None):
 
     # テスト時はスケジューラーを起動しない
     if not app.config.get('TESTING'):
-        scheduler = Scheduler(app=app)
+        app.scheduler = Scheduler(app=app)
 
     return app
