@@ -121,33 +121,90 @@
             font-size: 13px;
         }
 
-        #response-section {
-            max-width: 1000px;
-            margin-top: 30px;
-        }
-
         #response-status {
             margin-bottom: 10px;
             font-weight: bold;
         }
 
         #response {
-            min-height: 150px;
             margin: 0;
             padding: 15px;
-            overflow-x: auto;
+            overflow: auto;
             background: #222;
             color: #eee;
             border-radius: 6px;
             white-space: pre-wrap;
             word-break: break-word;
         }
+
+        .page-layout {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) minmax(360px, 430px);
+            gap: 25px;
+            align-items: start;
+        }
+
+        #api-sections {
+            min-width: 0;
+        }
+
+        #api-sections .section {
+            max-width: none;
+        }
+
+        #response-section {
+            position: sticky;
+            top: 20px;
+            max-width: none;
+            height: calc(100vh - 40px);
+            margin-top: 0;
+            padding: 20px;
+            background: white;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        #response-section #response-status {
+            flex-shrink: 0;
+        }
+
+        #response {
+            height: calc(100% - 55px);
+            min-height: 0;
+            overflow: auto;
+        }
+
+        @media (max-width: 900px) {
+            body {
+                padding: 20px;
+            }
+
+            .page-layout {
+                display: block;
+            }
+
+            #response-section {
+                position: static;
+                height: auto;
+                margin-top: 25px;
+            }
+
+            #response {
+                height: auto;
+                min-height: 150px;
+                max-height: 60vh;
+            }
+        }
+
     </style>
 </head>
 
 <body>
 
 <h1>API Tool</h1>
+
+<div class="page-layout">
+    <main id="api-sections">
 
 <!-- ==================== Calendar ==================== -->
 
@@ -164,11 +221,7 @@
         <div class="form-row">
             <label>
                 開始時刻
-                <input
-                    type="time"
-                    id="calendar-today-start-time"
-                    value="09:00"
-                >
+                <input type="time" id="calendar-today-start-time" value="09:00">
             </label>
 
             <button type="button" id="sync-calendar-today">
@@ -188,11 +241,7 @@
         <div class="form-row">
             <label>
                 開始時刻
-                <input
-                    type="time"
-                    id="calendar-tomorrow-start-time"
-                    value="09:00"
-                >
+                <input type="time" id="calendar-tomorrow-start-time" value="09:00">
             </label>
 
             <button type="button" id="sync-calendar-tomorrow">
@@ -217,11 +266,7 @@
 
             <label>
                 開始時刻
-                <input
-                    type="time"
-                    id="calendar-date-start-time"
-                    value="09:00"
-                >
+                <input type="time" id="calendar-date-start-time" value="09:00">
             </label>
 
             <button type="button" id="sync-calendar-date">
@@ -246,11 +291,7 @@
 
             <label>
                 開始時刻
-                <input
-                    type="time"
-                    id="calendar-before-15-start-time"
-                    value="09:00"
-                >
+                <input type="time" id="calendar-before-15-start-time" value="09:00">
             </label>
 
             <button type="button" id="sync-calendar-before-15">
@@ -275,11 +316,7 @@
 
             <label>
                 開始時刻
-                <input
-                    type="time"
-                    id="calendar-before-18-start-time"
-                    value="15:00"
-                >
+                <input type="time" id="calendar-before-18-start-time" value="15:00">
             </label>
 
             <button type="button" id="sync-calendar-before-18">
@@ -304,11 +341,7 @@
 
             <label>
                 開始時刻
-                <input
-                    type="time"
-                    id="calendar-after-18-start-time"
-                    value="18:00"
-                >
+                <input type="time" id="calendar-after-18-start-time" value="18:00">
             </label>
 
             <button type="button" id="sync-calendar-after-18">
@@ -317,7 +350,6 @@
         </div>
     </div>
 </section>
-
 
 <!-- ==================== Clipboard ==================== -->
 
@@ -384,16 +416,15 @@
         </div>
     </div>
 
-
     <div class="operation">
-        <h3>ファイル構成をコピー</h3>
+        <h3>ファイルツリーをコピー</h3>
 
         <div class="endpoint">
             POST /api/clipboard/copy-file-tree
         </div>
 
         <p class="description">
-            指定したディレクトリ以下のファイル構成をクリップボードへコピーします。
+            指定したディレクトリやファイルのファイルツリーをクリップボードへコピーします。
         </p>
 
         <div class="form-row">
@@ -401,8 +432,8 @@
                 Target
                 <input
                     type="text"
-                    id="file-tree-target"
-                    placeholder="例: ."
+                    id="clipboard-tree-target"
+                    placeholder="例: app"
                 >
             </label>
         </div>
@@ -412,8 +443,8 @@
                 Exclude directories
                 <input
                     type="text"
-                    id="file-tree-exclude-dirs"
-                    placeholder="例: __pycache__,.git,node_modules"
+                    id="clipboard-tree-exclude-dirs"
+                    placeholder="例: __pycache__,.git"
                 >
             </label>
         </div>
@@ -423,7 +454,7 @@
                 Recursive
                 <input
                     type="checkbox"
-                    id="file-tree-recursive"
+                    id="clipboard-tree-recursive"
                     checked
                 >
             </label>
@@ -435,74 +466,36 @@
     </div>
 </section>
 
-
-<!-- ==================== Media ==================== -->
+<!-- ==================== Weather ==================== -->
 
 <section class="section">
-    <h2>Media</h2>
+    <h2>Weather</h2>
 
     <div class="operation">
-        <h3>動画のOriginal Nameを変更</h3>
+        <h3>今日の天気を取得</h3>
 
         <div class="endpoint">
-            PATCH /api/videos/&lt;video_id&gt;/original-name
+            GET /api/weather/get/today
         </div>
 
-        <div class="form-row">
-            <label>
-                Video ID
-                <input
-                    type="text"
-                    id="video-id"
-                >
-            </label>
-
-            <label>
-                Original Name
-                <input
-                    type="text"
-                    id="video-original-name"
-                >
-            </label>
-
-            <button type="button" id="update-video-name">
-                実行
-            </button>
-        </div>
+        <button type="button" id="get-today-weather">
+            実行
+        </button>
     </div>
 
 
     <div class="operation">
-        <h3>音楽のOriginal Nameを変更</h3>
+        <h3>明日の天気を取得</h3>
 
         <div class="endpoint">
-            PATCH /api/musics/&lt;music_id&gt;/original-name
+            GET /api/weather/get/tomorrow
         </div>
 
-        <div class="form-row">
-            <label>
-                Music ID
-                <input
-                    type="text"
-                    id="music-id"
-                >
-            </label>
-
-            <label>
-                Original Name
-                <input
-                    type="text"
-                    id="music-original-name"
-                >
-            </label>
-
-            <button type="button" id="update-music-name">
-                実行
-            </button>
-        </div>
+        <button type="button" id="get-tomorrow-weather">
+            実行
+        </button>
     </div>
 </section>
-
 
 <!-- ==================== Markdown ==================== -->
 
@@ -597,39 +590,72 @@
     </div>
 </section>
 
-
-<!-- ==================== Weather ==================== -->
+<!-- ==================== Media ==================== -->
 
 <section class="section">
-    <h2>Weather</h2>
+    <h2>Media</h2>
 
     <div class="operation">
-        <h3>今日の天気を取得</h3>
+        <h3>動画のOriginal Nameを変更</h3>
 
         <div class="endpoint">
-            GET /api/weather/get/today
+            PATCH /api/videos/&lt;video_id&gt;/original-name
         </div>
 
-        <button type="button" id="get-today-weather">
-            実行
-        </button>
+        <div class="form-row">
+            <label>
+                Video ID
+                <input
+                    type="text"
+                    id="video-id"
+                >
+            </label>
+
+            <label>
+                Original Name
+                <input
+                    type="text"
+                    id="video-original-name"
+                >
+            </label>
+
+            <button type="button" id="update-video-name">
+                実行
+            </button>
+        </div>
     </div>
 
 
     <div class="operation">
-        <h3>明日の天気を取得</h3>
+        <h3>音楽のOriginal Nameを変更</h3>
 
         <div class="endpoint">
-            GET /api/weather/get/tomorrow
+            PATCH /api/musics/&lt;music_id&gt;/original-name
         </div>
 
-        <button type="button" id="get-tomorrow-weather">
-            実行
-        </button>
+        <div class="form-row">
+            <label>
+                Music ID
+                <input
+                    type="text"
+                    id="music-id"
+                >
+            </label>
+
+            <label>
+                Original Name
+                <input
+                    type="text"
+                    id="music-original-name"
+                >
+            </label>
+
+            <button type="button" id="update-music-name">
+                実行
+            </button>
+        </div>
     </div>
 </section>
-
-
 
 <!-- ==================== Maintenance ==================== -->
 
@@ -657,8 +683,9 @@
     </div>
 </section>
 
+    </main>
 
-<!-- ==================== Response ==================== -->
+    <!-- ==================== Response ==================== -->
 
 <section id="response-section">
     <h2>Response</h2>
@@ -745,8 +772,7 @@
     document
         .getElementById("create-daily-note")
         .addEventListener("click", () => {
-            const date =
-                document.getElementById("daily-note-date").value;
+            const date = document.getElementById("daily-note-date").value;
 
             const params = new URLSearchParams();
 
@@ -781,8 +807,7 @@
     document
         .getElementById("create-weekly-note")
         .addEventListener("click", () => {
-            const date =
-                document.getElementById("weekly-note-date").value;
+            const date = document.getElementById("weekly-note-date").value;
 
             const params = new URLSearchParams();
 
@@ -1017,15 +1042,15 @@
         .getElementById("copy-file-tree")
         .addEventListener("click", () => {
             const target =
-                document.getElementById("file-tree-target").value.trim();
+                document.getElementById("clipboard-tree-target").value.trim();
 
             const excludeDirs =
                 parseCommaSeparated(
-                    document.getElementById("file-tree-exclude-dirs").value
+                    document.getElementById("clipboard-tree-exclude-dirs").value
                 );
 
             const recursive =
-                document.getElementById("file-tree-recursive").checked;
+                document.getElementById("clipboard-tree-recursive").checked;
 
             if (!target) {
                 alert("Targetを指定してください。");
@@ -1159,6 +1184,7 @@
     document.getElementById("calendar-before-18-date").value = today;
     document.getElementById("calendar-after-18-date").value = today;
 </script>
+</div>
 
 </body>
 </html>
