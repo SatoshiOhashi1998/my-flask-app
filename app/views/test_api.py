@@ -4,11 +4,11 @@ from flask import jsonify, request
 
 from app.notes.note_manager import add_comment_summary_to_weekly_note
 
-
 def register_test_routes(api_bp):
 
     @api_bp.route("/test", methods=["GET"])
     def test():
+
         return jsonify({
             "message": "test endpoint",
             "status": "ok",
