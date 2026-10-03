@@ -12,6 +12,8 @@ logger = logging.getLogger(__name__)
 
 
 def _run_with_app_context(app, func, func_name):
+    """Flask application context内で関数を実行する。"""
+
     if app is None:
         logger.warning(
             "%s: Flask appが指定されていません。"
@@ -30,6 +32,8 @@ def _run_with_app_context(app, func, func_name):
 
 
 def export_comments_job(app):
+    """当日のコメントをMarkdownへ出力する。"""
+
     logger.info(
         "export_today_comments_to_md() を開始します。"
     )
@@ -54,57 +58,65 @@ def export_comments_job(app):
         raise
 
 
-def add_thino_summary_job(app):
+def update_weekly_note_job(app):
+    """翌週のWeekly Noteを作成し、各Summaryを追加する。"""
+
     logger.info(
-        "add_thino_summary_to_weekly_note() を開始します。"
+        "update_weekly_note_job() を開始します。"
     )
 
     try:
-        result = _run_with_app_context(
-            app=app,
-            func=add_thino_summary_to_weekly_note,
-            func_name="add_thino_summary_to_weekly_note",
-        )
+        if app is None:
+            logger.warning(
+                "Flask appが指定されていません。"
+                "application contextなしで実行します。"
+            )
+
+            create_next_weekly_note()
+            add_thino_summary_to_weekly_note()
+            add_comment_summary_to_weekly_note()
+
+        else:
+            with app.app_context():
+                logger.info(
+                    "create_next_weekly_note() を開始します。"
+                )
+                create_next_weekly_note()
+                logger.info(
+                    "create_next_weekly_note() が完了しました。"
+                )
+
+                logger.info(
+                    "add_thino_summary_to_weekly_note() を開始します。"
+                )
+                add_thino_summary_to_weekly_note()
+                logger.info(
+                    "add_thino_summary_to_weekly_note() が完了しました。"
+                )
+
+                logger.info(
+                    "add_comment_summary_to_weekly_note() を開始します。"
+                )
+                add_comment_summary_to_weekly_note()
+                logger.info(
+                    "add_comment_summary_to_weekly_note() が完了しました。"
+                )
 
         logger.info(
-            "add_thino_summary_to_weekly_note() が完了しました。"
+            "update_weekly_note_job() が完了しました。"
         )
-
-        return result
 
     except Exception:
         logger.exception(
-            "add_thino_summary_to_weekly_note() の実行中にエラーが発生しました。"
-        )
-        raise
-
-
-def add_comment_summary_job(app):
-    logger.info(
-        "add_comment_summary_to_weekly_note() を開始します。"
-    )
-
-    try:
-        result = _run_with_app_context(
-            app=app,
-            func=add_comment_summary_to_weekly_note,
-            func_name="add_comment_summary_to_weekly_note",
-        )
-
-        logger.info(
-            "add_comment_summary_to_weekly_note() が完了しました。"
-        )
-
-        return result
-
-    except Exception:
-        logger.exception(
-            "add_comment_summary_to_weekly_note() の実行中にエラーが発生しました。"
+            "update_weekly_note_job() の実行中にエラーが発生しました。"
         )
         raise
 
 
 def register_markdown_jobs(scheduler, app=None):
+    """Markdown関連の定期実行Jobを登録する。"""
+
+    # 当日のコメントをMarkdownへ出力
     scheduler.add_job(
         func=export_comments_job,
         trigger="cron",
@@ -123,6 +135,7 @@ def register_markdown_jobs(scheduler, app=None):
         args=[app],
     )
 
+    # Daily Noteを作成
     scheduler.add_job(
         func=create_dailynote,
         trigger="cron",
@@ -131,31 +144,13 @@ def register_markdown_jobs(scheduler, app=None):
         job_id="create_daily_notes",
     )
 
+    # Weekly Noteを作成し、Summaryを追加
     scheduler.add_job(
-        func=create_next_weekly_note,
+        func=update_weekly_note_job,
         trigger="cron",
         day_of_week="sat",
         hour=23,
         minute=0,
-        job_id="create_next_weekly_note",
-    )
-
-    scheduler.add_job(
-        func=add_thino_summary_job,
-        trigger="cron",
-        day_of_week="sat",
-        hour=23,
-        minute=0,
-        job_id="add_thino_summary_to_weekly_note",
-        args=[app],
-    )
-
-    scheduler.add_job(
-        func=add_comment_summary_job,
-        trigger="cron",
-        day_of_week="sat",
-        hour=23,
-        minute=0,
-        job_id="add_comment_summary_to_weekly_note",
+        job_id="update_weekly_note",
         args=[app],
     )

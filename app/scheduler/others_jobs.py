@@ -8,12 +8,12 @@ from app.weather import register_tomorrow_weather_to_calendar
 def register_others_jobs(scheduler):
     """メール・天気・URL関連のジョブを登録する"""
 
-    scheduler.add_job(
-        func=mail.check_email,
-        trigger="interval",
-        minutes=5,
-        job_id="check_email",
-    )
+    # scheduler.add_job(
+    #     func=mail.check_email,
+    #     trigger="interval",
+    #     minutes=5,
+    #     job_id="check_email",
+    # )
 
     scheduler.add_job(
         func=register_tomorrow_weather_to_calendar,
