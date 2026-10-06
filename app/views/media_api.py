@@ -14,6 +14,8 @@ from app.media.video_manager import (
     rename_videos_and_save_metadata,
 )
 
+from app.utils.api_response import success, error
+
 
 def _format_media_item(item, media_type: str) -> dict:
     """メディアモデルをAPIレスポンス形式に変換する。"""
@@ -80,24 +82,22 @@ def register_media_routes(api_bp):
             )
         )
 
-        return jsonify({
-            "items": [
+        return success(
+            data=[
                 _format_media_item(v, "video")
                 for v in videos
             ]
-        })
+        )
 
     @api_bp.route("/api/videos/<video_id>/info", methods=["GET"])
     def get_video(video_id):
         video = VideoDataModel.query.get(video_id)
 
         if not video:
-            return jsonify({
-                "error": "Video not found"
-            }), 404
+            return error("Video not found", 404)
 
-        return jsonify(
-            _format_media_item(video, "video")
+        return success(
+            data=_format_media_item(video, "video")
         )
 
     @api_bp.route(
@@ -140,13 +140,13 @@ def register_media_routes(api_bp):
             )
         )
 
-        return jsonify({
-            "items": [
+        return success(
+            data=[
                 _format_media_item(m, "audio")
                 for m in musics
             ]
-        })
-
+        )
+    
     @api_bp.route(
         "/api/musics/<music_id>/info",
         methods=["GET"],
@@ -155,12 +155,10 @@ def register_media_routes(api_bp):
         music = MusicDataModel.query.get(music_id)
 
         if not music:
-            return jsonify({
-                "error": "Music not found"
-            }), 404
+            return error("Music not found", 404)
 
-        return jsonify(
-            _format_media_item(music, "audio")
+        return success(
+            data=_format_media_item(music, "audio")
         )
 
     @api_bp.route(
@@ -180,50 +178,78 @@ def register_media_routes(api_bp):
             filename,
         )
 
-    @api_bp.route("/api/videos/<video_id>/original-name", methods=["PATCH"])
+    @api_bp.route(
+        "/api/videos/<video_id>/original-name",
+        methods=["PATCH"],
+    )
     def update_video_original_name(video_id):
         data = request.get_json()
 
         if not data or "original_name" not in data:
-            return jsonify({"error": "original_name is required"}), 400
+            return error(
+                "original_name is required",
+                400,
+            )
 
         original_name = data["original_name"]
 
         if not isinstance(original_name, str) or not original_name.strip():
-            return jsonify({"error": "original_name must not be empty"}), 400
+            return error(
+                "original_name must not be empty",
+                400,
+            )
 
         video = db.session.get(VideoDataModel, video_id)
 
         if video is None:
-            return jsonify({"error": "Video not found"}), 404
+            return error(
+                "Video not found",
+                404,
+            )
 
         video.original_name = original_name
         db.session.commit()
 
-        return jsonify(video.to_dict()), 200
+        return success(
+            data=video.to_dict(),
+        )
 
 
-    @api_bp.route("/api/musics/<music_id>/original-name", methods=["PATCH"])
+    @api_bp.route(
+        "/api/musics/<music_id>/original-name",
+        methods=["PATCH"],
+    )
     def update_music_original_name(music_id):
         data = request.get_json()
 
         if not data or "original_name" not in data:
-            return jsonify({"error": "original_name is required"}), 400
+            return error(
+                "original_name is required",
+                400,
+            )
 
         original_name = data["original_name"]
 
         if not isinstance(original_name, str) or not original_name.strip():
-            return jsonify({"error": "original_name must not be empty"}), 400
+            return error(
+                "original_name must not be empty",
+                400,
+            )
 
         music = db.session.get(MusicDataModel, music_id)
 
         if music is None:
-            return jsonify({"error": "Music not found"}), 404
+            return error(
+                "Music not found",
+                404,
+            )
 
         music.original_name = original_name
         db.session.commit()
 
-        return jsonify(music.to_dict()), 200
+        return success(
+            data=music.to_dict(),
+        )
 
     @api_bp.route("/api/reset/media", methods=["GET"])
     def reset_medias_id():
@@ -234,4 +260,6 @@ def register_media_routes(api_bp):
         remove_nonexistent_files_from_db()
         remove_nonexistent_audio_files_from_db()
 
-        return jsonify({"message": "メディアメタデータをリセットしました"}), 200
+        return success(
+            message="メディアメタデータをリセットしました",
+        )

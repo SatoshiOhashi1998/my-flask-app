@@ -267,11 +267,11 @@ def test_get_videos(mock_setlocale, client, tmp_path):
 
     data = response.get_json()
 
-    assert "items" in data
-    assert len(data["items"]) == 2
+    assert "data" in data
+    assert len(data["data"]) == 2
 
-    assert data["items"][0]["type"] == "video"
-    assert data["items"][0]["filename"] == "video_01.mp4"
+    assert data["data"][0]["type"] == "video"
+    assert data["data"][0]["filename"] == "video_01.mp4"
 
     mock_setlocale.assert_called_once_with(
         locale.LC_COLLATE,
@@ -299,7 +299,7 @@ def test_get_video_info(client, tmp_path):
 
     assert response.status_code == 200
 
-    data = response.get_json()
+    data = response.get_json()["data"]
 
     assert data["id"] == "sample"
     assert data["filename"] == "sample.mp4"
@@ -349,11 +349,11 @@ def test_get_musics(mock_setlocale, client, tmp_path):
 
     data = response.get_json()
 
-    assert "items" in data
-    assert len(data["items"]) == 2
+    assert "data" in data
+    assert len(data["data"]) == 2
 
-    assert data["items"][0]["type"] == "audio"
-    assert data["items"][0]["filename"] == "music_01.mp3"
+    assert data["data"][0]["type"] == "audio"
+    assert data["data"][0]["filename"] == "music_01.mp3"
 
     mock_setlocale.assert_called_once_with(
         locale.LC_COLLATE,
@@ -381,7 +381,7 @@ def test_get_music_info(client, tmp_path):
 
     assert response.status_code == 200
 
-    data = response.get_json()
+    data = response.get_json()["data"]
 
     assert data["id"] == "sample"
     assert data["filename"] == "sample.mp3"
