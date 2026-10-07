@@ -1,9 +1,10 @@
 import traceback
 
-from flask import jsonify, request
+from flask import request
 
 from devtools.code_copy import copy_code
 from devtools.file_tree import copy_file_tree
+from app.utils.api_response import success, error
 
 
 def register_clipboard_routes(api_bp):
@@ -14,16 +15,18 @@ def register_clipboard_routes(api_bp):
             target = request.args.get("target")
 
             if not target:
-                return jsonify({
-                    "status": "error",
-                    "message": "target は必須です。"
-                }), 400
+                return error(
+                    "target は必須です。",
+                    400,
+                )
 
             extensions = request.args.getlist("extension")
+
             if not extensions:
                 extensions = None
 
             exclude_dirs = request.args.getlist("exclude_dir")
+
             if not exclude_dirs:
                 exclude_dirs = None
 
@@ -38,10 +41,10 @@ def register_clipboard_routes(api_bp):
             target = data.get("target")
 
             if not target:
-                return jsonify({
-                    "status": "error",
-                    "message": "target は必須です。"
-                }), 400
+                return error(
+                    "target は必須です。",
+                    400,
+                )
 
             extensions = (
                 set(data["extensions"])
@@ -68,24 +71,23 @@ def register_clipboard_routes(api_bp):
                 recursive=recursive,
             )
 
-            return jsonify({
-                "status": "success",
-                "message": (
+            return success(
+                data={
+                    "files": [str(path) for path in files],
+                },
+                message=(
                     f"{len(files)} ファイルを"
                     "クリップボードへコピーしました。"
                 ),
-                "files": [str(path) for path in files],
-            }), 200
+            )
 
         except Exception as e:
             traceback.print_exc()
 
-            return jsonify({
-                "status": "error",
-                "message": (
-                    f"コードのコピー中にエラーが発生しました: {str(e)}"
-                ),
-            }), 500
+            return error(
+                f"コードのコピー中にエラーが発生しました: {str(e)}",
+                500,
+            )
 
     @api_bp.route(
         "/api/clipboard/copy-file-tree",
@@ -97,10 +99,10 @@ def register_clipboard_routes(api_bp):
             target = request.args.get("target")
 
             if not target:
-                return jsonify({
-                    "status": "error",
-                    "message": "target は必須です。",
-                }), 400
+                return error(
+                    "target は必須です。",
+                    400,
+                )
 
             exclude_dirs = request.args.getlist(
                 "exclude_dir"
@@ -120,10 +122,10 @@ def register_clipboard_routes(api_bp):
             target = data.get("target")
 
             if not target:
-                return jsonify({
-                    "status": "error",
-                    "message": "target は必須です。",
-                }), 400
+                return error(
+                    "target は必須です。",
+                    400,
+                )
 
             exclude_dirs = (
                 set(data["exclude_dirs"])
@@ -143,22 +145,21 @@ def register_clipboard_routes(api_bp):
                 recursive=recursive,
             )
 
-            return jsonify({
-                "status": "success",
-                "message": (
+            return success(
+                data={
+                    "tree": tree,
+                },
+                message=(
                     "ファイル構成を"
                     "クリップボードへコピーしました。"
                 ),
-                "tree": tree,
-            }), 200
+            )
 
         except Exception as e:
             traceback.print_exc()
 
-            return jsonify({
-                "status": "error",
-                "message": (
-                    "ファイル構成のコピー中に"
-                    f"エラーが発生しました: {e}"
-                ),
-            }), 500
+            return error(
+                "ファイル構成のコピー中に"
+                f"エラーが発生しました: {e}",
+                500,
+            )

@@ -1,13 +1,14 @@
 import traceback
 from datetime import datetime, timedelta
 
-from flask import jsonify, request
+from flask import request
 
 from app.weather import (
     register_today_weather_to_calendar,
     register_tomorrow_weather_to_calendar,
 )
 from app.notes.task_manager import register_tasks_by_date
+from app.utils.api_response import success, error
 
 
 def register_calendar_routes(api_bp):
@@ -24,60 +25,71 @@ def register_calendar_routes(api_bp):
                 target_heading=target_heading,
                 sunday_first=False,
             )
-            return jsonify({
-                "status": "success",
-                "message": (
+
+            return success(
+                data={
+                    "date": date_str,
+                    "start_time": start_time,
+                    "target_heading": target_heading,
+                },
+                message=(
                     f"{date_str} の [{target_heading}] のタスクを"
                     "Googleカレンダーへ送信しました。"
                 ),
-                "date": date_str,
-                "start_time": start_time,
-                "target_heading": target_heading,
-            }), 200
+            )
 
         except Exception as e:
             traceback.print_exc()
-            return jsonify({
-                "status": "error",
-                "message": f"タスクの同期処理中にエラーが発生しました: {str(e)}"
-            }), 500
+
+            return error(
+                f"タスクの同期処理中にエラーが発生しました: {str(e)}",
+                500,
+            )
 
     @api_bp.route("/api/weather/get/today", methods=["GET"])
     def register_today_weather():
         try:
             register_today_weather_to_calendar()
-            return jsonify({
-                "message": "本日の天気情報をカレンダーに登録しました"
-            }), 200
+
+            return success(
+                message="本日の天気情報をカレンダーに登録しました",
+            )
 
         except Exception as e:
             traceback.print_exc()
-            return jsonify({
-                "status": "error",
-                "message": f"天気情報の登録中にエラーが発生しました: {str(e)}"
-            }), 500
+
+            return error(
+                f"天気情報の登録中にエラーが発生しました: {str(e)}",
+                500,
+            )
 
     @api_bp.route("/api/weather/get/tomorrow", methods=["GET"])
     def register_tomorrow_weather():
         try:
             register_tomorrow_weather_to_calendar()
-            return jsonify({
-                "message": "翌日の天気情報をカレンダーに登録しました"
-            }), 200
+
+            return success(
+                message="翌日の天気情報をカレンダーに登録しました",
+            )
 
         except Exception as e:
             traceback.print_exc()
-            return jsonify({
-                "status": "error",
-                "message": f"天気情報の登録中にエラーが発生しました: {str(e)}"
-            }), 500
+
+            return error(
+                f"天気情報の登録中にエラーが発生しました: {str(e)}",
+                500,
+            )
 
     @api_bp.route("/api/calendar/sync-tasks/today", methods=["GET"])
     def sync_today_tasks_to_calendar():
         """本日のDaily NoteのタスクをGoogleカレンダーへ送信する"""
         today_str = datetime.now().strftime("%Y-%m-%d")
         start_time = request.args.get("start_time", "09:00")
-        return _execute_task_sync(today_str, start_time)
+
+        return _execute_task_sync(
+            today_str,
+            start_time,
+        )
 
     @api_bp.route("/api/calendar/sync-tasks/tomorrow", methods=["GET"])
     def sync_tomorrow_tasks_to_calendar():
@@ -87,7 +99,11 @@ def register_calendar_routes(api_bp):
         ).strftime("%Y-%m-%d")
 
         start_time = request.args.get("start_time", "09:00")
-        return _execute_task_sync(tomorrow_str, start_time)
+
+        return _execute_task_sync(
+            tomorrow_str,
+            start_time,
+        )
 
     @api_bp.route("/api/calendar/sync-tasks/date", methods=["GET"])
     def sync_tasks_by_date_to_calendar():
@@ -96,25 +112,25 @@ def register_calendar_routes(api_bp):
         start_time = request.args.get("start_time", "09:00")
 
         if not date_str:
-            return jsonify({
-                "status": "error",
-                "message": (
-                    "クエリパラメータ 'date' (YYYY-MM-DD) は必須です。"
-                ),
-            }), 400
+            return error(
+                "クエリパラメータ 'date' (YYYY-MM-DD) は必須です。",
+                400,
+            )
 
         try:
             datetime.strptime(date_str, "%Y-%m-%d")
-        except ValueError:
-            return jsonify({
-                "status": "error",
-                "message": (
-                    "無効な日付フォーマットです。"
-                    "YYYY-MM-DD 形式で指定してください。"
-                ),
-            }), 400
 
-        return _execute_task_sync(date_str, start_time)
+        except ValueError:
+            return error(
+                "無効な日付フォーマットです。"
+                "YYYY-MM-DD 形式で指定してください。",
+                400,
+            )
+
+        return _execute_task_sync(
+            date_str,
+            start_time,
+        )
 
     @api_bp.route("/api/calendar/sync-tasks/before-15", methods=["GET"])
     def sync_before_15_tasks_to_calendar():

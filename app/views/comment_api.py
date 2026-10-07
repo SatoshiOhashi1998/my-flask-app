@@ -1,9 +1,13 @@
-from flask import jsonify, request
+from flask import request
 from datetime import datetime
 
 from app.models import Comment, db
-from app.notes.export_comments import export_comments_to_md, export_today_comments_to_md
+from app.notes.export_comments import (
+    export_comments_to_md,
+    export_today_comments_to_md,
+)
 from app.notes.note_manager import add_comment_summary_to_weekly_note
+from app.utils.api_response import success, error
 
 
 def register_comment_routes(api_bp):
@@ -23,7 +27,7 @@ def register_comment_routes(api_bp):
             .all()
         )
 
-        return jsonify([
+        return success([
             {
                 "id": comment.id,
                 "video_id": comment.video_id,
@@ -47,16 +51,17 @@ def register_comment_routes(api_bp):
         db.session.add(comment)
         db.session.commit()
 
-        return jsonify({
-            "message": "コメントを投稿しました",
-        }), 201
+        return success(
+            message="コメントを投稿しました",
+            status_code=201,
+        )
 
     @api_bp.route("/api/comments/<int:comment_id>", methods=["PUT"])
     def update_comment(comment_id):
         comment = Comment.query.get(comment_id)
 
         if not comment:
-            return jsonify({"error": "Comment not found"}), 404
+            return error("Comment not found", 404)
 
         data = request.get_json()
 
@@ -64,7 +69,7 @@ def register_comment_routes(api_bp):
 
         db.session.commit()
 
-        return jsonify({
+        return success({
             "id": comment.id,
             "video_id": comment.video_id,
             "media_type": comment.media_type,
@@ -77,14 +82,14 @@ def register_comment_routes(api_bp):
         comment = Comment.query.get(comment_id)
 
         if not comment:
-            return jsonify({"error": "Comment not found"}), 404
+            return error("Comment not found", 404)
 
         db.session.delete(comment)
         db.session.commit()
 
-        return jsonify({
-            "message": "コメントを削除しました"
-        })
+        return success(
+            message="コメントを削除しました",
+        )
 
     @api_bp.route("/api/comments/<video_id>/others", methods=["GET"])
     def get_other_comments(video_id):
@@ -103,7 +108,7 @@ def register_comment_routes(api_bp):
             .all()
         )
 
-        return jsonify([
+        return success([
             {
                 "id": comment.id,
                 "video_id": comment.video_id,
@@ -118,9 +123,9 @@ def register_comment_routes(api_bp):
     def export_comments():
         export_today_comments_to_md()
 
-        return jsonify({
-            "message": "本日のコメントを出力しました"
-        })
+        return success(
+            message="本日のコメントを出力しました",
+        )
 
     @api_bp.route("/api/comments/export/<date_str>", methods=["GET"])
     def export_comments_by_date(date_str):
@@ -131,34 +136,34 @@ def register_comment_routes(api_bp):
             ).date()
 
         except ValueError:
-            return jsonify({
-                "error": "日付はYYYY-MM-DD形式で指定してください"
-            }), 400
+            return error(
+                "日付はYYYY-MM-DD形式で指定してください",
+                400,
+            )
 
         file_path = export_comments_to_md(
             target_date=target_date,
         )
 
-        return jsonify({
-            "message": "コメントを出力しました",
-            "date": date_str,
-            "file_path": file_path,
-        })
+        return success(
+            data={
+                "date": date_str,
+                "file_path": file_path,
+            },
+            message="コメントを出力しました",
+        )
 
     @api_bp.route("/api/comments/add-summary", methods=["GET"])
     def add_comment_summary():
         try:
             add_comment_summary_to_weekly_note()
 
-            return jsonify({
-                "message": "今週のComment Summaryを更新しました",
-            })
+            return success(
+                message="今週のComment Summaryを更新しました",
+            )
 
         except Exception as e:
-            return jsonify({
-                "error": str(e),
-            }), 500
-
+            return error(str(e), 500)
 
     @api_bp.route("/api/comments/add-summary/<date_str>", methods=["GET"])
     def add_comment_summary_by_date(date_str):
@@ -169,22 +174,22 @@ def register_comment_routes(api_bp):
             )
 
         except ValueError:
-            return jsonify({
-                "error": "日付はYYYY-MM-DD形式で指定してください"
-            }), 400
+            return error(
+                "日付はYYYY-MM-DD形式で指定してください",
+                400,
+            )
 
         try:
             add_comment_summary_to_weekly_note(
                 target_date=target_date,
             )
 
-            return jsonify({
-                "message": "Comment Summaryを更新しました",
-                "date": date_str,
-            })
+            return success(
+                data={
+                    "date": date_str,
+                },
+                message="Comment Summaryを更新しました",
+            )
 
         except Exception as e:
-            return jsonify({
-                "error": str(e),
-            }), 500
-            
+            return error(str(e), 500)

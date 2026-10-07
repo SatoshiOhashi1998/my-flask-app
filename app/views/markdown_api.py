@@ -1,7 +1,7 @@
 import os
 from datetime import datetime
 
-from flask import jsonify, request
+from flask import request
 
 from app.notes.vocabulary_manager import (
     export_english_vocabulary,
@@ -13,6 +13,8 @@ from app.notes.note_manager import (
     add_thino_summary_to_weekly_note,
     add_comment_summary_to_weekly_note,
 )
+
+from app.utils.api_response import success, error
 
 from myutils.markdown.vault import Vault
 from myutils.markdown.note_processor import NoteGenerator
@@ -33,13 +35,13 @@ def register_markdown_routes(api_bp):
                     "%Y-%m-%d",
                 )
             except ValueError:
-                return jsonify({
-                    "status": "error",
-                    "message": (
+                return error(
+                    (
                         "無効な日付フォーマットです。"
                         "YYYY-MM-DD 形式で指定してください。"
                     ),
-                }), 400
+                    400,
+                )
         else:
             start_date = datetime.now()
 
@@ -50,39 +52,40 @@ def register_markdown_routes(api_bp):
                 start_date or datetime.now()
             ).strftime("%Y-%m-%d")
 
-            return jsonify({
-                "status": "success",
-                "message": (
+            return success(
+                data={
+                    "start_date": target_date_str,
+                },
+                message=(
                     f"{target_date_str} から7日分の"
                     "デイリーノートを作成しました"
                 ),
-                "start_date": target_date_str,
-            }), 200
+            )
 
         except Exception as e:
-            return jsonify({
-                "status": "error",
-                "message": (
+            return error(
+                (
                     f"デイリーノートの作成中に"
                     f"エラーが発生しました: {str(e)}"
                 ),
-            }), 500
+                500,
+            )
 
     @api_bp.route("/api/markdown/export_english", methods=["GET"])
     def export_english():
         export_english_vocabulary()
 
-        return jsonify({
-            "message": "英単語を出力しました"
-        }), 200
+        return success(
+            message="英単語を出力しました",
+        )
 
     @api_bp.route("/api/markdown/export_vocablary", methods=["GET"])
     def export_vocablary():
         export_single_vocabulary()
 
-        return jsonify({
-            "message": "語彙を出力しました"
-        }), 200
+        return success(
+            message="語彙を出力しました",
+        )
 
     @api_bp.route("/api/markdown/create_weekly_note", methods=["GET"])
     def create_weekly_note_endpoint():
@@ -96,13 +99,13 @@ def register_markdown_routes(api_bp):
                     "%Y-%m-%d",
                 )
             except ValueError:
-                return jsonify({
-                    "status": "error",
-                    "message": (
+                return error(
+                    (
                         "無効な日付フォーマットです。"
                         "YYYY-MM-DD 形式で指定してください。"
                     ),
-                }), 400
+                    400,
+                )
         else:
             target_date = datetime.now()
 
@@ -111,13 +114,13 @@ def register_markdown_routes(api_bp):
         plan_dir = os.getenv("PLAN_NOTE_DIR")
 
         if not output_dir or not template_path:
-            return jsonify({
-                "status": "error",
-                "message": (
+            return error(
+                (
                     "環境変数 WEEKLY_NOTE_DIR または "
                     "WEEKLY_NOTE_TEMPLATE が設定されていません。"
                 ),
-            }), 500
+                500,
+            )
 
         try:
             vault = Vault(output_dir)
@@ -131,23 +134,24 @@ def register_markdown_routes(api_bp):
                 start_of_week="monday",
             )
 
-            return jsonify({
-                "status": "success",
-                "message": (
+            return success(
+                data={
+                    "target_date": target_date.strftime("%Y-%m-%d"),
+                },
+                message=(
                     f"{target_date.strftime('%Y-%m-%d')} の属する週の"
                     "ウィークリーノートを作成しました"
                 ),
-                "target_date": target_date.strftime("%Y-%m-%d"),
-            }), 200
+            )
 
         except Exception as e:
-            return jsonify({
-                "status": "error",
-                "message": (
+            return error(
+                (
                     f"ウィークリーノートの作成中に"
                     f"エラーが発生しました: {str(e)}"
                 ),
-            }), 500
+                500,
+            )
 
     @api_bp.route(
         "/api/markdown/create_next_weekly_note",
@@ -157,21 +161,19 @@ def register_markdown_routes(api_bp):
         try:
             create_next_weekly_note()
 
-            return jsonify({
-                "status": "success",
-                "message": "翌週分のウィークリーノートを作成しました",
-            }), 200
+            return success(
+                message="翌週分のウィークリーノートを作成しました",
+            )
 
         except Exception as e:
-            return jsonify({
-                "status": "error",
-                "message": (
+            return error(
+                (
                     f"翌週のウィークリーノートの作成中に"
                     f"エラーが発生しました: {str(e)}"
                 ),
-            }), 500
+                500,
+            )
 
-    
     @api_bp.route(
         "/api/markdown/add_thino_summary",
         methods=["GET"],
@@ -180,20 +182,18 @@ def register_markdown_routes(api_bp):
         try:
             add_thino_summary_to_weekly_note()
 
-            return jsonify({
-                "status": "success",
-                "message": "今週のThino Summaryを更新しました",
-            }), 200
+            return success(
+                message="今週のThino Summaryを更新しました",
+            )
 
         except Exception as e:
-            return jsonify({
-                "status": "error",
-                "message": (
+            return error(
+                (
                     f"Thino Summaryの更新中に"
                     f"エラーが発生しました: {str(e)}"
                 ),
-            }), 500
-
+                500,
+            )
 
     @api_bp.route(
         "/api/markdown/add_thino_summary/<date_str>",
@@ -207,33 +207,34 @@ def register_markdown_routes(api_bp):
             )
 
         except ValueError:
-            return jsonify({
-                "status": "error",
-                "message": (
+            return error(
+                (
                     "無効な日付フォーマットです。"
                     "YYYY-MM-DD 形式で指定してください。"
                 ),
-            }), 400
+                400,
+            )
 
         try:
             add_thino_summary_to_weekly_note(
                 target_date=target_date,
             )
 
-            return jsonify({
-                "status": "success",
-                "message": (
+            return success(
+                data={
+                    "target_date": date_str,
+                },
+                message=(
                     f"{date_str} の属する週の"
                     "Thino Summaryを更新しました"
                 ),
-                "target_date": date_str,
-            }), 200
+            )
 
         except Exception as e:
-            return jsonify({
-                "status": "error",
-                "message": (
+            return error(
+                (
                     f"Thino Summaryの更新中に"
                     f"エラーが発生しました: {str(e)}"
                 ),
-            }), 500
+                500,
+            )

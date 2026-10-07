@@ -1,6 +1,6 @@
 import traceback
 
-from flask import jsonify, request
+from flask import request
 
 from app.media.media_downloader import download
 from app.media.media_paths import get_media_directories
@@ -8,6 +8,7 @@ from app.youtube.youtube_api import (
     fetch_youtube_video_info,
     fetch_youtube_videos,
 )
+from app.utils.api_response import success, error
 
 
 def register_youtube_routes(api_bp):
@@ -17,9 +18,10 @@ def register_youtube_routes(api_bp):
     def download_video():
         if request.method == "GET":
             try:
-                return jsonify(get_media_directories()), 200
+                return success(get_media_directories())
+
             except Exception as e:
-                return jsonify({"error": str(e)}), 500
+                return error(str(e), 500)
 
         data = request.json or {}
 
@@ -27,9 +29,10 @@ def register_youtube_routes(api_bp):
         save_dir = data.get("save_dir")
 
         if not video_id or not save_dir:
-            return jsonify({
-                "error": "video_id and save_dir are required"
-            }), 400
+            return error(
+                "video_id and save_dir are required",
+                400,
+            )
 
         try:
             target_path = download(
@@ -41,36 +44,35 @@ def register_youtube_routes(api_bp):
                 download_type=data.get("download_type", "video"),
             )
 
-            return jsonify({
-                "message": f"{video_id} のダウンロードが完了しました",
-                "path": target_path,
-            }), 200
+            return success(
+                data={
+                    "path": target_path,
+                },
+                message=f"{video_id} のダウンロードが完了しました",
+            )
 
         except Exception as e:
-            return jsonify({
-                "error": f"ダウンロードに失敗しました: {str(e)}"
-            }), 500
+            return error(
+                f"ダウンロードに失敗しました: {str(e)}",
+                500,
+            )
 
     @api_bp.route("/api/youtube/search", methods=["GET"])
     def search_youtube():
         query = request.args.get("q", "")
 
         if not query:
-            return jsonify({"items": []}), 200
+            return success([])
 
         try:
             items = fetch_youtube_videos(query)
 
-            return jsonify({
-                "items": items
-            }), 200
+            return success(items)
 
         except Exception as e:
             traceback.print_exc()
 
-            return jsonify({
-                "error": str(e)
-            }), 500
+            return error(str(e), 500)
 
     @api_bp.route("/api/youtube/<video_id>/info", methods=["GET"])
     def get_youtube_info(video_id):
@@ -78,15 +80,11 @@ def register_youtube_routes(api_bp):
             video_info = fetch_youtube_video_info(video_id)
 
             if not video_info:
-                return jsonify({
-                    "error": "Video not found"
-                }), 404
+                return error("Video not found", 404)
 
-            return jsonify(video_info), 200
+            return success(video_info)
 
         except Exception as e:
             traceback.print_exc()
 
-            return jsonify({
-                "error": str(e)
-            }), 500
+            return error(str(e), 500)
