@@ -22,7 +22,7 @@ def test_copy_code_get(
 
     assert response.status_code == 200
 
-    data = response.get_json()
+    data = response.get_json()["data"]
 
     assert data["status"] == "success"
     assert data["files"] == [

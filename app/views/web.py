@@ -1,6 +1,15 @@
 import os
 import locale
-from flask import Blueprint, render_template, request, make_response, Response, jsonify
+from flask import (
+    Blueprint,
+    render_template,
+    request,
+    make_response,
+    Response,
+    jsonify,
+    send_from_directory,
+    current_app,
+)
 import pandas as pd
 
 from app.models import db, VideoDataModel
@@ -91,3 +100,27 @@ def mahjong():
 @web.route("/api-tool", methods=["GET"])
 def api_tool():
     return render_template("api_tool/index.html")
+
+
+@web.route("/react/MediaPlayer/")
+def media_player():
+    return send_from_directory(
+        os.path.join(
+            current_app.static_folder,
+            "react",
+            "MediaPlayer",
+        ),
+        "index.html",
+    )
+
+
+@web.route("/react/MediaPlayer/<path:filename>")
+def media_player_static(filename):
+    return send_from_directory(
+        os.path.join(
+            current_app.static_folder,
+            "react",
+            "MediaPlayer",
+        ),
+        filename,
+    )

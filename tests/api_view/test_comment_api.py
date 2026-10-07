@@ -24,7 +24,7 @@ def test_get_comments(client):
 
     assert response.status_code == 200
 
-    data = response.get_json()
+    data = response.get_json()["data"]
 
     assert isinstance(data, list)
     assert len(data) >= 1
@@ -48,7 +48,7 @@ def test_post_comment(client):
 
     assert response.status_code == 201
 
-    data = response.get_json()
+    data = response.get_json()["data"]
 
     assert "コメントを投稿しました" in data["message"]
 
@@ -136,7 +136,7 @@ def test_export_comments(mock_export, client):
 
     assert response.status_code == 200
 
-    data = response.get_json()
+    data = response.get_json()["data"]
 
     assert (
         "本日のコメントを出力しました"
@@ -179,7 +179,7 @@ def test_get_other_comments(client):
 
     assert response.status_code == 200
 
-    data = response.get_json()
+    data = response.get_json()["data"]
 
     assert len(data) == 2
 
@@ -218,7 +218,7 @@ def test_get_other_comments_custom_exclude_type(client):
 
     assert response.status_code == 200
 
-    data = response.get_json()
+    data = response.get_json()["data"]
 
     assert len(data) == 1
     assert data[0]["media_type"] == "youtube"

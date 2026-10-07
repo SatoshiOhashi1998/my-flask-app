@@ -13,7 +13,7 @@ def test_sync_today_tasks(mock_register, client):
 
     assert response.status_code == 200
 
-    data = response.get_json()
+    data = response.get_json()["data"]
 
     assert data["status"] == "success"
     assert data["target_heading"] == "Today's Tasks"
@@ -27,7 +27,7 @@ def test_sync_tomorrow_tasks(mock_register, client):
 
     assert response.status_code == 200
 
-    data = response.get_json()
+    data = response.get_json()["data"]
 
     assert data["status"] == "success"
 
@@ -43,7 +43,7 @@ def test_sync_tasks_by_date_success(mock_register, client):
 
     assert response.status_code == 200
 
-    data = response.get_json()
+    data = response.get_json()["data"]
 
     assert data["status"] == "success"
     assert data["date"] == "2026-06-01"
@@ -86,7 +86,7 @@ def test_sync_time_range_tasks(
 
     assert response.status_code == 200
 
-    data = response.get_json()
+    data = response.get_json()["data"]
 
     assert data["status"] == "success"
     assert data["target_heading"] == expected_heading
@@ -106,7 +106,7 @@ def test_sync_tasks_by_date_missing_param(client):
 
     assert response.status_code == 400
 
-    data = response.get_json()
+    data = response.get_json()["data"]
 
     assert data["status"] == "error"
 
@@ -119,7 +119,7 @@ def test_sync_tasks_by_date_invalid_format(client):
 
     assert response.status_code == 400
 
-    data = response.get_json()
+    data = response.get_json()["data"]
 
     assert data["status"] == "error"
 
@@ -142,7 +142,7 @@ def test_sync_tasks_internal_error(
 
     assert response.status_code == 500
 
-    data = response.get_json()
+    data = response.get_json()["data"]
 
     assert data["status"] == "error"
     assert (
@@ -168,7 +168,7 @@ def test_register_today_weather(
 
     assert response.status_code == 200
 
-    data = response.get_json()
+    data = response.get_json()["data"]
 
     assert (
         "本日の天気情報をカレンダーに登録しました"
@@ -191,7 +191,7 @@ def test_register_tomorrow_weather(
 
     assert response.status_code == 200
 
-    data = response.get_json()
+    data = response.get_json()["data"]
 
     assert (
         "翌日の天気情報をカレンダーに登録しました"

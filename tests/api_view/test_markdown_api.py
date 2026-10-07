@@ -16,7 +16,7 @@ def test_create_dailynotes_default(
 
     assert response.status_code == 200
 
-    data = response.get_json()
+    data = response.get_json()["data"]
 
     assert data["status"] == "success"
 
@@ -35,7 +35,7 @@ def test_create_dailynotes_with_date(
 
     assert response.status_code == 200
 
-    data = response.get_json()
+    data = response.get_json()["data"]
 
     assert data["status"] == "success"
     assert data["start_date"] == "2026-06-01"
@@ -51,7 +51,7 @@ def test_create_dailynotes_invalid_date(client):
 
     assert response.status_code == 400
 
-    data = response.get_json()
+    data = response.get_json()["data"]
 
     assert data["status"] == "error"
 
@@ -82,7 +82,7 @@ def test_create_weekly_note_success(
 
     assert response.status_code == 200
 
-    data = response.get_json()
+    data = response.get_json()["data"]
 
     assert data["status"] == "success"
     assert data["target_date"] == "2026-06-01"
@@ -109,7 +109,7 @@ def test_create_weekly_note_missing_env(
 
     assert response.status_code == 500
 
-    data = response.get_json()
+    data = response.get_json()["data"]
 
     assert data["status"] == "error"
 
@@ -134,7 +134,7 @@ def test_create_weekly_note_invalid_date(
 
     assert response.status_code == 400
 
-    data = response.get_json()
+    data = response.get_json()["data"]
 
     assert data["status"] == "error"
 
@@ -154,7 +154,7 @@ def test_create_next_weekly_note_success(
 
     assert response.status_code == 200
 
-    data = response.get_json()
+    data = response.get_json()["data"]
 
     assert data["status"] == "success"
 
@@ -181,7 +181,7 @@ def test_export_english(
 
     assert response.status_code == 200
 
-    data = response.get_json()
+    data = response.get_json()["data"]
 
     assert data["message"] == (
         "英単語を出力しました"
@@ -201,7 +201,7 @@ def test_export_vocablary(
 
     assert response.status_code == 200
 
-    data = response.get_json()
+    data = response.get_json()["data"]
 
     assert data["message"] == (
         "語彙を出力しました"
@@ -228,7 +228,7 @@ def test_create_dailynotes_error(
 
     assert response.status_code == 500
 
-    data = response.get_json()
+    data = response.get_json()["data"]
 
     assert data["status"] == "error"
     assert "daily note error" in data["message"]
@@ -248,7 +248,7 @@ def test_create_next_weekly_note_error(
 
     assert response.status_code == 500
 
-    data = response.get_json()
+    data = response.get_json()["data"]
 
     assert data["status"] == "error"
     assert "weekly note error" in data["message"]

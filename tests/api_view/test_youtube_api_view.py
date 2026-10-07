@@ -21,7 +21,7 @@ def test_youtube_download_get(
 
     assert response.status_code == 200
 
-    data = response.get_json()
+    data = response.get_json()["data"]
 
     assert data == [
         "D:/media/video",
@@ -45,7 +45,7 @@ def test_youtube_download_get_error(
 
     assert response.status_code == 500
 
-    data = response.get_json()
+    data = response.get_json()["data"]
 
     assert "directory error" in data["error"]
 
@@ -60,7 +60,7 @@ def test_youtube_download_missing_video_id(client):
 
     assert response.status_code == 400
 
-    data = response.get_json()
+    data = response.get_json()["data"]
 
     assert data["error"] == (
         "video_id and save_dir are required"
@@ -77,7 +77,7 @@ def test_youtube_download_missing_save_dir(client):
 
     assert response.status_code == 400
 
-    data = response.get_json()
+    data = response.get_json()["data"]
 
     assert data["error"] == (
         "video_id and save_dir are required"
@@ -107,7 +107,7 @@ def test_youtube_download_success(
 
     assert response.status_code == 200
 
-    data = response.get_json()
+    data = response.get_json()["data"]
 
     assert data["path"] == (
         "D:/media/video/sample.mp4"
@@ -170,7 +170,7 @@ def test_youtube_download_error(
 
     assert response.status_code == 500
 
-    data = response.get_json()
+    data = response.get_json()["data"]
 
     assert "download error" in data["error"]
 
@@ -186,7 +186,7 @@ def test_youtube_search_empty_query(client):
 
     assert response.status_code == 200
 
-    data = response.get_json()
+    data = response.get_json()["data"]
 
     assert data["items"] == []
 
@@ -198,7 +198,7 @@ def test_youtube_search_empty_query_explicit(client):
 
     assert response.status_code == 200
 
-    data = response.get_json()
+    data = response.get_json()["data"]
 
     assert data["items"] == []
 
@@ -225,7 +225,7 @@ def test_youtube_search_success(
 
     assert response.status_code == 200
 
-    data = response.get_json()
+    data = response.get_json()["data"]
 
     assert len(data["items"]) == 2
     assert data["items"][0]["id"] == "abc123"
@@ -249,7 +249,7 @@ def test_youtube_search_error(
 
     assert response.status_code == 500
 
-    data = response.get_json()
+    data = response.get_json()["data"]
 
     assert data["error"] == "YouTube API error"
 
@@ -275,7 +275,7 @@ def test_youtube_info_success(
 
     assert response.status_code == 200
 
-    data = response.get_json()
+    data = response.get_json()["data"]
 
     assert data["id"] == "abc123"
     assert data["title"] == "テスト動画"
@@ -300,7 +300,7 @@ def test_youtube_info_not_found(
 
     assert response.status_code == 404
 
-    data = response.get_json()
+    data = response.get_json()["data"]
 
     assert data["error"] == "Video not found"
 
@@ -319,6 +319,6 @@ def test_youtube_info_error(
 
     assert response.status_code == 500
 
-    data = response.get_json()
+    data = response.get_json()["data"]
 
     assert data["error"] == "YouTube info error"

@@ -15,13 +15,10 @@ def register_comment_routes(api_bp):
 
     @api_bp.route("/api/comments/<video_id>", methods=["GET"])
     def get_comments(video_id):
-        media_type = request.args.get("type", "video")
-
         comments = (
             Comment.query
             .filter_by(
                 video_id=video_id,
-                media_type=media_type,
             )
             .order_by(Comment.created_at.desc())
             .all()
