@@ -113,14 +113,17 @@ def media_player():
         "index.html",
     )
 
-
-@web.route("/react/MediaPlayer/<path:filename>")
-def media_player_static(filename):
-    return send_from_directory(
-        os.path.join(
-            current_app.static_folder,
-            "react",
-            "MediaPlayer",
-        ),
-        filename,
+@web.route("/react/MediaPlayer/<path:path>")
+def media_player_static(path):
+    media_player_dir = os.path.join(
+        current_app.static_folder,
+        "react",
+        "MediaPlayer",
     )
+
+    file_path = os.path.join(media_player_dir, path)
+
+    if os.path.isfile(file_path):
+        return send_from_directory(media_player_dir, path)
+
+    return send_from_directory(media_player_dir, "index.html")
