@@ -9,18 +9,47 @@ from app.notes.export_comments import collect_comment_links
 THINO_HEADING = "Thino"
 THINO_SUMMARY_HEADING = "Thino Summary"
 COMMENT_SUMMARY_HEADING = "Comment Summary"
-START_OF_WEEK = "monday"
 
+WEEKLY_NOTE_START_OF_WEEK = "monday"
+SUMMARY_START_OF_WEEK = "sunday"
 
-
-def add_thino_summary_to_weekly_note(
-    target_date=None,
-    start_of_week=START_OF_WEEK,
-):
+def _get_weekly_summary_context(target_date=None):
     """
-    指定した週のDaily NoteからThino投稿を取得し、
-    Weekly Noteの「Thino Summary」を更新する。
+    Weekly Note の対象週と、Summary の集計期間を取得する。
+
+    Weekly Note:
+        月曜日〜日曜日
+
+    Summary:
+        Weekly Note の開始日前日（日曜日）〜土曜日
     """
+    if target_date is None:
+        target_date = datetime.now()
+
+    (
+        weekly_start_date,
+        weekly_end_date,
+        year,
+        week_num,
+    ) = MarkdownUtils.calculate_week_range(
+        target_date,
+        start_of_week=WEEKLY_NOTE_START_OF_WEEK,
+    )
+
+    # Weekly Note の開始日前日を集計期間の起点にする
+    summary_target_date = weekly_start_date - timedelta(days=1)
+
+    return (
+        weekly_start_date,
+        weekly_end_date,
+        year,
+        week_num,
+        summary_target_date,
+    )
+
+
+def add_thino_summary_to_weekly_note(target_date=None):
+    """前日曜日〜土曜日のThino投稿を、対象週のWeekly Noteへ追加する。"""
     daily_dir = os.getenv("DAILY_NOTE_DIR")
     weekly_dir = os.getenv("WEEKLY_NOTE_DIR")
 
@@ -34,23 +63,13 @@ def add_thino_summary_to_weekly_note(
             "WEEKLY_NOTE_DIRが環境変数に設定されていません。"
         )
 
-    if target_date is None:
-        target_date = datetime.now()
-
-    if start_of_week not in ("monday", "sunday"):
-        raise ValueError(
-            "start_of_weekは'monday'または'sunday'を指定してください。"
-        )
-
     (
-        start_date,
-        end_date,
+        _,
+        _,
         year,
         week_num,
-    ) = MarkdownUtils.calculate_week_range(
-        target_date,
-        start_of_week=start_of_week,
-    )
+        summary_target_date,
+    ) = _get_weekly_summary_context(target_date)
 
     weekly_file_name = f"{year}-W{week_num:02d}.md"
 
@@ -59,8 +78,8 @@ def add_thino_summary_to_weekly_note(
 
     links = collect_thino_links(
         daily_note_dir=daily_dir,
-        target_date=target_date,
-        start_of_week=start_of_week,
+        target_date=summary_target_date,
+        start_of_week=SUMMARY_START_OF_WEEK,
         thino_heading=THINO_HEADING,
     )
 
@@ -129,15 +148,8 @@ def create_next_weekly_note():
         start_of_week="monday",
     )
 
-def add_comment_summary_to_weekly_note(
-    target_date=None,
-    start_of_week=START_OF_WEEK,
-):
-    """
-    指定した週のコメントMarkdownからリンクを取得し、
-    Weekly Noteの「Comment Summary」を更新する。
-    """
-
+def add_comment_summary_to_weekly_note(target_date=None):
+    """前日曜日〜土曜日のコメントを、対象週のWeekly Noteへ追加する。"""
     comment_export_dir = os.getenv("EXPORT_DIR")
     weekly_dir = os.getenv("WEEKLY_NOTE_DIR")
 
@@ -151,23 +163,13 @@ def add_comment_summary_to_weekly_note(
             "WEEKLY_NOTE_DIRが環境変数に設定されていません。"
         )
 
-    if target_date is None:
-        target_date = datetime.now()
-
-    if start_of_week not in ("monday", "sunday"):
-        raise ValueError(
-            "start_of_weekは'monday'または'sunday'を指定してください。"
-        )
-
     (
-        start_date,
-        end_date,
+        _,
+        _,
         year,
         week_num,
-    ) = MarkdownUtils.calculate_week_range(
-        target_date,
-        start_of_week=start_of_week,
-    )
+        summary_target_date,
+    ) = _get_weekly_summary_context(target_date)
 
     weekly_file_name = f"{year}-W{week_num:02d}.md"
 
@@ -176,13 +178,9 @@ def add_comment_summary_to_weekly_note(
 
     links = collect_comment_links(
         comment_export_dir=comment_export_dir,
-        target_date=target_date,
-        start_of_week=start_of_week,
+        target_date=summary_target_date,
+        start_of_week=SUMMARY_START_OF_WEEK,
     )
-
-    # 今週のコメントがなければ何もしない
-    if not links:
-        return
 
     weekly_note.replace_heading_content(
         COMMENT_SUMMARY_HEADING,

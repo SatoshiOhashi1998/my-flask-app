@@ -2,10 +2,27 @@ from datetime import datetime
 from unittest.mock import patch
 
 from app.notes.note_manager import (
+    _get_weekly_summary_context,
     get_daily_template_spec,
     create_dailynote,
     create_next_weekly_note,
 )
+
+def test_weekly_summary_context():
+    (
+        weekly_start,
+        weekly_end,
+        year,
+        week_num,
+        summary_target,
+    ) = _get_weekly_summary_context(
+        datetime(2026, 10, 18)
+    )
+
+    assert weekly_start.date() == datetime(2026, 10, 12).date()
+    assert weekly_end.date() == datetime(2026, 10, 18).date()
+    assert (year, week_num) == (2026, 42)
+    assert summary_target.date() == datetime(2026, 10, 11).date()
 
 
 def test_get_daily_template_spec(monkeypatch):

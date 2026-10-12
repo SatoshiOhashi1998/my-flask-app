@@ -1,4 +1,5 @@
 import logging
+from os import startfile
 
 from app.notes.export_comments import export_today_comments_to_md
 from app.notes.note_manager import (
@@ -143,8 +144,8 @@ def register_markdown_jobs(scheduler, app=None):
     scheduler.add_job(
         func=update_weekly_note_job,
         trigger="cron",
-        day_of_week="sat",
-        hour=23,
+        day_of_week="sun",
+        hour=8,
         minute=0,
         job_id="update_weekly_note",
         args=[app],
