@@ -37,13 +37,30 @@ def register_comment_routes(api_bp):
 
     @api_bp.route("/api/comments/<video_id>", methods=["POST"])
     def create_comment(video_id):
-        data = request.get_json()
+        data = request.get_json(silent=True)
+
+        if not isinstance(data, dict):
+            return error("リクエストボディはJSONオブジェクトで指定してください", 400)
+
+        required_fields = ("media_type", "content")
+        missing_fields = [
+            field for field in required_fields
+            if not data.get(field)
+        ]
+
+        if missing_fields:
+            return error(
+                f"必須項目が不足しています: {', '.join(missing_fields)}",
+                400,
+            )
 
         comment = Comment(
             video_id=video_id,
             media_type=data["media_type"],
             content=data["content"],
         )
+
+        # ここから下は既存の保存処理・レスポンスを維持
 
         db.session.add(comment)
         db.session.commit()

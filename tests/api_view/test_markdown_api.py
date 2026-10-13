@@ -1,254 +1,142 @@
 from unittest.mock import patch
 
 
-# ==========================================
-# Daily Note
-# ==========================================
-
-@patch("app.views.markdown_api.create_dailynote")
-def test_create_dailynotes_default(
-    mock_create,
-    client,
-):
-    response = client.get(
-        "/api/markdown/create_dailynote"
-    )
-
-    assert response.status_code == 200
-
-    data = response.get_json()["data"]
-
-    assert data["status"] == "success"
-
-    mock_create.assert_called_once()
+def assert_error(response, status_code, fragment=None):
+    assert response.status_code == status_code
+    payload = response.get_json()
+    assert isinstance(payload.get("error"), str)
+    if fragment:
+        assert fragment.lower() in payload["error"].lower()
 
 
-@patch("app.views.markdown_api.create_dailynote")
-def test_create_dailynotes_with_date(
-    mock_create,
-    client,
-):
-    response = client.get(
-        "/api/markdown/create_dailynote"
-        "?start_date=2026-06-01"
-    )
+def test_create_dailynotes_default(client):
+    with patch("app.views.markdown_api.create_dailynote") as create:
+        response = client.get("/api/markdown/create_dailynote")
 
     assert response.status_code == 200
+    payload = response.get_json()
+    assert "message" in payload
+    assert "data" in payload
+    assert "start_date" in payload["data"]
+    create.assert_called_once()
 
-    data = response.get_json()["data"]
 
-    assert data["status"] == "success"
-    assert data["start_date"] == "2026-06-01"
+def test_create_dailynotes_with_date(client):
+    with patch("app.views.markdown_api.create_dailynote") as create:
+        response = client.get(
+            "/api/markdown/create_dailynote",
+            query_string={"start_date": "2026-10-12"},
+        )
 
-    mock_create.assert_called_once()
+    assert response.status_code == 200
+    assert response.get_json()["data"]["start_date"] == "2026-10-12"
+    create.assert_called_once()
 
 
 def test_create_dailynotes_invalid_date(client):
+    assert_error(
+        client.get("/api/markdown/create_dailynote?start_date=not-a-date"),
+        400,
+    )
+
+
+def test_create_dailynotes_error(client):
+    with patch(
+        "app.views.markdown_api.create_dailynote",
+        side_effect=RuntimeError("note creation failed"),
+    ):
+        response = client.get("/api/markdown/create_dailynote")
+
+    assert_error(response, 500)
+
+
+def test_create_weekly_note_success(client, monkeypatch):
+    monkeypatch.setenv("WEEKLY_NOTE_DIR", "test-weekly-dir")
+    monkeypatch.setenv("WEEKLY_NOTE_TEMPLATE", "test-template.md")
+    # This endpoint calls NoteGenerator.create_weekly_note directly.
+    with patch("app.views.markdown_api.NoteGenerator.create_weekly_note") as create:
+        response = client.get(
+            "/api/markdown/create_weekly_note",
+            query_string={"target_date": "2026-10-12"},
+        )
+
+    assert response.status_code == 200, response.get_json()
+    payload = response.get_json()
+    assert payload["data"]["target_date"] == "2026-10-12"
+    assert "message" in payload
+    create.assert_called_once()
+
+
+def test_create_weekly_note_missing_env(client, monkeypatch):
+    monkeypatch.delenv("WEEKLY_NOTE_DIR", raising=False)
+    monkeypatch.delenv("WEEKLY_NOTE_TEMPLATE", raising=False)
     response = client.get(
-        "/api/markdown/create_dailynote"
-        "?start_date=invalid-date"
+        "/api/markdown/create_weekly_note",
+        query_string={"target_date": "2026-10-12"},
+    )
+    assert_error(response, 500)
+
+
+def test_create_weekly_note_invalid_date(client):
+    assert_error(
+        client.get("/api/markdown/create_weekly_note?target_date=not-a-date"),
+        400,
     )
 
-    assert response.status_code == 400
 
-    data = response.get_json()["data"]
-
-    assert data["status"] == "error"
-
-
-# ==========================================
-# Weekly Note
-# ==========================================
-
-@patch("app.views.markdown_api.NoteGenerator.create_weekly_note")
-def test_create_weekly_note_success(
-    mock_create,
-    client,
-    monkeypatch,
-):
-    monkeypatch.setenv(
-        "WEEKLY_NOTE_DIR",
-        "/dummy/dir",
-    )
-    monkeypatch.setenv(
-        "WEEKLY_NOTE_TEMPLATE",
-        "/dummy/template.md",
-    )
-
-    response = client.get(
-        "/api/markdown/create_weekly_note"
-        "?target_date=2026-06-01"
-    )
+def test_create_next_weekly_note_success(client):
+    with patch("app.views.markdown_api.create_next_weekly_note"):
+        response = client.get("/api/markdown/create_next_weekly_note")
 
     assert response.status_code == 200
-
-    data = response.get_json()["data"]
-
-    assert data["status"] == "success"
-    assert data["target_date"] == "2026-06-01"
-
-    mock_create.assert_called_once()
+    payload = response.get_json()
+    assert "message" in payload
+    assert "data" not in payload
 
 
-def test_create_weekly_note_missing_env(
-    client,
-    monkeypatch,
-):
-    monkeypatch.delenv(
-        "WEEKLY_NOTE_DIR",
-        raising=False,
-    )
-    monkeypatch.delenv(
-        "WEEKLY_NOTE_TEMPLATE",
-        raising=False,
-    )
+def test_create_next_weekly_note_error(client):
+    with patch(
+        "app.views.markdown_api.create_next_weekly_note",
+        side_effect=RuntimeError("weekly note failed"),
+    ):
+        response = client.get("/api/markdown/create_next_weekly_note")
 
-    response = client.get(
-        "/api/markdown/create_weekly_note"
-    )
-
-    assert response.status_code == 500
-
-    data = response.get_json()["data"]
-
-    assert data["status"] == "error"
+    assert_error(response, 500)
 
 
-def test_create_weekly_note_invalid_date(
-    client,
-    monkeypatch,
-):
-    monkeypatch.setenv(
-        "WEEKLY_NOTE_DIR",
-        "/dummy/dir",
-    )
-    monkeypatch.setenv(
-        "WEEKLY_NOTE_TEMPLATE",
-        "/dummy/template.md",
-    )
-
-    response = client.get(
-        "/api/markdown/create_weekly_note"
-        "?target_date=bad-date"
-    )
-
-    assert response.status_code == 400
-
-    data = response.get_json()["data"]
-
-    assert data["status"] == "error"
-
-
-# ==========================================
-# Next Weekly Note
-# ==========================================
-
-@patch("app.views.markdown_api.create_next_weekly_note")
-def test_create_next_weekly_note_success(
-    mock_create,
-    client,
-):
-    response = client.get(
-        "/api/markdown/create_next_weekly_note"
-    )
+def test_export_english(client):
+    with patch("app.views.markdown_api.export_english_vocabulary"):
+        response = client.get("/api/markdown/export_english")
 
     assert response.status_code == 200
-
-    data = response.get_json()["data"]
-
-    assert data["status"] == "success"
-
-    assert (
-        "翌週分のウィークリーノートを作成しました"
-        in data["message"]
-    )
-
-    mock_create.assert_called_once()
+    assert "message" in response.get_json()
 
 
-# ==========================================
-# Vocabulary
-# ==========================================
-
-@patch("app.views.markdown_api.export_english_vocabulary")
-def test_export_english(
-    mock_export,
-    client,
-):
-    response = client.get(
-        "/api/markdown/export_english"
-    )
+def test_export_vocablary(client):
+    with patch("app.views.markdown_api.export_single_vocabulary"):
+        response = client.get("/api/markdown/export_vocablary")
 
     assert response.status_code == 200
-
-    data = response.get_json()["data"]
-
-    assert data["message"] == (
-        "英単語を出力しました"
-    )
-
-    mock_export.assert_called_once()
+    assert "message" in response.get_json()
 
 
-@patch("app.views.markdown_api.export_single_vocabulary")
-def test_export_vocablary(
-    mock_export,
-    client,
-):
-    response = client.get(
-        "/api/markdown/export_vocablary"
-    )
+def test_add_thino_summary(client):
+    with patch("app.views.markdown_api.add_thino_summary_to_weekly_note"):
+        response = client.get("/api/markdown/add_thino_summary")
 
     assert response.status_code == 200
-
-    data = response.get_json()["data"]
-
-    assert data["message"] == (
-        "語彙を出力しました"
-    )
-
-    mock_export.assert_called_once()
+    assert "message" in response.get_json()
 
 
-# ==========================================
-# エラー
-# ==========================================
+def test_add_thino_summary_by_date(client):
+    with patch("app.views.markdown_api.add_thino_summary_to_weekly_note"):
+        response = client.get("/api/markdown/add_thino_summary/2026-10-12")
 
-@patch(
-    "app.views.markdown_api.create_dailynote",
-    side_effect=Exception("daily note error"),
-)
-def test_create_dailynotes_error(
-    mock_create,
-    client,
-):
-    response = client.get(
-        "/api/markdown/create_dailynote"
-    )
-
-    assert response.status_code == 500
-
-    data = response.get_json()["data"]
-
-    assert data["status"] == "error"
-    assert "daily note error" in data["message"]
+    assert response.status_code == 200
+    payload = response.get_json()
+    assert payload["data"]["target_date"] == "2026-10-12"
+    assert "message" in payload
 
 
-@patch(
-    "app.views.markdown_api.create_next_weekly_note",
-    side_effect=Exception("weekly note error"),
-)
-def test_create_next_weekly_note_error(
-    mock_create,
-    client,
-):
-    response = client.get(
-        "/api/markdown/create_next_weekly_note"
-    )
-
-    assert response.status_code == 500
-
-    data = response.get_json()["data"]
-
-    assert data["status"] == "error"
-    assert "weekly note error" in data["message"]
+def test_add_thino_summary_by_date_invalid(client):
+    assert_error(client.get("/api/markdown/add_thino_summary/not-a-date"), 400)

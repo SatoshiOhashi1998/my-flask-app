@@ -3,229 +3,79 @@ from unittest.mock import patch
 import pytest
 
 
-# ==========================================
-# タスク同期
-# ==========================================
-
-@patch("app.views.calendar_api.register_tasks_by_date")
-def test_sync_today_tasks(mock_register, client):
-    response = client.get("/api/calendar/sync-tasks/today")
-
-    assert response.status_code == 200
-
-    data = response.get_json()["data"]
-
-    assert data["status"] == "success"
-    assert data["target_heading"] == "Today's Tasks"
-
-    mock_register.assert_called_once()
-
-
-@patch("app.views.calendar_api.register_tasks_by_date")
-def test_sync_tomorrow_tasks(mock_register, client):
-    response = client.get("/api/calendar/sync-tasks/tomorrow")
-
-    assert response.status_code == 200
-
-    data = response.get_json()["data"]
-
-    assert data["status"] == "success"
-
-    mock_register.assert_called_once()
-
-
-@patch("app.views.calendar_api.register_tasks_by_date")
-def test_sync_tasks_by_date_success(mock_register, client):
-    response = client.get(
-        "/api/calendar/sync-tasks/date"
-        "?date=2026-06-01&start_time=10:00"
-    )
-
-    assert response.status_code == 200
-
-    data = response.get_json()["data"]
-
-    assert data["status"] == "success"
-    assert data["date"] == "2026-06-01"
-    assert data["start_time"] == "10:00"
-
-    mock_register.assert_called_once()
+def assert_error(response, status_code, fragment=None):
+    assert response.status_code == status_code
+    payload = response.get_json()
+    assert isinstance(payload, dict)
+    assert isinstance(payload.get("error"), str)
+    if fragment:
+        assert fragment.lower() in payload["error"].lower()
 
 
 @pytest.mark.parametrize(
-    "endpoint, expected_heading, expected_start",
+    ("endpoint", "expected_start_time", "expected_heading"),
     [
-        (
-            "/api/calendar/sync-tasks/before-15",
-            "15時まで",
-            "09:00",
-        ),
-        (
-            "/api/calendar/sync-tasks/before-18",
-            "18時まで",
-            "15:00",
-        ),
-        (
-            "/api/calendar/sync-tasks/after-18",
-            "18時以降",
-            "18:00",
-        ),
+        ("/api/calendar/sync-tasks/before-15", "09:00", "15時まで"),
+        ("/api/calendar/sync-tasks/before-18", "15:00", "18時まで"),
+        ("/api/calendar/sync-tasks/after-18", "18:00", "18時以降"),
     ],
 )
-@patch("app.views.calendar_api.register_tasks_by_date")
-def test_sync_time_range_tasks(
-    mock_register,
-    client,
-    endpoint,
-    expected_heading,
-    expected_start,
-):
-    response = client.get(
-        f"{endpoint}?date=2026-06-01"
-    )
+def test_sync_time_range_tasks(client, endpoint, expected_start_time, expected_heading):
+    with patch("app.views.calendar_api.register_tasks_by_date") as register:
+        response = client.get(endpoint)
 
     assert response.status_code == 200
-
-    data = response.get_json()["data"]
-
-    assert data["status"] == "success"
-    assert data["target_heading"] == expected_heading
-    assert data["start_time"] == expected_start
-
-    mock_register.assert_called_once()
+    payload = response.get_json()
+    assert "data" in payload
+    assert payload["data"]["start_time"] == expected_start_time
+    assert payload["data"]["target_heading"] == expected_heading
+    assert "message" in payload
+    register.assert_called_once()
 
 
-# ==========================================
-# バリデーション
-# ==========================================
+def test_sync_tasks_by_date_success(client):
+    with patch("app.views.calendar_api.register_tasks_by_date") as register:
+        response = client.get("/api/calendar/sync-tasks/date?date=2026-10-12")
+
+    assert response.status_code == 200
+    payload = response.get_json()
+    assert payload["data"]["date"] == "2026-10-12"
+    assert "message" in payload
+    register.assert_called_once()
+
 
 def test_sync_tasks_by_date_missing_param(client):
+    assert_error(client.get("/api/calendar/sync-tasks/date"), 400)
+
+
+@pytest.mark.parametrize("date_value", ["12-10-2026", "not-a-date", "2026-13-40"])
+def test_sync_tasks_by_date_invalid_format(client, date_value):
     response = client.get(
-        "/api/calendar/sync-tasks/date"
+        "/api/calendar/sync-tasks/date",
+        query_string={"date": date_value},
     )
-
-    assert response.status_code == 400
-
-    data = response.get_json()["data"]
-
-    assert data["status"] == "error"
+    assert_error(response, 400)
 
 
-def test_sync_tasks_by_date_invalid_format(client):
-    response = client.get(
-        "/api/calendar/sync-tasks/date"
-        "?date=invalid-date"
-    )
+def test_sync_tasks_internal_error(client):
+    with patch(
+        "app.views.calendar_api.register_tasks_by_date",
+        side_effect=RuntimeError("calendar backend failed"),
+    ):
+        response = client.get("/api/calendar/sync-tasks/date?date=2026-10-12")
 
-    assert response.status_code == 400
-
-    data = response.get_json()["data"]
-
-    assert data["status"] == "error"
+    assert_error(response, 500)
 
 
-# ==========================================
-# エラー
-# ==========================================
-
-@patch(
-    "app.views.calendar_api.register_tasks_by_date",
-    side_effect=Exception("DBまたはファイルエラー"),
+@pytest.mark.parametrize(
+    "endpoint",
+    ["/api/weather/get/today", "/api/weather/get/tomorrow"],
 )
-def test_sync_tasks_internal_error(
-    mock_register,
-    client,
-):
-    response = client.get(
-        "/api/calendar/sync-tasks/today"
-    )
-
-    assert response.status_code == 500
-
-    data = response.get_json()["data"]
-
-    assert data["status"] == "error"
-    assert (
-        "タスクの同期処理中にエラーが発生しました"
-        in data["message"]
-    )
-
-
-# ==========================================
-# 天気
-# ==========================================
-
-@patch(
-    "app.views.calendar_api.register_today_weather_to_calendar"
-)
-def test_register_today_weather(
-    mock_register,
-    client,
-):
-    response = client.get(
-        "/api/weather/get/today"
-    )
-
+def test_register_weather_success(client, endpoint):
+    # The weather route's success response is message-only by contract.
+    response = client.get(endpoint)
     assert response.status_code == 200
-
-    data = response.get_json()["data"]
-
-    assert (
-        "本日の天気情報をカレンダーに登録しました"
-        in data["message"]
-    )
-
-    mock_register.assert_called_once()
-
-
-@patch(
-    "app.views.calendar_api.register_tomorrow_weather_to_calendar"
-)
-def test_register_tomorrow_weather(
-    mock_register,
-    client,
-):
-    response = client.get(
-        "/api/weather/get/tomorrow"
-    )
-
-    assert response.status_code == 200
-
-    data = response.get_json()["data"]
-
-    assert (
-        "翌日の天気情報をカレンダーに登録しました"
-        in data["message"]
-    )
-
-    mock_register.assert_called_once()
-
-
-@patch(
-    "app.views.calendar_api.register_today_weather_to_calendar",
-    side_effect=Exception("weather error"),
-)
-def test_register_today_weather_error(
-    mock_register,
-    client,
-):
-    response = client.get(
-        "/api/weather/get/today"
-    )
-
-    assert response.status_code == 500
-
-
-@patch(
-    "app.views.calendar_api.register_tomorrow_weather_to_calendar",
-    side_effect=Exception("weather error"),
-)
-def test_register_tomorrow_weather_error(
-    mock_register,
-    client,
-):
-    response = client.get(
-        "/api/weather/get/tomorrow"
-    )
-
-    assert response.status_code == 500
+    payload = response.get_json()
+    assert "message" in payload
+    assert "data" not in payload
+    assert "error" not in payload

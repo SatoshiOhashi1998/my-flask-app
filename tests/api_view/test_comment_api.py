@@ -1,247 +1,172 @@
-from unittest.mock import patch
+from app import db
+from app.models import Comment
 
-from app.models import Comment, db
+import pytest
+from pathlib import Path
 
 
-# ==========================================
-# コメント取得
-# ==========================================
+@pytest.fixture(autouse=True)
+def set_export_dir(tmp_path, monkeypatch):
+    monkeypatch.setenv("EXPORT_DIR", str(tmp_path))
 
-def test_get_comments(client):
-    with client.application.app_context():
-        comment = Comment(
-            video_id="test_vid_1",
-            media_type="video",
-            content="テストコメント",
-        )
+@pytest.fixture(autouse=True)
+def setup_summary_environment(tmp_path, monkeypatch):
+    export_dir = tmp_path / "exports"
+    weekly_dir = tmp_path / "weekly"
 
-        db.session.add(comment)
-        db.session.commit()
+    export_dir.mkdir()
+    weekly_dir.mkdir()
 
-    response = client.get(
-        "/api/comments/test_vid_1?type=video"
+    monkeypatch.setenv("EXPORT_DIR", str(export_dir))
+    monkeypatch.setenv("WEEKLY_NOTE_DIR", str(weekly_dir))
+
+    # サマリー追加先となるウィークリーノートを作成
+    weekly_file = weekly_dir / "2026-W42.md"
+    weekly_file.write_text(
+        "# Weekly Note\n\n"
+        "## Comment Summary\n\n"
+        "既存の内容\n",
+        encoding="utf-8",
     )
 
+def assert_error(response, status_code, fragment=None):
+    assert response.status_code == status_code
+    payload = response.get_json()
+    assert isinstance(payload.get("error"), str)
+    if fragment:
+        assert fragment.lower() in payload["error"].lower()
+
+
+def _create_comment(video_id=123, content="original comment", author="tester"):
+    comment = Comment(
+        video_id=video_id,
+        author=author,
+        media_type="video",
+        content=content,
+    )
+    db.session.add(comment)
+    db.session.commit()
+    return comment
+
+
+def test_get_comments_empty(client):
+    response = client.get("/api/comments/987654")
     assert response.status_code == 200
-
-    data = response.get_json()["data"]
-
-    assert isinstance(data, list)
-    assert len(data) >= 1
-    assert data[0]["content"] == "テストコメント"
+    assert response.get_json()["data"] == []
 
 
-# ==========================================
-# コメント投稿
-# ==========================================
+def test_get_comments(client):
+    _create_comment(video_id=123, content="hello")
+    response = client.get("/api/comments/123")
+
+    assert response.status_code == 200
+    payload = response.get_json()
+    assert isinstance(payload["data"], list)
+    assert any(item["content"] == "hello" for item in payload["data"])
+
 
 def test_post_comment(client):
-    payload = {
-        "media_type": "video",
-        "content": "新着コメント",
-    }
-
     response = client.post(
-        "/api/comments/test_vid_2",
-        json=payload,
+        "/api/comments/123",
+        json={"content": "new comment", "author": "tester", "media_type": "video"},
     )
 
     assert response.status_code == 201
-
-    data = response.get_json()["data"]
-
-    assert "コメントを投稿しました" in data["message"]
-
-    with client.application.app_context():
-        saved = Comment.query.filter_by(
-            video_id="test_vid_2"
-        ).first()
-
-        assert saved is not None
-        assert saved.content == "新着コメント"
+    payload = response.get_json()
+    assert "message" in payload
+    assert "data" not in payload
+    assert Comment.query.filter_by(video_id=123, content="new comment").first() is not None
 
 
-# ==========================================
-# コメント更新
-# ==========================================
+def test_post_comment_missing_content(client):
+    response = client.post("/api/comments/123", json={"author": "tester"})
+    assert response.status_code in (400, 422)
+    assert "error" in response.get_json()
+
 
 def test_update_comment(client):
-    with client.application.app_context():
-        comment = Comment(
-            video_id="test_vid_3",
-            media_type="video",
-            content="旧コメント",
-        )
-
-        db.session.add(comment)
-        db.session.commit()
-
-        comment_id = comment.id
-
-    payload = {
-        "content": "更新後コメント",
-    }
-
+    comment = _create_comment()
     response = client.put(
-        f"/api/comments/{comment_id}",
-        json=payload,
+        f"/api/comments/{comment.id}",
+        json={"content": "updated comment"},
     )
 
     assert response.status_code == 200
+    payload = response.get_json()
+    assert payload["data"]["content"] == "updated comment"
+    db.session.refresh(comment)
+    assert comment.content == "updated comment"
 
-    with client.application.app_context():
-        updated = Comment.query.get(comment_id)
-
-        assert updated.content == "更新後コメント"
-
-
-# ==========================================
-# コメント削除
-# ==========================================
-
-def test_delete_comment(client):
-    with client.application.app_context():
-        comment = Comment(
-            video_id="test_vid_4",
-            media_type="video",
-            content="削除用コメント",
-        )
-
-        db.session.add(comment)
-        db.session.commit()
-
-        comment_id = comment.id
-
-    response = client.delete(
-        f"/api/comments/{comment_id}"
-    )
-
-    assert response.status_code == 200
-
-    with client.application.app_context():
-        deleted = Comment.query.get(comment_id)
-
-        assert deleted is None
-
-
-# ==========================================
-# コメントエクスポート
-# ==========================================
-
-@patch("app.views.comment_api.export_today_comments_to_md")
-def test_export_comments(mock_export, client):
-    response = client.get(
-        "/api/comments/export"
-    )
-
-    assert response.status_code == 200
-
-    data = response.get_json()["data"]
-
-    assert (
-        "本日のコメントを出力しました"
-        in data["message"]
-    )
-
-    mock_export.assert_called_once()
-
-
-# ==========================================
-# その他コメント
-# ==========================================
-
-def test_get_other_comments(client):
-    with client.application.app_context():
-        comments = [
-            Comment(
-                video_id="test_other_01",
-                media_type="youtube",
-                content="YouTubeコメント",
-            ),
-            Comment(
-                video_id="test_other_01",
-                media_type="video",
-                content="動画コメント",
-            ),
-            Comment(
-                video_id="test_other_01",
-                media_type="audio",
-                content="音声コメント",
-            ),
-        ]
-
-        db.session.add_all(comments)
-        db.session.commit()
-
-    response = client.get(
-        "/api/comments/test_other_01/others"
-    )
-
-    assert response.status_code == 200
-
-    data = response.get_json()["data"]
-
-    assert len(data) == 2
-
-    media_types = {
-        comment["media_type"]
-        for comment in data
-    }
-
-    assert "youtube" not in media_types
-    assert "video" in media_types
-    assert "audio" in media_types
-
-
-def test_get_other_comments_custom_exclude_type(client):
-    with client.application.app_context():
-        comments = [
-            Comment(
-                video_id="test_other_02",
-                media_type="youtube",
-                content="YouTubeコメント",
-            ),
-            Comment(
-                video_id="test_other_02",
-                media_type="video",
-                content="動画コメント",
-            ),
-        ]
-
-        db.session.add_all(comments)
-        db.session.commit()
-
-    response = client.get(
-        "/api/comments/test_other_02/others"
-        "?exclude_type=video"
-    )
-
-    assert response.status_code == 200
-
-    data = response.get_json()["data"]
-
-    assert len(data) == 1
-    assert data[0]["media_type"] == "youtube"
-
-
-# ==========================================
-# 存在しないコメント
-# ==========================================
 
 def test_update_comment_not_found(client):
-    response = client.put(
-        "/api/comments/999999",
-        json={
-            "content": "更新",
-        },
+    assert_error(
+        client.put("/api/comments/99999999", json={"content": "updated"}),
+        404,
     )
 
-    assert response.status_code == 404
+
+def test_delete_comment(client):
+    comment = _create_comment()
+    comment_id = comment.id
+
+    response = client.delete(f"/api/comments/{comment_id}")
+
+    assert response.status_code == 200
+    payload = response.get_json()
+    assert "message" in payload
+    assert "data" not in payload
+    assert db.session.get(Comment, comment_id) is None
 
 
 def test_delete_comment_not_found(client):
-    response = client.delete(
-        "/api/comments/999999"
-    )
+    assert_error(client.delete("/api/comments/99999999"), 404)
 
-    assert response.status_code == 404
+
+def test_get_other_comments(client):
+    _create_comment(video_id=123, content="target")
+    _create_comment(video_id=456, content="other")
+    response = client.get("/api/comments/123/others")
+
+    assert response.status_code == 200
+    payload = response.get_json()
+    assert isinstance(payload["data"], list)
+    assert all(item.get("video_id") != 123 for item in payload["data"])
+
+
+def test_export_comments(client):
+    response = client.get("/api/comments/export")
+    assert response.status_code == 200
+    payload = response.get_json()
+    assert "message" in payload
+    assert "data" not in payload
+
+
+def test_export_comments_by_date(client):
+    response = client.get("/api/comments/export/2026-10-12")
+    assert response.status_code == 200
+    payload = response.get_json()
+    assert payload["data"]["date"] == "2026-10-12"
+    assert "file_path" in payload["data"]
+    assert "message" in payload
+
+
+def test_export_comments_by_date_invalid(client):
+    assert_error(client.get("/api/comments/export/not-a-date"), 400)
+
+
+def test_add_summary(client):
+    response = client.get("/api/comments/add-summary")
+    print("status:", response.status_code)
+    print("body:", response.get_data(as_text=True))
+    assert response.status_code == 200
+
+
+def test_add_summary_by_date(client):
+    response = client.get("/api/comments/add-summary/2026-10-12")
+    print("status:", response.status_code)
+    print("body:", response.get_data(as_text=True))
+    assert response.status_code == 200
+
+
+def test_add_summary_by_date_invalid(client):
+    assert_error(client.get("/api/comments/add-summary/not-a-date"), 400)

@@ -19,6 +19,7 @@ os.environ["WEEKLY_NOTE_TEMPLATE"] = "dummy_template.md"
 import pytest
 
 from app import create_app
+from app.models import db
 
 
 @pytest.fixture
@@ -32,7 +33,11 @@ def app(tmp_path):
         "SQLALCHEMY_TRACK_MODIFICATIONS": False,
     })
 
-    return app
+    with app.app_context():
+        db.create_all()
+        yield app
+        db.session.remove()
+        db.drop_all()
 
 
 @pytest.fixture
