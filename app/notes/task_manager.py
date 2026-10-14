@@ -157,54 +157,139 @@ def register_tasks_from_markdown_to_calendar(
         if "tag" in node and "minutes" in node:
             tag = node["tag"]
             
-            # --- 子タスクのテキスト抽出 & Obsidianリンク削除 ---
-            raw_children = node.get("children", [])
-            children_texts = []
-            for c in raw_children:
-                text = c.get("text", "") if isinstance(c, dict) else (c if isinstance(c, str) else "")
-                
-                # Obsidianの内部リンク（[[リンク名]] または [[リンク名|表示名]]）を削除
-                text = re.sub(r'\[\[[^\]]+\]\]', '', text)
-                
-                if text.strip():
-                    children_texts.append(text.strip())
+        # --- 子タスクとメモの抽出 ---
+        raw_children = node.get("children", [])
 
-            children_str = ", ".join(children_texts)
-            title = f"{tag}: {children_str}" if children_str else tag
-            description = "\n".join(f"- {t}" for t in children_texts)
+        def clean_item_text(item: dict) -> str:
+            """タスク・メモ本文からObsidian内部リンクを除去する。"""
+            text = item.get("text", "")
+            text = re.sub(r"\[\[[^\]]+\]\]", "", text)
+            return text.strip()
 
-            # --- 時間指定の割り込み処理 ---
-            node_start_time = node.get("start_time")
-            if node_start_time:
-                try:
-                    hour_str, min_str = node_start_time.split(":")
-                    # current_time の日付ではなく、基準日(base_date)に対して時刻をセットする
-                    target_time = datetime.strptime(f"{hour_str}:{min_str}", "%H:%M").time()
-                    current_time = datetime.combine(base_date, target_time).replace(tzinfo=tz)
-                except ValueError:
-                    pass
 
-            duration = timedelta(minutes=node["minutes"])
-            end_time = current_time + duration
+        # 親タスクに直接紐づくメモ
+        parent_memos = [
+            clean_item_text(child)
+            for child in raw_children
+            if isinstance(child, dict)
+            and child.get("type") == "memo"
+            and clean_item_text(child)
+        ]
 
-            # 色の決定
-            if tag in focus_tags:
-                event_color = "RED"
-            else:
-                event_color = TAG_COLOR_MAP.get(tag)
+        # type未指定の項目は、旧形式との互換性のため子タスクとして扱う
+        task_children = [
+            child
+            for child in raw_children
+            if isinstance(child, dict)
+            and child.get("type", "task") == "task"
+            and clean_item_text(child)
+        ]
 
-            target_cal_key = TAG_CALENDAR_MAP.get(tag, default_calendar_key)
+        # 同じ親タスク内で、同名の子タスクを集約する
+        grouped_children = {}
 
-            event_payload = {
-                "title": title,
-                "start": current_time.strftime("%Y-%m-%dT%H:%M:%S"),
-                "end": end_time.strftime("%Y-%m-%dT%H:%M:%S"),
-                "description": description,
-                "color": event_color,
-            }
+        for child in task_children:
+            child_text = clean_item_text(child)
 
-            events_by_calendar.setdefault(target_cal_key, []).append(event_payload)
-            current_time = end_time
+            if child_text not in grouped_children:
+                grouped_children[child_text] = {
+                    "text": child_text,
+                    "count": 0,
+                    "memos": [],
+                }
+
+            grouped = grouped_children[child_text]
+            grouped["count"] += 1
+
+            # 子タスクに紐づくメモを保持する
+            for memo in child.get("children", []):
+                if not isinstance(memo, dict):
+                    continue
+
+                if memo.get("type") != "memo":
+                    continue
+
+                memo_text = clean_item_text(memo)
+
+                if memo_text and memo_text not in grouped["memos"]:
+                    grouped["memos"].append(memo_text)
+
+
+        children_texts = [
+            (
+                f"{child['text']} {child['count']}セット"
+                if child["count"] > 1
+                else child["text"]
+            )
+            for child in grouped_children.values()
+        ]
+
+        children_str = ", ".join(children_texts)
+        title = f"{tag}: {children_str}" if children_str else tag
+
+        # 説明欄には、子タスクを従来どおり列挙する
+        description_lines = [
+            f"- {child['text']}"
+            for child in grouped_children.values()
+        ]
+
+        # 親タスクに紐づくメモ
+        if parent_memos:
+            if description_lines:
+                description_lines.append("")
+
+            description_lines.append("【メモ】")
+            description_lines.extend(
+                f"- {memo}" for memo in parent_memos
+            )
+
+        # 子タスクに紐づくメモ
+        for child in grouped_children.values():
+            if not child["memos"]:
+                continue
+
+            description_lines.append("")
+            description_lines.append(
+                f"【{child['text']}のメモ】"
+            )
+            description_lines.extend(
+                f"- {memo}" for memo in child["memos"]
+            )
+
+        description = "\n".join(description_lines)
+
+        # --- 時間指定の割り込み処理 ---
+        node_start_time = node.get("start_time")
+        if node_start_time:
+            try:
+                hour_str, min_str = node_start_time.split(":")
+                # current_time の日付ではなく、基準日(base_date)に対して時刻をセットする
+                target_time = datetime.strptime(f"{hour_str}:{min_str}", "%H:%M").time()
+                current_time = datetime.combine(base_date, target_time).replace(tzinfo=tz)
+            except ValueError:
+                pass
+
+        duration = timedelta(minutes=node["minutes"])
+        end_time = current_time + duration
+
+        # 色の決定
+        if tag in focus_tags:
+            event_color = "RED"
+        else:
+            event_color = TAG_COLOR_MAP.get(tag)
+
+        target_cal_key = TAG_CALENDAR_MAP.get(tag, default_calendar_key)
+
+        event_payload = {
+            "title": title,
+            "start": current_time.strftime("%Y-%m-%dT%H:%M:%S"),
+            "end": end_time.strftime("%Y-%m-%dT%H:%M:%S"),
+            "description": description,
+            "color": event_color,
+        }
+
+        events_by_calendar.setdefault(target_cal_key, []).append(event_payload)
+        current_time = end_time
 
     print("\n🚀 GASへカレンダーイベントを送信中...")
     for cal_key, events in events_by_calendar.items():
