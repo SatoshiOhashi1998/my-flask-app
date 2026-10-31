@@ -3,10 +3,11 @@ import webbrowser
 
 from app import mail
 from app.weather import register_tomorrow_weather_to_calendar
+from app.youtube.comment.youtube_live_comment import run_youtube_live_comment
 
 
 def register_others_jobs(scheduler):
-    """メール・天気・URL関連のジョブを登録する"""
+    """メール・天気・URL・YouTube関連のジョブを登録する"""
 
     # scheduler.add_job(
     #     func=mail.check_email,
@@ -21,6 +22,16 @@ def register_others_jobs(scheduler):
         hour=23,
         minute=0,
         job_id="get_weather_data",
+    )
+
+    # YouTubeライブコメント取得（土曜日24:00 = 日曜日0:00）
+    scheduler.add_job(
+        func=run_youtube_live_comment,
+        trigger="cron",
+        day_of_week="sun",
+        hour=0,
+        minute=0,
+        job_id="youtube_live_comment",
     )
 
     _register_kiatsu_jobs(scheduler)
