@@ -1,7 +1,11 @@
+
 import traceback
+from datetime import datetime
+from zoneinfo import ZoneInfo
 
 from flask import request
 
+from app.models import db, Comment
 from app.media.media_downloader import download
 from app.media.media_paths import get_media_directories
 from app.youtube.youtube_api import (
@@ -9,6 +13,45 @@ from app.youtube.youtube_api import (
     fetch_youtube_videos,
 )
 from app.utils.api_response import success, error
+
+
+JST = ZoneInfo("Asia/Tokyo")
+
+
+def register_watch_comment(video_id):
+    """動画の視聴日コメントを登録する。
+
+    同じ動画・同じ日付の初期コメントが存在する場合は登録しない。
+    """
+
+    now = datetime.now(JST)
+    today = now.date().isoformat()
+
+    initial_content = f"視聴日: {today}"
+
+    # 同じ動画・同じ日付の初期コメントが存在するか確認
+    existing_comment = Comment.query.filter_by(
+        video_id=video_id,
+        media_type="video",
+        content=initial_content,
+    ).first()
+
+    if existing_comment:
+        return False
+
+    # 初期コメントを登録
+    comment = Comment(
+        video_id=video_id,
+        author="ゲスト",
+        media_type="video",
+        content=initial_content,
+        created_at=now,
+    )
+
+    db.session.add(comment)
+    db.session.commit()
+
+    return True
 
 
 def register_youtube_routes(api_bp):
@@ -77,14 +120,19 @@ def register_youtube_routes(api_bp):
     @api_bp.route("/api/youtube/<video_id>/info", methods=["GET"])
     def get_youtube_info(video_id):
         try:
+            # YouTube APIから動画情報を取得
             video_info = fetch_youtube_video_info(video_id)
 
             if not video_info:
                 return error("Video not found", 404)
 
+            # 視聴日コメントを登録
+            register_watch_comment(video_id)
+
             return success(video_info)
 
         except Exception as e:
+            db.session.rollback()
             traceback.print_exc()
 
             return error(str(e), 500)
