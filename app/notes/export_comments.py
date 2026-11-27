@@ -13,6 +13,46 @@ from myutils.markdown.vault import Note
 JST = ZoneInfo("Asia/Tokyo")
 
 
+def get_comment_media_name(comment):
+    media_type = comment.media_type or "video"
+
+    if media_type == "video":
+        item = VideoDataModel.query.get(comment.video_id)
+
+        if item:
+            return item.original_name
+
+        return comment.video_id
+
+    elif media_type == "audio":
+        item = MusicDataModel.query.get(comment.video_id)
+
+        if item:
+            return item.original_name
+
+        return comment.video_id
+
+    elif media_type == "youtube":
+        try:
+            yt_info = fetch_youtube_video_info(comment.video_id)
+
+            if yt_info:
+                return yt_info.get(
+                    "filetitle",
+                    comment.video_id,
+                )
+
+        except Exception as e:
+            print(
+                f"YouTube video info fetch error "
+                f"for ID {comment.video_id}: {e}"
+            )
+
+        return comment.video_id
+
+    return comment.video_id
+
+
 def export_comments_to_md(output_dir=None, target_date=None):
     """
     指定した日のコメントを取得し、Markdownファイルとして出力する。
@@ -89,43 +129,22 @@ def export_comments_to_md(output_dir=None, target_date=None):
         "",
     ]
 
+    
     for c in comments:
         time_str = c.created_at.strftime("%H:%M:%S")
         media_type = c.media_type or "video"
 
-        if media_type == "video":
-            item = VideoDataModel.query.get(c.video_id)
-            media_name = item.original_name if item else c.video_id
+        # メディア名を取得
+        media_name = get_comment_media_name(c)
 
-        elif media_type == "audio":
-            item = MusicDataModel.query.get(c.video_id)
-            media_name = item.original_name if item else c.video_id
-
-        else:
-            media_name = "YouTube動画"
-
-            try:
-                yt_info = fetch_youtube_video_info(c.video_id)
-
-                if yt_info:
-                    media_name = yt_info.get(
-                        "filetitle",
-                        c.video_id,
-                    )
-
-            except Exception as e:
-                print(
-                    f"YouTube API fetch error for ID "
-                    f"{c.video_id}: {e}"
-                )
-
+        # 見出しをUnicode NFC形式に正規化
         media_name = unicodedata.normalize(
             "NFC",
             media_name,
         )
 
         watch_url = (
-            f"http://localhost:5173/watch"
+            f"http://localhost:5000/react/MediaPlayer/watch"
             f"?v={c.video_id}&type={media_type}"
         )
 
@@ -142,6 +161,7 @@ def export_comments_to_md(output_dir=None, target_date=None):
         md_lines.append("- **内容**:")
         md_lines.append(quoted_content)
         md_lines.append("")
+
 
     with open(file_path, "w", encoding="utf-8") as f:
         f.write("\n".join(md_lines))

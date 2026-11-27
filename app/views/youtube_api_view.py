@@ -32,7 +32,7 @@ def register_watch_comment(video_id):
     # 同じ動画・同じ日付の初期コメントが存在するか確認
     existing_comment = Comment.query.filter_by(
         video_id=video_id,
-        media_type="video",
+        media_type="youtube",
         content=initial_content,
     ).first()
 
@@ -43,7 +43,7 @@ def register_watch_comment(video_id):
     comment = Comment(
         video_id=video_id,
         author="ゲスト",
-        media_type="video",
+        media_type="youtube",
         content=initial_content,
         created_at=now,
     )
