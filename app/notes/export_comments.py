@@ -1,3 +1,4 @@
+import re
 import os
 import unicodedata
 from datetime import date, datetime, time, timedelta
@@ -11,6 +12,35 @@ from myutils.markdown.vault import Note
 
 
 JST = ZoneInfo("Asia/Tokyo")
+
+
+def is_watch_date_comment(content: str) -> bool:
+    """
+    デフォルトの視聴日コメントかどうかを判定する。
+
+    対象例:
+        視聴日: 2026-11-27
+
+    それ以外のコメントは通常コメントとして扱う。
+    """
+    if not content:
+        return False
+
+    content = content.strip()
+
+    match = re.fullmatch(
+        r"視聴日:\s*(\d{4}-\d{2}-\d{2})",
+        content,
+    )
+
+    if not match:
+        return False
+
+    try:
+        datetime.strptime(match.group(1), "%Y-%m-%d")
+        return True
+    except ValueError:
+        return False
 
 
 def get_comment_media_name(comment):
@@ -130,7 +160,19 @@ def export_comments_to_md(output_dir=None, target_date=None):
     ]
 
     
-    for c in comments:
+    # コメントを視聴記録と通常コメントに分類
+    watch_comments = [
+        c for c in comments
+        if is_watch_date_comment(c.content)
+    ]
+
+    normal_comments = [
+        c for c in comments
+        if not is_watch_date_comment(c.content)
+    ]
+
+    # コメント1件分のMarkdown出力
+    def append_comment(c):
         time_str = c.created_at.strftime("%H:%M:%S")
         media_type = c.media_type or "video"
 
@@ -153,7 +195,7 @@ def export_comments_to_md(output_dir=None, target_date=None):
             for line in c.content.splitlines()
         )
 
-        md_lines.append(f"## {media_name}")
+        md_lines.append(f"### {media_name}")
         md_lines.append(
             f"- **URL**: [{watch_url}]({watch_url})"
         )
@@ -161,6 +203,20 @@ def export_comments_to_md(output_dir=None, target_date=None):
         md_lines.append("- **内容**:")
         md_lines.append(quoted_content)
         md_lines.append("")
+
+    # 視聴記録を出力
+    md_lines.append("## 視聴記録")
+    md_lines.append("")
+
+    for c in watch_comments:
+        append_comment(c)
+
+    # 通常コメントを出力
+    md_lines.append("## 通常コメント")
+    md_lines.append("")
+
+    for c in normal_comments:
+        append_comment(c)
 
 
     with open(file_path, "w", encoding="utf-8") as f:
