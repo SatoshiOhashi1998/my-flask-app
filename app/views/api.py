@@ -7,6 +7,7 @@ from app.views.markdown_api import register_markdown_routes
 from app.views.calendar_api import register_calendar_routes
 from app.views.clipboard_api import register_clipboard_routes
 from app.views.test_api import register_test_routes
+from app.views.database_api import register_database_routes
 
 
 api_bp = Blueprint("api", __name__)
@@ -18,3 +19,4 @@ register_markdown_routes(api_bp)
 register_calendar_routes(api_bp)
 register_clipboard_routes(api_bp)
 register_test_routes(api_bp)
+register_database_routes(api_bp)
