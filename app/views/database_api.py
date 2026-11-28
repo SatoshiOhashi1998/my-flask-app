@@ -5,6 +5,7 @@
 """
 
 from datetime import datetime
+import os
 from sqlalchemy.exc import IntegrityError
 from flask import request
 
@@ -55,7 +56,10 @@ RESOURCE_CONFIG = {
 def _serialize(record):
     """SQLAlchemyモデルをJSON化可能な辞書に変換する。"""
     if isinstance(record, (VideoDataModel, MusicDataModel)):
-        return record.to_dict()
+        data = record.to_dict()
+        # メディアAPIと同じく、new_name の拡張子を除いた値を公開IDにする。
+        data["id"] = os.path.splitext(record.new_name)[0]
+        return data
 
     if isinstance(record, Comment):
         return {
@@ -88,6 +92,30 @@ def _serialize(record):
         }
 
     raise TypeError(f"Unsupported model: {type(record).__name__}")
+
+
+def _media_id(record):
+    """メディアAPIで使用する、拡張子なしの公開IDを返す。"""
+    return os.path.splitext(record.new_name)[0]
+
+
+def _find_media_record(model, media_id):
+    """メディア公開IDから動画・音楽レコードを検索する。
+
+    通常はDBの主キーとメディア公開IDが一致するため主キー検索を優先し、
+    一致しない既存データについては new_name から公開IDを照合する。
+    """
+    record = db.session.get(model, media_id)
+    if record is not None and _media_id(record) == media_id:
+        return record, False
+
+    matches = [
+        item for item in model.query.all()
+        if _media_id(item) == media_id
+    ]
+    if len(matches) > 1:
+        return None, True
+    return (matches[0], False) if matches else (None, False)
 
 
 def _parse_datetime(value, field_name):
@@ -183,14 +211,22 @@ def register_database_routes(api_bp):
             return error("Resource not found", 404)
 
         model = config["model"]
-        lookup_id = record_id
-        if config["integer_id"]:
-            try:
-                lookup_id = int(record_id)
-            except ValueError:
-                return error("Invalid record ID", 400)
+        if resource in {"videos", "musics"}:
+            record, ambiguous = _find_media_record(model, record_id)
+            if ambiguous:
+                return error(
+                    "Media ID is not unique; the record cannot be identified",
+                    409,
+                )
+        else:
+            lookup_id = record_id
+            if config["integer_id"]:
+                try:
+                    lookup_id = int(record_id)
+                except ValueError:
+                    return error("Invalid record ID", 400)
+            record = db.session.get(model, lookup_id)
 
-        record = db.session.get(model, lookup_id)
         if record is None:
             return error("Record not found", 404)
 
